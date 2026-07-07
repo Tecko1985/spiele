@@ -1,6 +1,6 @@
 # Spiele (v1.0)
 
-Kleine Spiele-Sammlung fürs Team – ideal, um auf der Busfahrt zum Auswärtsspiel ein bisschen Zeit zu überbrücken. Startet mit **Auto-Quartett** und **Fußball-Quartett**, weitere Spiele folgen.
+Kleine Spiele-Sammlung fürs Team – ideal, um auf der Busfahrt zum Auswärtsspiel ein bisschen Zeit zu überbrücken. Startet mit **Auto-Quartett**, **Fußball-Quartett** und **Vereine-Quartett**, weitere Spiele folgen.
 
 **Live:** https://tecko1985.github.io/spiele/
 
@@ -31,11 +31,23 @@ Zweites Spiel nach exakt demselben Prinzip wie Auto-Quartett (gleicher Code-Aufb
 
 Identisch zu Auto-Quartett: `fussball-quartett/game-service.js` (Spiellogik) und `fussball-quartett/app.js` (Screens/Rendering), nur mit eigenem Basisdeck in `fussball-quartett/mock-data.js`.
 
+## Vereine-Quartett
+
+Drittes Spiel nach exakt demselben Prinzip (eigener Firebase-Namensraum `fussballVereineQuartett/`).
+
+- **500 reale Fußballvereine** als Basisdeck, mit Liga/Land (z. B. „Bundesliga", „Premier League", „Südamerika") statt Fahrzeugtyp.
+- **Kriterien**: Kaderwert, Meistertitel, Pokaltitel, Europapokal-Titel, Stadionkapazität, Mitglieder, Vereinsalter, Nationalspieler im Kader — alle Werte sind ungefähre, gerundete Schätzwerte, keine exakten, tagesaktuellen Statistiken.
+- Ansonsten identisches Spielprinzip: Mehrgeräte-Synchronisierung, Kartenverwaltung, Bestenliste, Test-Spieler — siehe Auto-Quartett oben.
+
+### Architektur
+
+Identisch zu Auto-Quartett: `fussballvereine-quartett/game-service.js` (Spiellogik) und `fussballvereine-quartett/app.js` (Screens/Rendering), nur mit eigenem Basisdeck in `fussballvereine-quartett/mock-data.js`.
+
 ## Lokal starten
 
-Über das Preview-Tool dieses Workspaces (Eintrag `spiele` in `.claude/launch.json`, Port 8782). Hub unter `http://localhost:8782/`, Auto-Quartett unter `http://localhost:8782/auto-quartett/`, Fußball-Quartett unter `http://localhost:8782/fussball-quartett/`.
+Über das Preview-Tool dieses Workspaces (Eintrag `spiele` in `.claude/launch.json`, Port 8782). Hub unter `http://localhost:8782/`, Auto-Quartett unter `http://localhost:8782/auto-quartett/`, Fußball-Quartett unter `http://localhost:8782/fussball-quartett/`, Vereine-Quartett unter `http://localhost:8782/fussballvereine-quartett/`.
 
-## Testdurchlauf (Auto-Quartett / Fußball-Quartett)
+## Testdurchlauf (alle drei Quartett-Spiele)
 
 1. „Raum erstellen" → eigenen Namen eingeben → Lobby
 2. Über „Test-Spieler hinzufügen" auf 2–8 Spieler auffüllen
