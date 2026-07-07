@@ -149,7 +149,7 @@ function renderLobby(zustand) {
   document.getElementById("btn-spiel-starten").disabled = zustand.spieler.length < 2;
   document.getElementById("lobby-warte-hinweis").style.display = istHost ? "none" : "block";
   const groesseLabel = DECKGROESSE_LABEL[zustand.deckgroesse] || DECKGROESSE_LABEL.normal;
-  document.getElementById("lobby-modus").textContent = `🚗 Auto-Quartett · ${groesseLabel}`;
+  document.getElementById("lobby-modus").textContent = `🏟️ Fußball-Vereine-Quartett · ${groesseLabel}`;
 }
 
 function renderSpiel(zustand) {

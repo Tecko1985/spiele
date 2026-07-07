@@ -248,7 +248,41 @@ function renderAbbrechenButton(zustand) {
 
 function renderKartenverwaltungButton(zustand) {
   const btn = document.getElementById("btn-kartenverwaltung-oeffnen");
-  btn.style.display = PHASEN_MIT_ABBRUCH_BUTTON.includes(zustand.phase) ? "none" : "inline-block";
+  const sichtbar = istAdmin && !PHASEN_MIT_ABBRUCH_BUTTON.includes(zustand.phase);
+  btn.style.display = sichtbar ? "inline-block" : "none";
+}
+
+// --- Admin-Check (Kartenverwaltung ist nur für ToolsUebersicht-Admins sichtbar) ---
+// Nutzt dieselbe Anmeldung wie die ToolsUebersicht-Landingpage (gleicher Origin
+// tecko1985.github.io, localStorage-Key "tu_session_token") — kein eigenes Login hier,
+// wer dort als Admin angemeldet ist, sieht den Button auch hier automatisch.
+const TU_WORKER_URL = "https://landingpage.michel-brunner.workers.dev";
+const TU_TOKEN_KEY = "tu_session_token";
+let istAdmin = false;
+
+async function pruefeAdminStatus() {
+  let token = null;
+  try {
+    token = localStorage.getItem(TU_TOKEN_KEY);
+  } catch (e) {
+    // unkritisch, falls localStorage nicht verfügbar ist
+  }
+  if (!token) {
+    istAdmin = false;
+    return;
+  }
+  try {
+    const resp = await fetch(TU_WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: JSON.stringify({ action: "me" })
+    });
+    const daten = resp.ok ? await resp.json() : null;
+    istAdmin = !!(daten && daten.isAdmin);
+  } catch (e) {
+    istAdmin = false; // im Zweifel (Netzwerkfehler o.ä.) Button verborgen lassen
+  }
+  render(gameService.getZustand());
 }
 
 // Browser drosseln Timer/Firebase-Listener stark, sobald der Bildschirm sperrt
@@ -708,6 +742,7 @@ document.getElementById("btn-kb-abbrechen").addEventListener("click", () => {
 });
 
 gameService.onZustandsAenderung(render);
+pruefeAdminStatus();
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
