@@ -1,6 +1,6 @@
 # Spiele (v1.0)
 
-Kleine Spiele-Sammlung fürs Team – ideal, um auf der Busfahrt zum Auswärtsspiel ein bisschen Zeit zu überbrücken. Startet mit **Auto-Quartett**, weitere Spiele folgen.
+Kleine Spiele-Sammlung fürs Team – ideal, um auf der Busfahrt zum Auswärtsspiel ein bisschen Zeit zu überbrücken. Startet mit **Auto-Quartett** und **Fußball-Quartett**, weitere Spiele folgen.
 
 **Live:** https://tecko1985.github.io/spiele/
 
@@ -19,11 +19,23 @@ Digitales Kartenspiel nach dem Vorbild des klassischen „Auto Quartett" (Top-Tr
 
 Die Spiellogik liegt komplett gekapselt in `auto-quartett/game-service.js` hinter einer async/Promise-basierten API mit Subscription-Pattern (`getZustand()`/`onZustandsAenderung()`); `auto-quartett/app.js` steuert ausschließlich Screens/Rendering/Events und redet nie direkt mit den Datenquellen.
 
+## Fußball-Quartett
+
+Zweites Spiel nach exakt demselben Prinzip wie Auto-Quartett (gleicher Code-Aufbau, eigener Firebase-Namensraum `fussballQuartett/`, damit sich die beiden Spiele nicht in die Quere kommen).
+
+- **500 reale Fußballspieler** (aktuelle Stars und Legenden) als Basisdeck, mit Position (Torwart/Verteidiger/Mittelfeld/Stürmer) statt Fahrzeugtyp.
+- **Kriterien**: Marktwert, Karriere-Tore, Karriere-Vorlagen, Länderspiele, Länderspieltore, große Titel, Größe, Tempo-Wert — alle Werte sind ungefähre, gerundete Schätzwerte (wie schon beim Auto-Quartett), keine exakten, tagesaktuellen Statistiken.
+- Ansonsten identisches Spielprinzip: Mehrgeräte-Synchronisierung, Kartenverwaltung, Bestenliste, Test-Spieler — siehe Auto-Quartett oben.
+
+### Architektur
+
+Identisch zu Auto-Quartett: `fussball-quartett/game-service.js` (Spiellogik) und `fussball-quartett/app.js` (Screens/Rendering), nur mit eigenem Basisdeck in `fussball-quartett/mock-data.js`.
+
 ## Lokal starten
 
-Über das Preview-Tool dieses Workspaces (Eintrag `spiele` in `.claude/launch.json`, Port 8782). Hub unter `http://localhost:8782/`, Auto-Quartett unter `http://localhost:8782/auto-quartett/`.
+Über das Preview-Tool dieses Workspaces (Eintrag `spiele` in `.claude/launch.json`, Port 8782). Hub unter `http://localhost:8782/`, Auto-Quartett unter `http://localhost:8782/auto-quartett/`, Fußball-Quartett unter `http://localhost:8782/fussball-quartett/`.
 
-## Testdurchlauf (Auto-Quartett)
+## Testdurchlauf (Auto-Quartett / Fußball-Quartett)
 
 1. „Raum erstellen" → eigenen Namen eingeben → Lobby
 2. Über „Test-Spieler hinzufügen" auf 2–8 Spieler auffüllen
