@@ -22,6 +22,7 @@ const REICHWEITE = 0.45; // Torwart-Reichweite in Torraum-Einheiten, Tuning-Wert
 const BEREIT_ANZEIGE_MS = 1500;
 const AUFLOESUNG_ANIMATION_MS = 700;
 const WEITER_AUTO_MS = 6000;
+const BOT_ZUG_VERZOEGERUNG_MS = 1200;
 const RAEUME_PFAD = "elfmeterschiessen/raeume";
 const BESTENLISTE_PFAD = "elfmeterschiessen/bestenliste";
 
@@ -29,8 +30,11 @@ function slugifyName(name) {
   return (name || "").trim().toLowerCase().replace(/[.#$\[\]/]/g, "_") || "unbekannt";
 }
 
+// KI-Gegner (istSimuliert:true) zählen nicht für die Bestenliste — sonst würde jede
+// Solo-Partie gegen die KI die eigene Gewinnquote verzerren.
 function fuegeStatistikUpdatesHinzu(updates, spieler, gewinnerUid) {
   Object.keys(spieler).forEach(uid => {
+    if (spieler[uid].istSimuliert) return;
     const slug = slugifyName(spieler[uid].name);
     const basis = `${BESTENLISTE_PFAD}/${slug}`;
     updates[`${basis}/name`] = spieler[uid].name;
@@ -53,6 +57,7 @@ let bereitTimerGeplantFuerRunde = null;
 let aufloesungVersuchtFuerRunde = null;
 let aufloesungTimerGeplantFuerRunde = null;
 let autoWeiterTimerGeplantFuerRunde = null;
+let botZugGeplantFuer = null; // Schlüssel `${rundenNummer}:${rolle}`
 
 const authBereit = new Promise(resolve => {
   auth.onAuthStateChanged(user => {
@@ -181,6 +186,7 @@ function loeseListenerAb() {
   aufloesungVersuchtFuerRunde = null;
   aufloesungTimerGeplantFuerRunde = null;
   autoWeiterTimerGeplantFuerRunde = null;
+  botZugGeplantFuer = null;
 }
 
 function betretRaumLokal(code) {
@@ -218,11 +224,32 @@ async function erstelleRaum(spielerName) {
     siegerUid: null,
     aktuelleRunde: null,
     spieler: {
-      [eigeneUid]: { name: spielerName.trim(), avatarFarbe: SPIELER_FARBEN[0], istHost: true }
+      [eigeneUid]: { name: spielerName.trim(), avatarFarbe: SPIELER_FARBEN[0], istHost: true, istSimuliert: false }
     }
   });
   betretRaumLokal(code);
   return { erfolg: true, raumCode: code };
+}
+
+// KI-Gegner für Solo-Übung: füllt den letzten freien Platz (nur host, nur in der Lobby).
+// Kein eigenes Firebase-Auth nötig — das Host-Gerät schreibt später auch die Züge des Bots
+// direkt (siehe planeBotZugFallsNoetig unten), genau wie beim Quartett-Test-Spieler.
+async function fuegeKiGegnerHinzu() {
+  const raum = letzterOeffentlicherZustand;
+  if (!raum || raum.phase !== "lobby" || raum.hostId !== eigeneUid) return { erfolg: false };
+  const uids = Object.keys(raum.spieler || {});
+  if (uids.length >= MAX_SPIELER) return { erfolg: false, fehler: "Lobby ist schon voll." };
+
+  const botId = "bot-" + Math.random().toString(36).slice(2, 9);
+  const code = aktuellerRaumCode;
+  await db.ref(`${RAEUME_PFAD}/${code}/spieler/${botId}`).set({
+    name: "KI-Gegner",
+    avatarFarbe: SPIELER_FARBEN[uids.length % SPIELER_FARBEN.length],
+    istHost: false,
+    istSimuliert: true
+  });
+  await db.ref(`${RAEUME_PFAD}/${code}/punkte/${botId}`).set(0);
+  return { erfolg: true };
 }
 
 async function tritRaumBei(raumCode, spielerName) {
@@ -256,7 +283,8 @@ async function tritRaumBei(raumCode, spielerName) {
   await db.ref(`${RAEUME_PFAD}/${code}/spieler/${eigeneUid}`).set({
     name: spielerName.trim(),
     avatarFarbe: farbe,
-    istHost: false
+    istHost: false,
+    istSimuliert: false
   });
   await db.ref(`${RAEUME_PFAD}/${code}/punkte/${eigeneUid}`).set(0);
   betretRaumLokal(code);
@@ -396,6 +424,16 @@ function pruefeUndPlaneUebergaenge(raum) {
     beanspracheAufloesung(rundenNummer);
   }
 
+  // KI-Gegner hat kein eigenes Gerät — das (einzige) verbundene Menschen-Gerät generiert
+  // ihre Züge mit. Kein Host-Sonderfall nötig: sobald ein Bot im Raum ist, ist ohnehin nur
+  // ein echtes Gerät verbunden, also keine Doppelausführung möglich.
+  if (raum.phase === "eingabe") {
+    const schuetze = raum.spieler[runde.schuetzeUid];
+    const torwart = raum.spieler[runde.torwartUid];
+    if (schuetze && schuetze.istSimuliert && !runde.schussZiel) planeBotZugFallsNoetig(rundenNummer, "schuss");
+    if (torwart && torwart.istSimuliert && !runde.wurfZiel) planeBotZugFallsNoetig(rundenNummer, "wurf");
+  }
+
   if (raum.phase === "aufloesung" && runde.ergebnis && aufloesungTimerGeplantFuerRunde !== rundenNummer) {
     aufloesungTimerGeplantFuerRunde = rundenNummer;
     setTimeout(() => uebergangFallsPhaseUnveraendert(rundenNummer, "aufloesung", "ergebnis"), AUFLOESUNG_ANIMATION_MS);
@@ -422,6 +460,38 @@ function beanspracheAufloesung(rundenNummer) {
       }
     }
   );
+}
+
+// KI-Gegner: rein zufälliges Ziel innerhalb des Torraums, keine Taktik — bewusst so simpel
+// wie der Kategorie-Zufallszug beim Quartett-Bot, keine "richtige" KI.
+function zufallImBereich(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function zufaelligerBotSchuss() {
+  return { x: zufallImBereich(-0.85, 0.85), y: zufallImBereich(0.2, 0.85), macht: 1 };
+}
+
+function zufaelligerBotWurf() {
+  return { x: zufallImBereich(-1, 1), y: zufallImBereich(0, 0.9) };
+}
+
+function planeBotZugFallsNoetig(rundenNummer, rolle) {
+  const schluessel = `${rundenNummer}:${rolle}`;
+  if (botZugGeplantFuer === schluessel) return;
+  botZugGeplantFuer = schluessel;
+  setTimeout(() => fuehreBotZugAus(rundenNummer, rolle), BOT_ZUG_VERZOEGERUNG_MS);
+}
+
+async function fuehreBotZugAus(rundenNummer, rolle) {
+  const raum = letzterOeffentlicherZustand;
+  const code = aktuellerRaumCode;
+  if (!raum || !code || !raum.aktuelleRunde || raum.aktuelleRunde.nummer !== rundenNummer) return;
+  if (rolle === "schuss" && !raum.aktuelleRunde.schussZiel) {
+    await db.ref(`${RAEUME_PFAD}/${code}/aktuelleRunde/schussZiel`).set(zufaelligerBotSchuss()).catch(() => {});
+  } else if (rolle === "wurf" && !raum.aktuelleRunde.wurfZiel) {
+    await db.ref(`${RAEUME_PFAD}/${code}/aktuelleRunde/wurfZiel`).set(zufaelligerBotWurf()).catch(() => {});
+  }
 }
 
 // Deterministische Auflösung, kein Zufall: "vorbei" bei Schuss außerhalb des Tor-Rahmens,
@@ -516,6 +586,7 @@ async function fuehreWeiterAus(rundenNummer) {
 const gameService = {
   erstelleRaum,
   tritRaumBei,
+  fuegeKiGegnerHinzu,
   starteSpiel,
   commitSchuss,
   commitWurf,

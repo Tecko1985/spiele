@@ -108,15 +108,17 @@ function renderLobby(zustand) {
     li.innerHTML = `
       <span class="spieler-avatar" style="background:${escapeHtml(s.avatarFarbe)}">${escapeHtml(avatarInitiale(s.name))}</span>
       <span class="spieler-name">${escapeHtml(s.name)}</span>
-      <span class="spieler-badge">${s.istHost ? "Gastgeber:in" : ""}</span>
+      <span class="spieler-badge">${s.istHost ? "Gastgeber:in" : s.istSimuliert ? "🤖 KI" : ""}</span>
     `;
     liste.appendChild(li);
   });
 
   const eigener = getEigenerSpieler(zustand);
   const istHost = !!(eigener && eigener.istHost);
+  const raumVoll = zustand.spieler.length >= zustand.maxSpieler;
   document.getElementById("btn-spiel-starten").style.display = istHost ? "block" : "none";
   document.getElementById("btn-spiel-starten").disabled = zustand.spieler.length < 2;
+  document.getElementById("btn-ki-gegner-hinzufuegen").style.display = istHost && !raumVoll ? "block" : "none";
   document.getElementById("lobby-warte-hinweis").style.display = zustand.spieler.length < 2 ? "block" : "none";
   document.getElementById("lobby-modus").textContent = istHost ? "Du bist Gastgeber:in" : "";
 }
@@ -423,6 +425,10 @@ document.getElementById("btn-bestenliste-zuruecksetzen").addEventListener("click
   if (!window.confirm("Bestenliste wirklich unwiderruflich zurücksetzen?")) return;
   await gameService.setzeBestenlisteZurueck();
   zeigeBestenliste();
+});
+
+document.getElementById("btn-ki-gegner-hinzufuegen").addEventListener("click", () => {
+  gameService.fuegeKiGegnerHinzu();
 });
 
 document.getElementById("btn-spiel-starten").addEventListener("click", () => {

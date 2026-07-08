@@ -46,11 +46,12 @@ Identisch zu Auto-Quartett: `fussball-vereine-quartett/game-service.js` und `fus
 
 ## Elfmeterschießen
 
-Viertes Spiel, aber ein anderes Genre: kein Kartenspiel, sondern ein **Echtzeit-Duell zu zweit per Wisch-Geste**. Ein Handy schießt (Ball per Wisch nach vorne/links/rechts steuern), das andere hält (Torwart per Wisch in eine beliebige Richtung, inkl. diagonal, tauchen lassen) — 1v1 auf zwei Geräten, kein Einzelspieler-/Bot-Modus.
+Viertes Spiel, aber ein anderes Genre: kein Kartenspiel, sondern ein **Echtzeit-Duell zu zweit per Wisch-Geste**. Ein Handy schießt (Ball per Wisch nach vorne/links/rechts steuern), das andere hält (Torwart per Wisch in eine beliebige Richtung, inkl. diagonal, tauchen lassen) — 1v1, entweder auf zwei Geräten oder solo gegen einen KI-Gegner.
 
 - **Klassisches Format**: 5 Schüsse pro Spieler:in, abwechselnd (A, B, A, B, …). Bei Gleichstand nach 10 Schüssen läuft die Partie als Sudden Death paarweise weiter, bis nach einem abgeschlossenen Paar ein Punkteunterschied besteht.
 - **Wisch-Steuerung, kein Zufall**: Schuss-Zielposition und -Höhe ergeben sich aus Richtung/Distanz der Wisch-Geste (zu kräftig gewischt = Ball fliegt über die Latte); Torwart-Sprungziel ebenso frei aus der Wisch-Richtung. Auflösung rein geometrisch (Abstand Schussziel zu Torwart-Reichweite).
-- **Bestenliste** über alle Partien hinweg, frei einsehbar; Zurücksetzen nur für Admins sichtbar (gleiches Muster wie die Kartenverwaltung der Quartett-Spiele).
+- **KI-Gegner** (🤖 Button in der Lobby, nur für die Gastgeber:in, nur solange noch ein Platz frei ist): schießt/hält mit zufälligem Ziel (keine Taktik), zählt nicht für die eigene Bestenliste-Quote.
+- **Bestenliste** über alle Partien hinweg, frei einsehbar (KI-Partien zählen nicht mit); Zurücksetzen nur für Admins sichtbar (gleiches Muster wie die Kartenverwaltung der Quartett-Spiele).
 - Eigener Firebase-Namensraum `elfmeterschiessen/`.
 
 ### Architektur
@@ -70,11 +71,11 @@ Anders als die drei Quartett-Spiele **kein Host-Schiedsrichter-Modell** — beid
 4. Wenn du am Zug bist: Eigenschaft auf der eigenen Karte antippen
 5. Vergleich ansehen, „Weiter" antippen, bis ein:e Spieler:in alle Karten hat
 
-**Elfmeterschießen** (braucht zwei Geräte/Browser-Fenster mit demselben Raum-Code):
+**Elfmeterschießen** (zwei Geräte mit demselben Raum-Code, oder solo mit „🤖 KI-Gegner hinzufügen" in der Lobby):
 1. Gerät A: „Raum erstellen" → Name eingeben
-2. Gerät B: Raum-Code eingeben → „Raum beitreten" → Name eingeben
+2. Gerät B: Raum-Code eingeben → „Raum beitreten" → Name eingeben (oder: „🤖 KI-Gegner hinzufügen" für Solo-Übung)
 3. Gerät A (Gastgeber): „Spiel starten"
-4. Abwechselnd: wer laut Anzeige schießt, wischt den Ball nach vorne/links/rechts; wer hält, wischt den Torwart in die vermutete Richtung
+4. Abwechselnd: wer laut Anzeige schießt, wischt den Ball nach vorne/links/rechts; wer hält, wischt den Torwart in die vermutete Richtung (die KI zieht automatisch)
 5. Nach 10 Schüssen (bzw. Sudden Death) zeigt der Sieg-Screen das Endergebnis
 
 ## Akzeptierte Limitierungen
