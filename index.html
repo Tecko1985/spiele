@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Spiele</title>
+<meta name="theme-color" content="#1a56a0">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --primary: #1a56a0;
+    --primary-dark: #123d75;
+    --bg: #eef1f6;
+    --border: #d1d5db;
+    --text: #111827;
+    --muted: #6b7280;
+    --radius: 16px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .back-to-dashboard {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 6px 14px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    transition: background 0.15s ease;
+  }
+  .back-to-dashboard:hover { background: rgba(255, 255, 255, 0.28); text-decoration: none; }
+  .kopfzeile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--primary);
+    color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .kopfzeile-left, .kopfzeile-right { display: flex; align-items: center; gap: 10px; flex: 1 1 100px; }
+  .kopfzeile-right { justify-content: flex-end; }
+  .kopfzeile-titel { font-weight: 700; font-size: clamp(15px, 4vw, 18px); }
+  .header-logo { height: 32px; width: auto; display: block; }
+  main {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 32px 16px 40px;
+    text-align: center;
+  }
+  h1 { margin: 0 0 12px; font-size: clamp(24px, 7vw, 32px); }
+  .untertitel { color: var(--muted); margin: 0 0 32px; }
+  .spiele-liste { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+  .spiel-kachel {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .spiel-kachel:hover { border-color: var(--primary); box-shadow: 0 4px 16px rgba(26, 86, 160, 0.15); }
+  .spiel-icon { font-size: 32px; flex-shrink: 0; }
+  .spiel-name { font-weight: 700; font-size: 17px; margin: 0 0 2px; }
+  .spiel-beschreibung { font-size: 13px; color: var(--muted); margin: 0; }
+  .weitere-hinweis { margin-top: 24px; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="kopfzeile">
+  <div class="kopfzeile-left">
+    <span class="kopfzeile-titel">🎮 Spiele</span>
+  </div>
+  <a href="https://tecko1985.github.io/ToolsUebersicht/" class="back-to-dashboard">← Zurück zum Dashboard</a>
+  <div class="kopfzeile-right">
+    <img class="header-logo" src="logo.png" alt="1. SC 1911 e.V. Heilbad Heiligenstadt" />
+  </div>
+</header>
+
+<main>
+  <h1>🎮 Spiele</h1>
+  <p class="untertitel">Kleine Spiele fürs Team – ideal für die Busfahrt zum Auswärtsspiel.</p>
+
+  <div class="spiele-liste">
+    <a class="spiel-kachel" href="auto-quartett/index.html">
+      <span class="spiel-icon">🚗</span>
+      <span>
+        <p class="spiel-name">Auto-Quartett</p>
+        <p class="spiel-beschreibung">Digitales Kartenspiel nach dem Quartett-Prinzip, bis zu 8 Spieler:innen.</p>
+      </span>
+    </a>
+    <a class="spiel-kachel" href="fussball-quartett/index.html">
+      <span class="spiel-icon">⚽</span>
+      <span>
+        <p class="spiel-name">Fußball-Quartett</p>
+        <p class="spiel-beschreibung">Digitales Kartenspiel mit 500 realen Fußballspielern, bis zu 8 Spieler:innen.</p>
+      </span>
+    </a>
+    <a class="spiel-kachel" href="fussball-vereine-quartett/index.html">
+      <span class="spiel-icon">🏟️</span>
+      <span>
+        <p class="spiel-name">Fußball-Vereine-Quartett</p>
+        <p class="spiel-beschreibung">Digitales Kartenspiel mit 500 realen Fußballvereinen, bis zu 8 Spieler:innen.</p>
+      </span>
+    </a>
+    <a class="spiel-kachel" href="elfmeterschiessen/index.html">
+      <span class="spiel-icon">🥅</span>
+      <span>
+        <p class="spiel-name">Elfmeterschießen</p>
+        <p class="spiel-beschreibung">Echtzeit-Duell per Wisch-Geste – schießen und halten live gegeneinander, 2 Spieler:innen.</p>
+      </span>
+    </a>
+  </div>
+
+  <p class="weitere-hinweis">Weitere Spiele folgen.</p>
+</main>
+
+</body>
+</html>
