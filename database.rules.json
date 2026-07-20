@@ -1,0 +1,59 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "autoQuartett": {
+      ".read": true,
+      "raeume": {
+        "$code": { ".write": "auth != null" }
+      },
+      "geheime_karten": {
+        "$code": {
+          "$uid": { ".write": "auth != null" }
+        }
+      },
+      "bestenliste": { ".write": "auth != null" },
+      "kartenUebersteuerungen": { ".write": "auth != null" },
+      "kategorienUebersteuerungen": { ".write": "auth != null" }
+    },
+
+    "fussballQuartett": {
+      ".read": true,
+      "raeume": {
+        "$code": { ".write": "auth != null" }
+      },
+      "geheime_karten": {
+        "$code": {
+          "$uid": { ".write": "auth != null" }
+        }
+      },
+      "bestenliste": { ".write": "auth != null" },
+      "kartenUebersteuerungen": { ".write": "auth != null" },
+      "kategorienUebersteuerungen": { ".write": "auth != null" }
+    },
+
+    "fussballVereineQuartett": {
+      ".read": true,
+      "raeume": {
+        "$code": { ".write": "auth != null" }
+      },
+      "geheime_karten": {
+        "$code": {
+          "$uid": { ".write": "auth != null" }
+        }
+      },
+      "bestenliste": { ".write": "auth != null" },
+      "kartenUebersteuerungen": { ".write": "auth != null" },
+      "kategorienUebersteuerungen": { ".write": "auth != null" }
+    },
+
+    "elfmeterschiessen": {
+      ".read": true,
+      "raeume": {
+        "$code": { ".write": "auth != null" }
+      },
+      "bestenliste": { ".write": "auth != null" }
+    }
+  }
+}
