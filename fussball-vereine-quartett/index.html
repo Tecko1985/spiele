@@ -7,13 +7,14 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1a56a0">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=1.0">
+<link rel="stylesheet" href="style.css?v=1.1">
 </head>
 <body>
 
 <header class="kopfzeile">
   <div class="kopfzeile-left">
     <span class="kopfzeile-titel">🏟️ Fußball-Vereine-Quartett</span>
+    <span class="version-badge version-badge-link" id="version-badge" role="button" tabindex="0" title="Versionshistorie ansehen"></span>
     <button class="btn-abbrechen" id="btn-spiel-abbrechen" style="display:none">Abbrechen</button>
   </div>
   <a href="https://tecko1985.github.io/ToolsUebersicht/" class="back-to-dashboard">← Zurück zum Dashboard</a>
@@ -24,7 +25,13 @@
   </div>
 </header>
 
+<nav class="tabs">
+  <button data-tab="spiel" class="active">Spiel</button>
+  <button data-tab="info" style="margin-left:auto;">Info</button>
+</nav>
+
 <main id="app">
+ <div class="tab-section active" id="tab-spiel">
 
   <!-- 1: Start -->
   <section class="screen active" id="screen-start">
@@ -202,6 +209,18 @@
     </div>
   </section>
 
+ </div>
+
+ <div class="tab-section" id="tab-info">
+   <div class="info-card">
+     <h2>Über das Fußball-Vereine-Quartett <span class="version-badge" id="version-badge-2"></span></h2>
+     <p>Digitales Kartenspiel mit 500 realen Fußballvereinen — verglichen werden Marktwert, Titel, Stadion und mehr. Ein Gerät eröffnet den Raum, alle anderen treten mit dem Raumcode bei.</p>
+   </div>
+   <div class="info-card">
+     <h2>Änderungen</h2>
+     <div id="changelog-list"></div>
+   </div>
+ </div>
 </main>
 
 <div class="foto-lightbox" id="foto-lightbox">
@@ -214,6 +233,6 @@
 <script src="firebase-config.js?v=1.0"></script>
 <script src="mock-data.js?v=1.0"></script>
 <script src="game-service.js?v=1.0"></script>
-<script src="app.js?v=1.0"></script>
+<script src="app.js?v=1.1"></script>
 </body>
 </html>

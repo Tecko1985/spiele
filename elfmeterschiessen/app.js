@@ -461,3 +461,56 @@ pruefeAdminStatus();
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
+
+// ---------- Info-Tab / Versionshistorie ----------
+const APP_VERSION = "1.0";
+const APP_CHANGELOG = [
+  {
+    version: "1.0",
+    groups: [
+      { title: "Spielen", items: [
+          "1-gegen-1 in Echtzeit: eine Seite schießt, die andere hält — beide per Wisch-Geste.",
+          "Klassisches Format mit fünf Schüssen je Seite, danach Sudden Death.",
+          "Das Ziel der Gegenseite wird erst bei der Auflösung sichtbar."
+      ]},
+      { title: "Drumherum", items: [
+          "Bestenliste über alle bisherigen Duelle.",
+          "Gegen eine einfache KI spielen, wenn gerade niemand sonst da ist."
+      ]}
+    ]
+  }
+];
+
+function activateTab(name) {
+  document.querySelectorAll("nav.tabs button[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".tab-section").forEach((s) => s.classList.toggle("active", s.id === "tab-" + name));
+}
+
+function renderVersionInfo() {
+  document.querySelectorAll("#version-badge, #version-badge-2").forEach((el) => { if (el) el.textContent = "v" + APP_VERSION; });
+  const box = document.getElementById("changelog-list");
+  if (!box) return;
+  box.innerHTML = APP_CHANGELOG.map((entry) => `
+    <div class="changelog-entry">
+      <div class="cv">Version ${entry.version}</div>
+      ${entry.groups.map((g) => `
+        <div class="cgt">${g.title}</div>
+        <ul>${g.items.map((i) => `<li>${i}</li>`).join("")}</ul>`).join("")}
+    </div>`).join("");
+}
+
+function setupInfoTab() {
+  document.querySelectorAll("nav.tabs button[data-tab]").forEach((b) => {
+    b.addEventListener("click", () => activateTab(b.dataset.tab));
+  });
+  const badge = document.getElementById("version-badge");
+  if (badge) {
+    badge.addEventListener("click", () => activateTab("info"));
+    badge.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activateTab("info"); }
+    });
+  }
+  renderVersionInfo();
+}
+
+document.addEventListener("DOMContentLoaded", setupInfoTab);
