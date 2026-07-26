@@ -82,6 +82,7 @@ const MEETING_ERGEBNIS_MS = 6000;
 const SABOTAGE_HEIZUNG_MS = 45000;
 const TUEREN_SPERRE_MS = 12000;
 const SABOTAGE_COOLDOWN_MS = 25000;
+const SICHTBARE_WIRKUNG_MS = 6000;   // so lange bleibt eine sichtbare Aufgabe als Alibi stehen
 const BOT_TICK_MS = 200;
 const BOT_AUFGABE_MS = 9000;
 const BOT_STIMME_MS = 11000;
@@ -258,6 +259,7 @@ function getZustand() {
     meinePosition,
     leichen: raum.leichen || {},
     aufgaben: raum.aufgaben || { erledigt: 0, gesamt: 0 },
+    visuell: raum.visuell || {},
     sabotage: raum.sabotage || null,
     tueren: raum.tueren || {},
     meeting: raum.meeting || null,
@@ -498,6 +500,7 @@ async function starteSpiel() {
   updates[`${basis}/zuteilungZaehler`] = 0;
   updates[`${basis}/einstellungen/anzahlMaulwuerfe`] = anzahlMaulwuerfe;
   updates[`${basis}/aufgaben`] = { erledigt: 0, gesamt: teamAnzahl * einstellungen.aufgabenProSpieler };
+  updates[`${basis}/visuell`] = null;
   updates[`${basis}/leichen`] = null;
   updates[`${basis}/sabotage`] = null;
   updates[`${basis}/tueren`] = null;
@@ -793,13 +796,30 @@ async function erledigeAufgabe(stationId) {
   await db.ref(`${ROLLEN_PFAD}/${aktuellerRaumCode}/${eigeneUid}/erledigt`).set(meineErledigten).catch(() => {});
 
   // Der eigentliche Bluff: Maulwürfe dürfen dieselbe Aufgabe spielen, ihr Ergebnis zählt
-  // nur nicht für den gemeinsamen Fortschritt.
+  // nur nicht für den gemeinsamen Fortschritt — und löst auch keine sichtbare Wirkung aus.
   if (meineRolle === "team") {
     await db.ref(`${RAEUME_PFAD}/${aktuellerRaumCode}/aufgaben/erledigt`)
       .set(firebase.database.ServerValue.increment(1)).catch(() => {});
+    await zeigeSichtbareWirkung(stationId);
   }
   benachrichtige();
   return { erfolg: true };
+}
+
+// Sichtbare Aufgaben hinterlassen für ein paar Sekunden eine Spur an der Station, die jeder
+// in Sichtweite sieht. Das ist das einzige harte Alibi im Spiel.
+//
+// Die Prüfung "ist das Gerät wirklich im Team?" passiert hier im Client — genau wie beim
+// Aufgabenzähler. Die Rules können das nicht abfangen, ohne die Rollen offenzulegen, und die
+// wiederum sind der Kern des Spiels. Wer seinen eigenen Client manipuliert, kann auch heute
+// schon den Fortschrittsbalken hochzählen; das ist bewusst dieselbe Vertrauensebene.
+async function zeigeSichtbareWirkung(stationId) {
+  const station = karte.stationNachId(stationId);
+  const typ = station && aufgabenModul.AUFGABEN_TYPEN[station.typ];
+  if (!typ || !typ.sichtbar) return;
+  const name = (letzterRaum && letzterRaum.spieler[eigeneUid] && letzterRaum.spieler[eigeneUid].name) || "";
+  await db.ref(`${RAEUME_PFAD}/${aktuellerRaumCode}/visuell/${stationId}`)
+    .set({ name, zeichen: typ.sichtbar, bis: serverJetzt() + SICHTBARE_WIRKUNG_MS }).catch(() => {});
 }
 
 // --- Ausschalten ("Foulspiel") ---
@@ -1283,6 +1303,14 @@ function fuehreBotTickAus() {
         zustand.aufgabenErledigt = (zustand.aufgabenErledigt || 0) + 1;
         if (zustand.aufgabenErledigt <= einstellungen.aufgabenProSpieler) {
           db.ref(`${RAEUME_PFAD}/${code}/aufgaben/erledigt`).set(firebase.database.ServerValue.increment(1)).catch(() => {});
+          // Steht der Bot dabei zufällig an einer sichtbaren Station, hinterlässt er dieselbe
+          // Spur wie ein Mensch — sonst könnte ein KI-Mitspieler nie ein Alibi vorweisen.
+          const station = karte.stationAn(neu.x, neu.y, null);
+          const typ = station && aufgabenModul.AUFGABEN_TYPEN[station.typ];
+          if (typ && typ.sichtbar) {
+            db.ref(`${RAEUME_PFAD}/${code}/visuell/${station.id}`)
+              .set({ name: bot.name, zeichen: typ.sichtbar, bis: jetzt + SICHTBARE_WIRKUNG_MS }).catch(() => {});
+          }
         }
       }
     }
@@ -1386,6 +1414,7 @@ async function neueRunde() {
   updates[`${RAEUME_PFAD}/${code}/rollenDeck`] = null;
   updates[`${RAEUME_PFAD}/${code}/zuteilungZaehler`] = 0;
   updates[`${RAEUME_PFAD}/${code}/leichen`] = null;
+  updates[`${RAEUME_PFAD}/${code}/visuell`] = null;
   updates[`${RAEUME_PFAD}/${code}/meeting`] = null;
   updates[`${RAEUME_PFAD}/${code}/sabotage`] = null;
   updates[`${RAEUME_PFAD}/${code}/tueren`] = null;
@@ -1491,6 +1520,7 @@ const gameService = {
   getZustand, onZustandsAenderung, ladeBestenliste, setzeBestenlisteZurueck,
   serverJetzt,
   // für Verifikation direkt aufrufbar (reine Funktionen, kein Firebase-Zugriff):
+  SICHTBARE_WIRKUNG_MS,
   ermittleAusschluss, anzahlMaulwuerfeFuer, mischeListe,
   MIN_SPIELER, MAX_SPIELER
 };

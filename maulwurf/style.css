@@ -311,6 +311,11 @@ body.im-spiel .aktions-leiste {
 .aufgaben-liste li:last-child { border-bottom: none; }
 .aufgaben-liste li.erledigt { color: var(--muted); text-decoration: line-through; }
 .aufgaben-liste .ort { margin-left: auto; font-size: 12px; color: var(--muted); text-decoration: none; }
+/* Sichtbare Aufgabe: verschafft ein Alibi, weil Umstehende die Arbeit mitbekommen. */
+.aufgaben-liste .sichtbar-marke {
+  font-size: 12px; font-weight: 400; color: #0284c7;
+  background: #e0f2fe; border-radius: 999px; padding: 1px 6px; margin-left: 4px;
+}
 
 .sab-tueren { margin-top: 12px; }
 .sab-tueren-gitter { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }

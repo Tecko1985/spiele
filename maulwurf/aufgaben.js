@@ -1284,6 +1284,10 @@ function reparaturHeizung(container, onHalten, onLoslassen) {
 
 // Die Schlüssel hier müssen exakt den Typen in karte.js STATIONS_TABELLE entsprechen —
 // eine Station ohne passenden Eintrag wäre eine Aufgabe, die sich nicht öffnen lässt.
+// sichtbar: Wer dabei zusieht, weiß, dass hier wirklich gearbeitet wurde — das einzige harte
+// Alibi im Spiel. Nur fünf Typen tragen die Markierung, und zwar solche, deren Wirkung auch
+// außerhalb des Minispiels plausibel zu sehen oder zu hören ist. Maulwürfe dürfen dieselbe
+// Aufgabe spielen, lösen die Anzeige aber nicht aus (siehe erledigeAufgabe).
 const AUFGABEN_TYPEN = {
   trikots:        { name: "Trikots sortieren",     start: aufgabeTrikots },
   baelle:         { name: "Bälle aufpumpen",       start: aufgabeBaelle },
@@ -1292,9 +1296,9 @@ const AUFGABEN_TYPEN = {
   linien:         { name: "Linien nachziehen",     start: aufgabeLinien },
   schluessel:     { name: "Schlüssel finden",      start: aufgabeSchluessel },
   netz:           { name: "Tornetz flicken",       start: aufgabeNetz },
-  waschgang:      { name: "Waschgang einstellen",  start: aufgabeWaschgang },
+  waschgang:      { name: "Waschgang einstellen",  start: aufgabeWaschgang, sichtbar: "🫧" },
   getraenke:      { name: "Getränke einräumen",    start: aufgabeGetraenke },
-  maehen:         { name: "Rasen mähen",           start: aufgabeMaehen },
+  maehen:         { name: "Rasen mähen",           start: aufgabeMaehen, sichtbar: "🚜" },
   pfeife:         { name: "Trillerpfeife prüfen",  start: aufgabePfeife },
   verbandskasten: { name: "Verbandskasten füllen", start: aufgabeVerbandskasten },
   tabelle:        { name: "Tabelle sortieren",     start: aufgabeTabelle },
@@ -1304,10 +1308,10 @@ const AUFGABEN_TYPEN = {
   kaffee:         { name: "Maschine entkalken",    start: aufgabeKaffee },
   elfmeterpunkt:  { name: "Elfmeterpunkt messen",  start: aufgabeElfmeterpunkt },
   wappen:         { name: "Wappen zusammensetzen", start: aufgabeWappen },
-  anpfiff:        { name: "Anpfiff abwarten",      start: aufgabeAnpfiff },
-  muell:          { name: "Müll trennen",          start: aufgabeMuell },
+  anpfiff:        { name: "Anpfiff abwarten",      start: aufgabeAnpfiff, sichtbar: "🔔" },
+  muell:          { name: "Müll trennen",          start: aufgabeMuell, sichtbar: "♻️" },
   zaehler:        { name: "Zählerstand ablesen",   start: aufgabeZaehler },
-  fahne:          { name: "Fahne hissen",          start: aufgabeFahne },
+  fahne:          { name: "Fahne hissen",          start: aufgabeFahne, sichtbar: "🚩" },
   waesche:        { name: "Wäsche sortieren",      start: aufgabeWaesche },
   inventur:       { name: "Bälle zählen",          start: aufgabeInventur }
 };

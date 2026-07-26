@@ -310,6 +310,16 @@ function zeichne(zustand) {
     zeichneMarker(wx(a.station.x), wy(a.station.y), skala, a.erledigt ? "#4b5563" : "#22c55e", a.erledigt ? "✓" : "★");
   });
 
+  // Sichtbare Aufgaben: die Spur, die jemand beim Arbeiten hinterlässt. Anders als die eigenen
+  // Aufgabenmarker sehen das ALLE — deshalb taugt es als Alibi. Der Nebel begrenzt die
+  // Reichweite von selbst, hier braucht es keine zusätzliche Abstandsprüfung.
+  Object.keys(zustand.visuell || {}).forEach(stationId => {
+    const spur = zustand.visuell[stationId];
+    const station = karte.stationNachId(stationId);
+    if (!station || !spur || spur.bis <= jetzt) return;
+    zeichneArbeitsspur(wx(station.x), wy(station.y), skala, spur, (spur.bis - jetzt) / gameService.SICHTBARE_WIRKUNG_MS);
+  });
+
   // Abkürzungen nur für Maulwürfe
   if (zustand.meineRolle === "maulwurf") {
     karte.TUNNEL.forEach(t => {
@@ -365,6 +375,46 @@ function zeichneMarker(x, y, skala, farbe, zeichen) {
   ctx.font = `${Math.round(19 * skala)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText(zeichen, x, y + 7 * skala);
+}
+
+// Arbeitsspur einer sichtbaren Aufgabe: ein Ring, der nach außen läuft und dabei verblasst,
+// dazu Zeichen und Name. Der Name gehört dazu — ohne ihn wüsste man zwar, dass hier gearbeitet
+// wurde, aber nicht von wem, und genau das ist der Punkt eines Alibis.
+function zeichneArbeitsspur(x, y, skala, spur, anteilUebrig) {
+  const puls = 1 - anteilUebrig;                      // 0 → frisch, 1 → gleich vorbei
+  const radius = (26 + 30 * (puls % 0.34) / 0.34) * skala;
+
+  ctx.save();
+  ctx.globalAlpha = 0.25 + 0.55 * anteilUebrig;
+  ctx.strokeStyle = "#38bdf8";
+  ctx.lineWidth = Math.max(3 * skala, 2);
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.globalAlpha = 0.45 + 0.45 * anteilUebrig;
+  ctx.fillStyle = "#0ea5e9";
+  ctx.beginPath();
+  ctx.arc(x, y, 21 * skala, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle = "#fff";
+  ctx.font = `${Math.round(21 * skala)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.fillText(spur.zeichen || "🛠️", x, y + 7 * skala);
+
+  // Der Name sitzt bewusst weit unterhalb: wer gerade gearbeitet hat, steht meist noch auf der
+  // Station, und dessen eigener Name schwebt über der Figur. Zu dicht beieinander überlagern
+  // sich beide zu einem unlesbaren Klumpen.
+  if (spur.name) {
+    ctx.font = `600 ${Math.max(Math.round(19 * skala), 11)}px -apple-system, Segoe UI, Roboto, sans-serif`;
+    ctx.fillStyle = "#bae6fd";
+    ctx.shadowColor = "rgba(3,7,15,0.9)";
+    ctx.shadowBlur = Math.max(5 * skala, 4);
+    ctx.fillText(spur.name.slice(0, 12), x, y + 60 * skala);
+    ctx.shadowBlur = 0;
+  }
 }
 
 function zeichneFigur(x, y, skala, spieler, zustand) {
@@ -751,16 +801,23 @@ function oeffneAufgabenliste() {
   liste.innerHTML = "";
   zustand.meineAufgaben.forEach(a => {
     if (!a.station) return;
+    const typ = aufgabenModul.AUFGABEN_TYPEN[a.station.typ];
     const li = document.createElement("li");
     li.className = a.erledigt ? "erledigt" : "";
     li.innerHTML = `<span>${a.erledigt ? "✅" : "⬜"}</span>
-      <span>${escapeHtml(stationName(a.station))}</span>
+      <span>${escapeHtml(stationName(a.station))}${typ && typ.sichtbar ? ' <b class="sichtbar-marke" title="Wer zusieht, sieht dass du wirklich arbeitest">👁</b>' : ""}</span>
       <span class="ort">${escapeHtml(raumNameZu(a.station.raum))}</span>`;
     liste.appendChild(li);
   });
+  const hatSichtbare = zustand.meineAufgaben.some(a => {
+    const typ = a.station && aufgabenModul.AUFGABEN_TYPEN[a.station.typ];
+    return typ && typ.sichtbar;
+  });
   el("aufgaben-liste-hinweis").textContent = zustand.meineRolle === "maulwurf"
-    ? "Du bist Maulwurf – diese Aufgaben zählen nicht, sehen aber echt aus."
-    : `Gemeinsamer Fortschritt: ${zustand.aufgaben.erledigt} von ${zustand.aufgaben.gesamt}`;
+    ? "Du bist Maulwurf – diese Aufgaben zählen nicht, sehen aber echt aus." +
+      (hatSichtbare ? " Vorsicht bei 👁: dort bleibt sichtbar, dass jemand gearbeitet hat – bei dir passiert nichts." : "")
+    : `Gemeinsamer Fortschritt: ${zustand.aufgaben.erledigt} von ${zustand.aufgaben.gesamt}` +
+      (hatSichtbare ? " · 👁 sehen alle in der Nähe – dein Alibi." : "");
   el("overlay-liste").classList.add("aktiv");
 }
 
@@ -1233,6 +1290,7 @@ const APP_CHANGELOG = [
           "Verräterspiel für 4 bis 10 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
           "16 beschriftete Räume, über Flure und Türen verbunden, mit begrenztem Sichtfeld.",
           "25 verschiedene Aufgaben-Minispiele an 50 Stationen – jede Runde ist anders zusammengesetzt.",
+          "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen und Räume verriegeln.",
           "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende.",
           "Einstellbar, ob nach einem Rauswurf verraten wird, ob es wirklich ein Maulwurf war."
