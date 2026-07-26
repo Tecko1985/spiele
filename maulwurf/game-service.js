@@ -1222,21 +1222,46 @@ function fuehreBotTickAus() {
     const bot = raum.spieler[botId];
     if (!bot.istSimuliert || bot.lebt === false) return;
     const zustand = botZustand[botId] || (botZustand[botId] = {});
-    const pos = positionen[botId] || { x: 520, y: 410 };
+    const pos = positionen[botId] || karte.startPositionen(1)[0];
 
     if (raum.meeting) return; // im Meeting bewegt sich niemand
 
-    // Wegpunkt-Lauf ohne Wegfindung: stumpf auf den nächsten Raummittelpunkt zu. Bleibt der
-    // Bot an einer Wand hängen, wird nach kurzer Zeit ein neuer Wegpunkt gewählt.
-    if (!zustand.ziel || karte.abstand(pos.x, pos.y, zustand.ziel.x, zustand.ziel.y) < 30 || (zustand.zielSeit && jetzt - zustand.zielSeit > 12000)) {
-      zustand.ziel = karte.BOT_WEGPUNKTE[Math.floor(Math.random() * karte.BOT_WEGPUNKTE.length)];
+    // Wegfindung statt stumpfem Zulaufen: seit die Räume nur noch über Türen erreichbar sind,
+    // würde ein Bot, der direkt auf den Raummittelpunkt zuhält, an der nächsten Wand kleben
+    // bleiben. karte.findeWeg liefert eine Wegpunktkette, die hier Punkt für Punkt abgelaufen
+    // wird; der Pfad wird nur bei einem neuen Ziel berechnet, nicht in jedem Tick.
+    if (!zustand.pfad || !zustand.pfad.length || jetzt - (zustand.zielSeit || 0) > 30000) {
+      const ziel = karte.BOT_WEGPUNKTE[Math.floor(Math.random() * karte.BOT_WEGPUNKTE.length)];
+      zustand.pfad = karte.findeWeg(pos.x, pos.y, ziel.x, ziel.y) || [];
       zustand.zielSeit = jetzt;
+      zustand.klemmt = 0;
     }
-    const dx = zustand.ziel.x - pos.x;
-    const dy = zustand.ziel.y - pos.y;
+    const naechster = zustand.pfad[0];
+    if (!naechster) return; // kein Weg gefunden – der nächste Tick würfelt ein neues Ziel
+
+    const dx = naechster.x - pos.x;
+    const dy = naechster.y - pos.y;
     const laenge = Math.hypot(dx, dy) || 1;
     const schritt = einstellungen.tempo * (BOT_TICK_MS / 1000);
     const neu = karte.bewegeMitKollision(pos.x, pos.y, (dx / laenge) * schritt, (dy / laenge) * schritt);
+
+    // Verriegelte Räume halten auch die KI auf – sonst wäre die Sabotage "Raum verriegeln"
+    // gegen Bots wirkungslos und sähe wie ein Fehler aus.
+    if (zustand.rolle !== "maulwurf" && !tuerDurchgangErlaubt(raum, pos, neu)) {
+      zustand.pfad = null;
+      return;
+    }
+
+    // Kommt der Bot trotz Pfad nicht voran, wird der Weg verworfen statt endlos gegen eine
+    // Wand zu drücken (kann passieren, wenn ihn eine Kollision aus dem Raster gedrängt hat).
+    if (karte.abstand(neu.x, neu.y, pos.x, pos.y) < schritt * 0.3) {
+      zustand.klemmt = (zustand.klemmt || 0) + 1;
+      if (zustand.klemmt > 8) { zustand.pfad = null; zustand.klemmt = 0; }
+    } else {
+      zustand.klemmt = 0;
+      if (karte.abstand(neu.x, neu.y, naechster.x, naechster.y) < 28) zustand.pfad.shift();
+    }
+
     positionen[botId] = { x: neu.x, y: neu.y, geist: false };
     db.ref(`${POSITIONEN_PFAD}/${code}/${botId}`).set({ x: Math.round(neu.x), y: Math.round(neu.y), geist: false }).catch(() => {});
 

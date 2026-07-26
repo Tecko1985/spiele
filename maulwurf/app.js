@@ -12,7 +12,12 @@ const SCREEN_FUER_PHASE = {
 };
 
 const PHASEN_MIT_VERLASSEN_BUTTON = ["lobby", "zuteilung", "laeuft"];
-const SICHTBARE_WELT_BREITE = 640; // Weltkoordinaten, die quer auf den Bildschirm passen
+
+// Die KÜRZERE Bildschirmachse zeigt immer diesen Weltausschnitt. Eine feste Weltbreite (so
+// war es vorher) funktioniert nur im Hochformat: quer gehalten würde sie oben und unten
+// abschneiden, und der Sichtkreis passte nicht mehr aufs Bild. Über die kurze Achse gerechnet
+// sieht man im Querformat mehr nach links und rechts – nie weniger als den vollen Sichtkreis.
+const SICHT_KURZE_ACHSE = 620;
 const SCHNELL_PHRASEN = [
   "Ich war in der Kabine.",
   "Wo warst du?",
@@ -40,6 +45,18 @@ const angezeigtePositionen = {}; // uid -> {x,y}, weich nachgezogene Darstellung
 
 function avatarInitiale(name) {
   return (name || "?").trim().charAt(0).toUpperCase();
+}
+
+// Der Anzeigename einer Station steht beim Minispiel, nicht bei der Karte: sonst müsste
+// derselbe Text an zwei Stellen gepflegt werden und könnte auseinanderlaufen.
+function stationName(station) {
+  const typ = station && aufgabenModul.AUFGABEN_TYPEN[station.typ];
+  return typ ? typ.name : "Aufgabe";
+}
+
+function raumNameZu(raumId) {
+  const raum = karte.RAEUME.find(r => r.id === raumId);
+  return raum ? raum.name : "";
 }
 
 // Pflicht für alle innerHTML-Templates: Namen und Chat-Texte kommen aus Firebase, sind also
@@ -83,6 +100,72 @@ document.addEventListener("visibilitychange", () => {
 });
 
 // ============================================================
+// Vollbild und Querformat
+// ============================================================
+//
+// Gespielt wird quer und formatfüllend. Dafür zwei Wege, weil kein einzelner überall
+// funktioniert: die Fullscreen-API (Android, Desktop) und – wenn die nicht greift, etwa in
+// Safari auf dem iPhone – ein Layout, das Kopfzeile und Reiter im Spiel ausblendet und den
+// Canvas über den ganzen Viewport zieht. Die Orientierungssperre gibt es nur im Vollbild und
+// längst nicht auf jedem Gerät; schlägt sie fehl, bleibt der Hinweis "quer halten" als
+// Rückfallebene, den man wegtippen kann (manche sperren die Drehung am Gerät).
+
+let querformatHinweisWeggetippt = false;
+
+function vollbildAktiv() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+async function betreteVollbild() {
+  const ziel = document.documentElement;
+  try {
+    if (!vollbildAktiv()) {
+      if (ziel.requestFullscreen) await ziel.requestFullscreen({ navigationUI: "hide" });
+      else if (ziel.webkitRequestFullscreen) ziel.webkitRequestFullscreen();
+    }
+  } catch (e) {
+    // z.B. iOS Safari: kein Vollbild für beliebige Elemente – das Layout trägt es dann allein
+  }
+  try {
+    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock("landscape");
+  } catch (e) {
+    // nicht überall erlaubt – dann übernimmt der Querformat-Hinweis
+  }
+}
+
+function verlasseVollbild() {
+  try {
+    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+  } catch (e) { /* unkritisch */ }
+  if (!vollbildAktiv()) return;
+  if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+}
+
+function aktualisiereVollbildKnopf() {
+  const btn = el("btn-vollbild");
+  if (!btn) return;
+  btn.textContent = vollbildAktiv() ? "🗗" : "⛶";
+  btn.title = vollbildAktiv() ? "Vollbild verlassen" : "Vollbild";
+}
+
+function pruefeAusrichtung() {
+  const zustand = gameService.getZustand();
+  const imSpiel = zustand.phase === "laeuft" && !zustand.meeting;
+  const hochkant = window.innerHeight > window.innerWidth * 1.05;
+  const box = el("hinweis-querformat");
+  if (box) box.style.display = imSpiel && hochkant && !querformatHinweisWeggetippt ? "flex" : "none";
+}
+
+document.addEventListener("fullscreenchange", () => { aktualisiereVollbildKnopf(); passeCanvasAn(); });
+document.addEventListener("webkitfullscreenchange", () => { aktualisiereVollbildKnopf(); passeCanvasAn(); });
+window.addEventListener("orientationchange", () => {
+  // Die neuen Maße stehen erst nach dem Umbruch fest, deshalb ein Frame warten.
+  requestAnimationFrame(() => { passeCanvasAn(); pruefeAusrichtung(); });
+});
+window.addEventListener("resize", pruefeAusrichtung);
+
+// ============================================================
 // Canvas
 // ============================================================
 
@@ -119,7 +202,7 @@ function sichtweiteFuer(zustand) {
 function zeichne(zustand) {
   if (!passeCanvasAn()) return;
   const mich = zustand.meinePosition || { x: karte.WELT_BREITE / 2, y: karte.WELT_HOEHE / 2 };
-  const skala = canvas.width / SICHTBARE_WELT_BREITE;
+  const skala = Math.min(canvas.width, canvas.height) / SICHT_KURZE_ACHSE;
   const versatzX = canvas.width / 2 - mich.x * skala;
   const versatzY = canvas.height / 2 - mich.y * skala;
 
@@ -129,7 +212,8 @@ function zeichne(zustand) {
   ctx.fillStyle = "#0b1220";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Korridore zuerst (liegen unter den Räumen und ragen in sie hinein)
+  // Gänge zuerst, dann die Räume mit ihrer Umrandung, zuletzt die Türschwellen: die Schwellen
+  // liegen bewusst ÜBER der Raumlinie und stanzen so die Öffnung in die gezeichnete Wand.
   ctx.fillStyle = "#243044";
   karte.KORRIDORE.forEach(k => ctx.fillRect(wx(k.x), wy(k.y), k.w * skala, k.h * skala));
 
@@ -139,13 +223,16 @@ function zeichne(zustand) {
     ctx.fillStyle = gesperrt ? "#3a2230" : "#2c3a52";
     ctx.fillRect(wx(r.x), wy(r.y), r.w * skala, r.h * skala);
     ctx.strokeStyle = gesperrt ? "#dc2626" : "#48597a";
-    ctx.lineWidth = Math.max(2 * skala, 2);
+    ctx.lineWidth = Math.max(2.5 * skala, 2);
     ctx.strokeRect(wx(r.x), wy(r.y), r.w * skala, r.h * skala);
-    ctx.fillStyle = "rgba(255,255,255,0.34)";
-    ctx.font = `${Math.round(15 * skala)}px -apple-system, Segoe UI, Roboto, sans-serif`;
+    ctx.fillStyle = "rgba(255,255,255,0.36)";
+    ctx.font = `${Math.round(26 * skala)}px -apple-system, Segoe UI, Roboto, sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText(r.name, wx(r.x + r.w / 2), wy(r.y + 26));
+    ctx.fillText(r.name, wx(r.x + r.w / 2), wy(r.y + 40));
   });
+
+  ctx.fillStyle = "#33415c";
+  karte.TUEREN.forEach(t => ctx.fillRect(wx(t.x), wy(t.y), t.w * skala, t.h * skala));
 
   // Notfallknopf
   zeichneMarker(wx(karte.NOTFALLKNOPF.x), wy(karte.NOTFALLKNOPF.y), skala, "#dc2626", "📣");
@@ -177,12 +264,12 @@ function zeichne(zustand) {
     const leiche = zustand.leichen[uid];
     ctx.fillStyle = leiche.farbe || "#dc2626";
     ctx.beginPath();
-    ctx.ellipse(wx(leiche.x), wy(leiche.y), 15 * skala, 9 * skala, 0, 0, Math.PI * 2);
+    ctx.ellipse(wx(leiche.x), wy(leiche.y), 19 * skala, 12 * skala, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#fff";
-    ctx.font = `${Math.round(15 * skala)}px sans-serif`;
+    ctx.font = `${Math.round(20 * skala)}px sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText("✖", wx(leiche.x), wy(leiche.y) + 5 * skala);
+    ctx.fillText("✖", wx(leiche.x), wy(leiche.y) + 7 * skala);
   });
 
   // Mitspielende. Die eigene Figur kommt aus der lokalen Position (flüssig), fremde aus den
@@ -213,12 +300,12 @@ function zeichne(zustand) {
 function zeichneMarker(x, y, skala, farbe, zeichen) {
   ctx.fillStyle = farbe;
   ctx.beginPath();
-  ctx.arc(x, y, 13 * skala, 0, Math.PI * 2);
+  ctx.arc(x, y, 17 * skala, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#fff";
-  ctx.font = `${Math.round(14 * skala)}px sans-serif`;
+  ctx.font = `${Math.round(19 * skala)}px sans-serif`;
   ctx.textAlign = "center";
-  ctx.fillText(zeichen, x, y + 5 * skala);
+  ctx.fillText(zeichen, x, y + 7 * skala);
 }
 
 function zeichneFigur(x, y, skala, spieler, zustand) {
@@ -234,9 +321,9 @@ function zeichneFigur(x, y, skala, spieler, zustand) {
   ctx.stroke();
 
   ctx.fillStyle = "#fff";
-  ctx.font = `bold ${Math.round(12 * skala)}px -apple-system, Segoe UI, Roboto, sans-serif`;
+  ctx.font = `bold ${Math.round(21 * skala)}px -apple-system, Segoe UI, Roboto, sans-serif`;
   ctx.textAlign = "center";
-  ctx.fillText(spieler.name.slice(0, 12), x, y - 22 * skala);
+  ctx.fillText(spieler.name.slice(0, 12), x, y - 26 * skala);
 }
 
 // Nebel: alles außerhalb des Sichtkreises abdunkeln. Der Kreis wird als zweiter, gegenläufig
@@ -410,7 +497,7 @@ function ermittleAktion(zustand) {
 
   const offeneIds = zustand.meineAufgaben.filter(a => !a.erledigt).map(a => a.id);
   const station = karte.stationAn(pos.x, pos.y, offeneIds);
-  if (station) return { typ: "aufgabe", station, zeichen: "🛠️", label: station.name };
+  if (station) return { typ: "aufgabe", station, zeichen: "🛠️", label: stationName(station) };
 
   if (zustand.meineRolle === "maulwurf") {
     const tunnel = karte.tunnelAn(pos.x, pos.y);
@@ -546,7 +633,7 @@ function oeffneAufgabe(station) {
   schliesseOverlay();
   overlayOffen = "aufgabe";
   aktiveStationId = station.id;
-  el("aufgabe-titel").textContent = station.name;
+  el("aufgabe-titel").textContent = stationName(station);
   const inhalt = el("aufgabe-inhalt");
   inhalt.innerHTML = "";
   aktiveAufgabeAufraeumen = typ.start(inhalt, async () => {
@@ -594,8 +681,8 @@ function oeffneAufgabenliste() {
     const li = document.createElement("li");
     li.className = a.erledigt ? "erledigt" : "";
     li.innerHTML = `<span>${a.erledigt ? "✅" : "⬜"}</span>
-      <span>${escapeHtml(a.station.name)}</span>
-      <span class="ort">${escapeHtml((karte.RAEUME.find(r => r.id === a.station.raum) || {}).name || "")}</span>`;
+      <span>${escapeHtml(stationName(a.station))}</span>
+      <span class="ort">${escapeHtml(raumNameZu(a.station.raum))}</span>`;
     liste.appendChild(li);
   });
   el("aufgaben-liste-hinweis").textContent = zustand.meineRolle === "maulwurf"
@@ -638,6 +725,15 @@ function render(zustand) {
 
   const phasenWechsel = letztePhase !== zustand.phase;
   letztePhase = zustand.phase;
+
+  // Nur auf dem Spielfeld wird formatfüllend gerendert – Lobby, Meeting und Ende bleiben im
+  // normalen Seitenlayout, dort ist die Kopfzeile mit dem Verlassen-Knopf wichtiger.
+  document.body.classList.toggle("im-spiel", zustand.phase === "laeuft" && !zustand.meeting);
+  if (zustand.phase === "start") {
+    querformatHinweisWeggetippt = false;
+    verlasseVollbild();
+  }
+  pruefeAusrichtung();
 
   el("btn-spiel-abbrechen").style.display = PHASEN_MIT_VERLASSEN_BUTTON.includes(zustand.phase) ? "inline-block" : "none";
 
@@ -925,10 +1021,23 @@ el("input-raumcode").addEventListener("input", e => { e.target.value = e.target.
 
 el("btn-name-bestaetigen").addEventListener("click", async () => {
   const name = el("input-spielername").value.trim();
+  // Vollbild muss aus einer Nutzergeste heraus angefordert werden. Dieser Klick ist der
+  // einzige, den ALLE machen – wer nur beitritt, tippt später nichts mehr an, bis die Partie
+  // schon läuft. Bewusst vor dem await, sonst gilt die Geste als abgelaufen.
+  betreteVollbild();
   const ergebnis = ausstehenderModus === "erstellen"
     ? await gameService.erstelleRaum(name)
     : await gameService.tritRaumBei(raumcodeEingabe, name);
   if (!ergebnis.erfolg) el("name-eingabe-fehler").textContent = ergebnis.fehler || "Das hat nicht funktioniert.";
+});
+
+el("btn-vollbild").addEventListener("click", () => {
+  if (vollbildAktiv()) verlasseVollbild(); else betreteVollbild();
+});
+
+el("btn-querformat-egal").addEventListener("click", () => {
+  querformatHinweisWeggetippt = true;
+  pruefeAusrichtung();
 });
 
 el("btn-name-zurueck").addEventListener("click", () => showScreen("screen-start"));
@@ -1027,6 +1136,7 @@ SCHNELL_PHRASEN.forEach(text => {
 });
 
 richteJoystickEin();
+aktualisiereVollbildKnopf();
 gameService.onZustandsAenderung(render);
 pruefeAdminStatus();
 laufAnimation = requestAnimationFrame(schleife);
@@ -1043,9 +1153,14 @@ const APP_CHANGELOG = [
     groups: [
       { title: "Spielen", items: [
           "Verräterspiel für 4 bis 10 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
-          "Zehn Räume mit sechs verschiedenen Aufgaben-Minispielen und begrenztem Sichtfeld.",
+          "16 Räume, über Flure und Türen verbunden, mit begrenztem Sichtfeld.",
+          "25 verschiedene Aufgaben-Minispiele an 50 Stationen – jede Runde ist anders zusammengesetzt.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen und Räume verriegeln.",
           "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter."
+      ]},
+      { title: "Am Handy", items: [
+          "Quer halten: Das Spielfeld läuft formatfüllend über den ganzen Bildschirm.",
+          "Vollbild lässt sich jederzeit über das Symbol oben rechts ein- und ausschalten."
       ]},
       { title: "Fair verteilt", items: [
           "Die Rollen zieht jedes Handy selbst aus einem anonym gemischten Stapel – auch das Gerät der Gastgeberin oder des Gastgebers erfährt nichts.",

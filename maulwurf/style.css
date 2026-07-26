@@ -180,7 +180,60 @@ h1, h2 { margin: 0 0 12px; }
 .screen-vollbild { display: none; }
 .screen-vollbild.active { display: block; }
 
+/* Gespielt wird formatfüllend: im Spiel fallen Kopfzeile, Reiter und Seitenränder weg und
+   der Canvas nimmt den ganzen Viewport ein. Das ist der Weg, der auch dort greift, wo die
+   Fullscreen-API nicht erlaubt ist (Safari auf dem iPhone kennt kein Vollbild für beliebige
+   Elemente) — die API in app.js kommt oben drauf, wenn das Gerät sie anbietet. */
+body.im-spiel { overflow: hidden; }
+body.im-spiel .kopfzeile,
+body.im-spiel nav.tabs { display: none; }
+body.im-spiel main#app { max-width: none; margin: 0; padding: 0; }
+body.im-spiel #screen-spiel.active { position: fixed; inset: 0; z-index: 20; }
+
+body.im-spiel .spiel-hud {
+  position: absolute; z-index: 6; top: 0; left: 0; right: 0;
+  padding: calc(6px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
+           10px calc(12px + env(safe-area-inset-left));
+  background: linear-gradient(180deg, rgba(6, 11, 20, 0.85) 0%, rgba(6, 11, 20, 0) 100%);
+  pointer-events: none; /* sonst schluckt der HUD-Streifen Tipper aufs Spielfeld */
+}
+body.im-spiel .hud-zeile { color: rgba(255, 255, 255, 0.88); }
+body.im-spiel .hud-vollbild { pointer-events: auto; }
+body.im-spiel .spielfeld-huelle {
+  position: absolute; inset: 0;
+  margin: 0; border-radius: 0; aspect-ratio: auto; box-shadow: none;
+}
+/* Bedienelemente aus der Notch/dem Home-Indicator heraushalten */
+body.im-spiel .joystick {
+  left: calc(16px + env(safe-area-inset-left));
+  bottom: calc(16px + env(safe-area-inset-bottom));
+}
+body.im-spiel .aktions-leiste {
+  right: calc(14px + env(safe-area-inset-right));
+  bottom: calc(14px + env(safe-area-inset-bottom));
+}
+
+.querformat-hinweis {
+  position: absolute; inset: 0; z-index: 8;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(6, 11, 20, 0.93); padding: 18px; text-align: center;
+}
+.querformat-karte { max-width: 330px; color: #fff; }
+.querformat-icon { font-size: 46px; display: block; animation: kippen 2.2s ease-in-out infinite; }
+.querformat-karte p { font-size: 15px; line-height: 1.5; margin: 14px 0 18px; }
+@keyframes kippen {
+  0%, 40%, 100% { transform: rotate(0deg); }
+  55%, 85% { transform: rotate(-90deg); }
+}
+@media (prefers-reduced-motion: reduce) { .querformat-icon { animation: none; } }
+
 .spiel-hud { padding-top: 12px; }
+.hud-vollbild {
+  flex: 0 0 auto; margin-left: 10px;
+  width: 34px; height: 34px; border-radius: 8px; line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.32); background: rgba(17, 24, 39, 0.55);
+  color: #fff; font-size: 15px; cursor: pointer;
+}
 .hud-balken {
   height: 12px; border-radius: 999px; background: #dbe2ec;
   overflow: hidden; border: 1px solid var(--border);
@@ -267,8 +320,70 @@ h1, h2 { margin: 0 0 12px; }
 }
 
 /* ---------- Aufgaben-Minispiele ---------- */
+/* 25 Minispiele teilen sich wenige Bausteine (Gitter, Kachel, Zeile, Regler, Ziffernblock),
+   statt für jedes eigene Klassen mitzuschleppen. Neue Aufgaben brauchen dadurch meist gar
+   kein neues CSS mehr. Alle Bedienflächen sind mindestens fingergroß. */
 .af-anleitung { font-size: 14px; color: var(--muted); margin: 0 0 14px; }
 .af-status { font-size: 13px; color: var(--primary); font-weight: 600; margin: 12px 0 0; min-height: 18px; }
+
+.af-gitter { display: grid; grid-template-columns: repeat(var(--spalten, 4), 1fr); gap: 6px; }
+.af-kachel {
+  position: relative; overflow: hidden; padding: 0;
+  aspect-ratio: 1; min-height: 40px; border-radius: 10px;
+  border: 2px solid var(--border); background: #fff; color: var(--text);
+  font-size: 22px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.af-kachel.zu { background: var(--primary); border-color: var(--primary); color: #fff; }
+.af-kachel.offen { background: #fff; color: var(--text); }
+.af-kachel.gut { background: var(--success); border-color: var(--success); color: #fff; }
+.af-kachel.aktiv { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26, 86, 160, 0.25); }
+.af-kachel.falsch { background: #fee2e2; border-color: var(--gefahr); }
+.af-kachel:disabled { cursor: default; }
+.af-netz .af-kachel.heil { background: #e8edf5; border-color: #cbd5e1; }
+.af-netz .af-kachel.loch { background: #1f2937; border-color: #111827; }
+.af-rasen { touch-action: none; }
+.af-rasen .af-halm { background: #86efac; border-color: #4ade80; }
+.af-rasen .af-halm.gut { background: #166534; border-color: #14532d; }
+.af-stollen .af-fuellung { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: rgba(5, 122, 85, 0.4); }
+
+.af-zeilen { display: flex; flex-direction: column; gap: 6px; }
+.af-zeile {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 11px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: #fff; color: var(--text); font-size: 14px; cursor: pointer; text-align: left;
+}
+.af-zeile.gut { background: var(--success); border-color: var(--success); color: #fff; }
+
+.af-regler-liste { display: flex; flex-direction: column; gap: 12px; }
+.af-regler { display: block; text-align: left; }
+.af-regler-kopf { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.af-regler-kopf b { color: var(--primary); }
+.af-regler input[type="range"] { width: 100%; margin: 4px 0 0; }
+.af-regler-wert { font-size: 13px; font-weight: 700; color: var(--muted); }
+.af-regler-wert.gut { color: var(--success); }
+
+.af-ziffernblock { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+.af-ziffernblock button {
+  padding: 12px 0; font-size: 18px; font-weight: 700; border-radius: 8px;
+  border: 1px solid var(--border); background: #fff; color: var(--text); cursor: pointer;
+}
+.af-ziffernblock .af-ok { background: var(--primary); color: #fff; border-color: var(--primary); }
+.af-eingabefeld {
+  margin-top: 10px; padding: 10px; border-radius: 8px;
+  background: #111827; color: #4ade80; letter-spacing: 3px;
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px;
+}
+.af-zaehlwerk { display: flex; gap: 4px; justify-content: center; }
+.af-zaehlwerk span {
+  background: #111827; color: #fff; border-radius: 4px; padding: 8px 10px;
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px;
+}
+.af-streufeld { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; font-size: 22px; }
+.af-merkzettel, .af-vorlage {
+  display: flex; gap: 8px; justify-content: center; font-size: 24px;
+  background: #f3f4f6; border-radius: 8px; padding: 8px; margin-bottom: 10px;
+}
 
 .af-trikots { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .af-trikot {
@@ -288,7 +403,18 @@ h1, h2 { margin: 0 0 12px; }
   border-radius: 4px; background: var(--primary); transition: left 40ms linear;
 }
 .af-nadel.im-ziel { background: var(--success); }
-.af-pumpe { margin-top: 14px; touch-action: none; }
+.af-pumpe, .af-pusten { margin-top: 14px; touch-action: none; }
+
+.af-saeule {
+  position: relative; height: 130px; width: 64px; margin: 0 auto; overflow: hidden;
+  background: #e5e7eb; border: 1px solid var(--border); border-radius: 8px;
+}
+.af-zielband { position: absolute; left: 0; right: 0; background: rgba(5, 122, 85, 0.28); }
+.af-pegel {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+  background: var(--primary); transition: height 60ms linear;
+}
+.af-pegel.gut { background: var(--success); }
 
 .af-ecken { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 220px; margin: 0 auto; }
 .af-ecke {
@@ -297,11 +423,11 @@ h1, h2 { margin: 0 0 12px; }
 }
 .af-ecke.aktiv { background: var(--primary); color: #fff; }
 
-.af-kistenbahn {
+.af-bahn {
   position: relative; height: 42px; border-radius: 8px;
   background: #e5e7eb; border: 1px solid var(--border); margin-bottom: 14px; overflow: hidden;
 }
-.af-kistenzone { position: absolute; top: 0; bottom: 0; background: rgba(5, 122, 85, 0.3); }
+.af-zone { position: absolute; top: 0; bottom: 0; background: rgba(5, 122, 85, 0.3); }
 .af-greifer { position: absolute; top: 6px; font-size: 22px; margin-left: -11px; }
 
 .af-linienfeld {
@@ -317,13 +443,68 @@ h1, h2 { margin: 0 0 12px; }
 .af-linienstart { left: 4%; top: 80%; }
 .af-linienziel { right: 4%; top: 80%; }
 
-.af-memory { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.af-karte {
-  height: 64px; border-radius: 10px; border: 2px solid var(--primary);
-  background: var(--primary); color: #fff; font-size: 26px; cursor: pointer;
+.af-tonnen { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.af-tonnen button {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px; border-radius: 10px; border: 2px solid var(--border);
+  background: #fff; color: var(--text); font-size: 26px; cursor: pointer;
 }
-.af-karte.offen { background: #fff; color: var(--text); }
-.af-karte.gefunden { background: var(--success); border-color: var(--success); color: #fff; cursor: default; }
+.af-tonnen button span { font-size: 11px; font-weight: 600; color: var(--muted); }
+.af-tonnen button.falsch { border-color: var(--gefahr); background: #fee2e2; }
+.af-muellstueck { font-size: 46px; height: 58px; line-height: 58px; }
+
+.af-schloss { display: flex; gap: 12px; justify-content: center; }
+.af-rad { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.af-rad button {
+  width: 52px; padding: 8px 0; border-radius: 6px; border: 1px solid var(--border);
+  background: #fff; color: var(--primary); font-size: 14px; cursor: pointer;
+}
+.af-radwert {
+  width: 52px; padding: 8px 0; border-radius: 6px; background: #111827; color: #fff;
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px; font-weight: 700;
+}
+.af-radwert.gut { background: var(--success); }
+
+.af-kabel { display: flex; justify-content: space-between; gap: 36px; padding: 0 8px; }
+.af-kabel-spalte { display: flex; flex-direction: column; gap: 10px; flex: 0 0 auto; }
+.af-stecker {
+  width: 52px; height: 36px; border-radius: 6px; padding: 0;
+  border: 2px solid rgba(0, 0, 0, 0.25); cursor: pointer;
+}
+.af-stecker.aktiv { box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.4); }
+.af-stecker.gut { border-color: #111827; opacity: 0.45; cursor: default; }
+.af-stecker.falsch { border-color: var(--gefahr); }
+
+.af-massband { padding: 0 6px; }
+.af-massband-wert {
+  font-size: 26px; font-weight: 800; color: var(--primary); margin-bottom: 10px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.af-massband-wert.gut { color: var(--success); }
+.af-massband input[type="range"] { width: 100%; }
+
+.af-mast { position: relative; height: 150px; width: 150px; margin: 0 auto; }
+.af-mast::before {
+  content: ""; position: absolute; left: 14px; top: 0; bottom: 0;
+  width: 6px; background: #9ca3af; border-radius: 3px;
+}
+.af-fahne { position: absolute; left: 22px; bottom: 0%; font-size: 34px; transition: bottom 0.2s ease; }
+.af-seil {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 86px;
+  border: 2px dashed var(--primary); border-radius: 10px; color: var(--primary);
+  font-size: 12px; font-weight: 600; touch-action: none; cursor: grab;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.af-ampel {
+  width: 100%; max-width: 220px; height: 92px; margin: 0 auto; gap: 4px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: 12px; border: 2px solid var(--border); background: #f3f4f6;
+  color: var(--muted); font-size: 30px; cursor: pointer;
+}
+.af-ampel span { font-size: 13px; font-weight: 600; }
+.af-ampel.los { background: var(--success); border-color: var(--success); color: #fff; }
+.af-ampel.gut { background: var(--primary); border-color: var(--primary); color: #fff; }
 
 .af-sicherungen { display: flex; gap: 8px; justify-content: center; }
 .af-sicherung {
@@ -430,3 +611,26 @@ nav.tabs button.active { color: var(--primary); border-bottom-color: var(--prima
 .changelog-entry .cv { font-weight: 700; color: var(--primary); margin-bottom: 8px; }
 .changelog-entry .cgt { font-weight: 600; font-size: 13px; margin: 8px 0 4px; }
 .changelog-entry ul { margin: 0; padding-left: 20px; color: var(--muted); line-height: 1.6; }
+
+/* ---------- Querformat auf flachen Displays ---------- */
+/* Quer gehalten bleiben auf einem Handy oft nur ~350 px Höhe. Die Aufgabenkarte darf dann
+   breiter werden und alles rückt zusammen — sonst schiebt schon die Anleitung die
+   Bedienelemente aus dem Bild. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .overlay { padding: 8px; }
+  .overlay-karte { max-width: 580px; padding: 12px 16px; }
+  .overlay-karte h3 { margin-bottom: 6px; font-size: 15px; }
+  .af-anleitung { margin-bottom: 8px; font-size: 13px; }
+  .af-status { margin-top: 8px; }
+  .af-kachel { min-height: 34px; font-size: 18px; }
+  .af-ziffernblock button { padding: 8px 0; font-size: 16px; }
+  .af-zeile { padding: 8px 12px; }
+  .af-saeule { height: 92px; }
+  .af-mast { height: 108px; }
+  .af-ampel { height: 68px; }
+  .af-ventil { width: 96px; height: 96px; font-size: 30px; }
+  .af-muellstueck { font-size: 34px; height: 42px; line-height: 42px; }
+  .af-trikot { width: 48px; height: 56px; }
+  .af-ecke { height: 56px; }
+  .af-sicherung { height: 62px; }
+}
