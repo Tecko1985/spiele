@@ -64,6 +64,7 @@
       "positionen": {
         ".read": true,
         "$code": {
+          ".write": "auth != null && !newData.exists() && root.child('maulwurf/raeume/' + $code + '/hostId').val() === auth.uid",
           "$uid": { ".write": "auth != null && ($uid === auth.uid || $uid.beginsWith('bot-'))" }
         }
       },
@@ -74,6 +75,7 @@
 
       "geheime_rollen": {
         "$code": {
+          ".write": "auth != null && !newData.exists() && root.child('maulwurf/raeume/' + $code + '/hostId').val() === auth.uid",
           "$uid": {
             ".read": "$uid === auth.uid",
             ".write": "auth != null && ($uid === auth.uid || $uid.beginsWith('bot-'))"
@@ -84,6 +86,7 @@
       "maulwurf_team": {
         "$code": {
           ".read": "root.child('maulwurf/geheime_rollen/' + $code + '/' + auth.uid + '/rolle').val() === 'maulwurf'",
+          ".write": "auth != null && !newData.exists() && root.child('maulwurf/raeume/' + $code + '/hostId').val() === auth.uid",
           "$uid": { ".write": "auth != null && ($uid === auth.uid || $uid.beginsWith('bot-'))" }
         }
       },

@@ -141,14 +141,18 @@ let listener = null;
 let meineRolle = null;         // "team" | "maulwurf" | null
 let meineAufgaben = [];        // Stations-Ids
 let meineErledigten = [];      // Stations-Ids
-let maulwurfTeam = {};         // uid -> {name}, nur wenn ich Maulwurf bin
+let maulwurfTeamRoh = {};      // uid -> {name, runde}, nur wenn ich Maulwurf bin
 let positionen = {};           // uid -> {x,y}
 let chatVerlauf = [];
 let meinePosition = null;
 let serverOffset = 0;
 
-// Guards gegen Doppelausführung durch mehrfach feuernde on()-Events
+// Guards gegen Doppelausführung durch mehrfach feuernde on()-Events. ALLE davon, die um
+// einen await-Block liegen, gehören in ein try/finally — bleibt so ein Flag nach einem
+// Fehler stehen, ist die betroffene Funktion für den Rest der Sitzung tot.
 let zuteilungLaeuft = false;
+let botZuteilungLaeuft = false;
+let rollenNachladenLaeuft = false;
 let revealTimerFuerRunde = null;
 let meetingUebergangGeplantFuer = null;
 let ausgangGemeldetFuerRunde = null;
@@ -246,7 +250,7 @@ function getZustand() {
       station: karte.stationNachId(id),
       erledigt: meineErledigten.indexOf(id) !== -1
     })),
-    maulwurfTeam: meineRolle === "maulwurf" ? Object.keys(maulwurfTeam) : [],
+    maulwurfTeam: meineRolle === "maulwurf" ? Object.keys(aktuelleMaulwuerfe()) : [],
     positionen,
     meinePosition,
     leichen: raum.leichen || {},
@@ -283,11 +287,13 @@ function loeseListenerAb() {
   meineRolle = null;
   meineAufgaben = [];
   meineErledigten = [];
-  maulwurfTeam = {};
+  maulwurfTeamRoh = {};
   positionen = {};
   chatVerlauf = [];
   meinePosition = null;
   zuteilungLaeuft = false;
+  botZuteilungLaeuft = false;
+  rollenNachladenLaeuft = false;
   revealTimerFuerRunde = null;
   meetingUebergangGeplantFuer = null;
   ausgangGemeldetFuerRunde = null;
@@ -332,11 +338,8 @@ function betretRaumLokal(code) {
     if (!snap.exists() && chatVerlauf.length) { chatVerlauf = []; benachrichtige(); }
   });
 
-  // Eigene Rolle nachladen (z.B. nach einem Reload mitten in der Partie)
-  authBereit.then(async () => {
-    const snap = await db.ref(`${ROLLEN_PFAD}/${code}/${eigeneUid}`).once("value");
-    if (snap.exists()) uebernehmeEigeneRolle(snap.val());
-  });
+  // Die eigene Rolle wird NICHT hier nachgeladen, sondern in verarbeiteRaumZustand — erst
+  // dort ist die Rundennummer bekannt, gegen die die gespeicherte Box geprüft werden muss.
 
   // Alle Countdowns (Diskussion, Abstimmung, Heizung, Rollen-Reveal) laufen gegen absolute
   // Endzeitpunkte. Ohne eigenen Taktgeber würden sie nur bei einem Firebase-Update geprüft —
@@ -359,11 +362,35 @@ function uebernehmeEigeneRolle(daten) {
   if (meineRolle === "maulwurf" && !teamRef && aktuellerRaumCode) {
     teamRef = db.ref(`${TEAM_PFAD}/${aktuellerRaumCode}`);
     teamRef.on("value", snap => {
-      maulwurfTeam = snap.val() || {};
+      maulwurfTeamRoh = snap.val() || {};
       benachrichtige();
     });
   }
   benachrichtige();
+}
+
+// Der Knoten maulwurf_team lässt sich beim Rundenwechsel NICHT löschen: die Rules erlauben
+// Schreibzugriff nur auf $uid-Ebene, ein remove() auf den Elternknoten wird abgelehnt (und
+// der Fehler landete im .catch()). Wer in der Vorrunde Maulwurf war, blieb dadurch in der
+// Liste stehen — beim Rematch zählten die alten Einträge mit und die Siegprüfung meldete
+// sofort "Maulwürfe in Überzahl" (gefunden im E2E-Test, 2026-07-26).
+// Deshalb trägt jeder Eintrag seine Rundennummer und es wird beim LESEN gefiltert, statt
+// sich auf ein Aufräumen zu verlassen.
+// Fehlt die Rundennummer, stammt der Eintrag aus einer Version vor diesem Feld und gehört
+// zur ersten Runde. Bewusst nicht "x || 1": eine 0 ist falsy und würde damit zu 1 werden.
+function rundeVon(objekt) {
+  const wert = objekt && objekt.runde;
+  return (wert === undefined || wert === null) ? 1 : wert;
+}
+
+function aktuelleMaulwuerfe() {
+  const runde = rundeVon(letzterRaum);
+  const gefiltert = {};
+  Object.keys(maulwurfTeamRoh).forEach(uid => {
+    const eintrag = maulwurfTeamRoh[uid];
+    if (eintrag && rundeVon(eintrag) === runde) gefiltert[uid] = eintrag;
+  });
+  return gefiltert;
 }
 
 // --- Öffentliche API: Lobby ---
@@ -518,56 +545,99 @@ function waehleAufgaben(anzahl) {
   return gewaehlt.slice(0, anzahl);
 }
 
+// Die Rollenbox trägt die Rundennummer mit. Ohne sie würde eine Box, die eine neueRunde()
+// überlebt hat (verlorenes remove(), Schreib-Race), in der Folgerunde als gültige aktuelle
+// Rolle durchgehen — man behielte im Rematch seine alte Rolle (gefunden im E2E-Test,
+// 2026-07-26).
+function boxGehoertZurRunde(box, raum) {
+  return !!box && rundeVon(box) === rundeVon(raum);
+}
+
 async function zieheEigeneRolle(raum) {
   if (zuteilungLaeuft || meineRolle) return;
   const code = aktuellerRaumCode;
   if (!code || !raum.rollenDeck) return;
   zuteilungLaeuft = true;
 
-  const vorhanden = await db.ref(`${ROLLEN_PFAD}/${code}/${eigeneUid}`).once("value");
-  if (vorhanden.exists()) {
-    uebernehmeEigeneRolle(vorhanden.val());
-    zuteilungLaeuft = false;
-    return;
-  }
+  // try/finally ist hier Pflicht, nicht Kosmetik: ohne das finally bliebe zuteilungLaeuft
+  // nach einem einzigen fehlgeschlagenen Write dauerhaft true, und das Gerät bekäme in
+  // KEINER weiteren Runde je wieder eine Rolle (gefunden im E2E-Test, 2026-07-26).
+  try {
+    const vorhanden = await db.ref(`${ROLLEN_PFAD}/${code}/${eigeneUid}`).once("value");
+    if (vorhanden.exists() && boxGehoertZurRunde(vorhanden.val(), raum)) {
+      uebernehmeEigeneRolle(vorhanden.val());
+      return;
+    }
 
-  const index = await ziehIndex(code);
-  if (index === null || index >= raum.rollenDeck.length) {
+    const index = await ziehIndex(code);
+    if (index === null || index >= raum.rollenDeck.length) return;
+
+    const rolle = raum.rollenDeck[index];
+    const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
+    const daten = {
+      rolle, index, runde: raum.runde || 1,
+      aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: []
+    };
+    await db.ref(`${ROLLEN_PFAD}/${code}/${eigeneUid}`).set(daten);
+    if (rolle === "maulwurf") {
+      await db.ref(`${TEAM_PFAD}/${code}/${eigeneUid}`).set({ name: raum.spieler[eigeneUid].name, runde: raum.runde || 1 });
+    }
+    uebernehmeEigeneRolle(daten);
+  } catch (e) {
+    console.error("Rollenziehung fehlgeschlagen, nächster Takt versucht es erneut:", e);
+  } finally {
     zuteilungLaeuft = false;
-    return;
   }
-  const rolle = raum.rollenDeck[index];
-  const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
-  const daten = { rolle, index, aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: [] };
-  await db.ref(`${ROLLEN_PFAD}/${code}/${eigeneUid}`).set(daten);
-  if (rolle === "maulwurf") {
-    await db.ref(`${TEAM_PFAD}/${code}/${eigeneUid}`).set({ name: raum.spieler[eigeneUid].name });
+}
+
+// Nach einem Reload mitten in der Partie (Phase läuft schon, es wird nichts mehr gezogen)
+// die eigene Rolle nachladen — aber nur, wenn sie zur laufenden Runde gehört.
+async function ladeEigeneRolleNach(raum) {
+  if (rollenNachladenLaeuft || meineRolle || !aktuellerRaumCode) return;
+  rollenNachladenLaeuft = true;
+  try {
+    const snap = await db.ref(`${ROLLEN_PFAD}/${aktuellerRaumCode}/${eigeneUid}`).once("value");
+    if (snap.exists() && boxGehoertZurRunde(snap.val(), raum)) uebernehmeEigeneRolle(snap.val());
+  } catch (e) {
+    // unkritisch, der Sekundentakt versucht es erneut
+  } finally {
+    rollenNachladenLaeuft = false;
   }
-  uebernehmeEigeneRolle(daten);
-  zuteilungLaeuft = false;
 }
 
 // Bots haben kein eigenes Gerät — der Host zieht für sie. Das ist der eine Punkt, an dem
 // der Host mehr weiß als die anderen (siehe "Bekannte Grenzen" im Dateikopf).
 async function zieheBotRollen(raum) {
   const code = aktuellerRaumCode;
-  if (!code || raum.hostId !== eigeneUid) return;
-  const bots = Object.keys(raum.spieler).filter(uid => raum.spieler[uid].istSimuliert);
-  for (const botId of bots) {
-    const vorhanden = await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).once("value");
-    if (vorhanden.exists()) continue;
-    const index = await ziehIndex(code);
-    if (index === null || index >= raum.rollenDeck.length) return;
-    const rolle = raum.rollenDeck[index];
-    const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
-    await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).set({
-      rolle, index, aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: []
-    });
-    if (rolle === "maulwurf") {
-      await db.ref(`${TEAM_PFAD}/${code}/${botId}`).set({ name: raum.spieler[botId].name });
+  if (!code || raum.hostId !== eigeneUid || botZuteilungLaeuft) return;
+  botZuteilungLaeuft = true;
+  try {
+    const bots = Object.keys(raum.spieler).filter(uid => raum.spieler[uid].istSimuliert);
+    for (const botId of bots) {
+      const vorhanden = await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).once("value");
+      if (vorhanden.exists() && boxGehoertZurRunde(vorhanden.val(), raum)) {
+        botZustand[botId] = botZustand[botId] || {};
+        botZustand[botId].rolle = vorhanden.val().rolle;
+        continue;
+      }
+      const index = await ziehIndex(code);
+      if (index === null || index >= raum.rollenDeck.length) return;
+      const rolle = raum.rollenDeck[index];
+      const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
+      await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).set({
+        rolle, index, runde: raum.runde || 1,
+        aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: []
+      });
+      if (rolle === "maulwurf") {
+        await db.ref(`${TEAM_PFAD}/${code}/${botId}`).set({ name: raum.spieler[botId].name, runde: raum.runde || 1 });
+      }
+      botZustand[botId] = botZustand[botId] || {};
+      botZustand[botId].rolle = rolle;
     }
-    botZustand[botId] = botZustand[botId] || {};
-    botZustand[botId].rolle = rolle;
+  } catch (e) {
+    console.error("Bot-Rollenziehung fehlgeschlagen:", e);
+  } finally {
+    botZuteilungLaeuft = false;
   }
 }
 
@@ -598,6 +668,7 @@ function verarbeiteRaumZustand(raum) {
   }
 
   if (raum.phase === "laeuft") {
+    if (!meineRolle) ladeEigeneRolleNach(raum); // z.B. nach einem Reload mitten in der Partie
     pruefeSabotageAblauf(raum);
     pruefeAufgabenSieg(raum);
     pruefeRollenabhaengigenSieg(raum);
@@ -721,7 +792,7 @@ async function schalteAus(opferUid) {
   if (raum.spieler[eigeneUid].lebt === false) return { erfolg: false };
   const opfer = raum.spieler[opferUid];
   if (!opfer || opfer.lebt === false) return { erfolg: false };
-  if (maulwurfTeam[opferUid]) return { erfolg: false, fehler: "Das ist ein Maulwurf." };
+  if (aktuelleMaulwuerfe()[opferUid]) return { erfolg: false, fehler: "Das ist ein Maulwurf." };
   const cooldownBis = (raum.killCooldownBis && raum.killCooldownBis[eigeneUid]) || 0;
   if (cooldownBis > serverJetzt()) return { erfolg: false, fehler: "Noch nicht bereit." };
   const meine = positionen[eigeneUid];
@@ -930,7 +1001,7 @@ async function deckeAusgeschlosseneRolleAuf(raum) {
   const uid = meeting.ergebnis.ausgeschlossenUid;
   if (!uid) return;
   await db.ref(`${RAEUME_PFAD}/${aktuellerRaumCode}/meeting/ergebnis/warMaulwurf`)
-    .set(!!maulwurfTeam[uid]).catch(() => {});
+    .set(!!aktuelleMaulwuerfe()[uid]).catch(() => {});
 }
 
 async function beendeMeeting(raum) {
@@ -1031,9 +1102,10 @@ function pruefeRollenabhaengigenSieg(raum) {
   // Wichtig: erst prüfen, wenn die Maulwurf-Liste wirklich angekommen ist. Direkt nach dem
   // Rundenstart ist sie noch leer, und ein Check dagegen würde sofort "alle Maulwürfe
   // enttarnt" melden und die Partie im ersten Moment beenden.
-  if (Object.keys(maulwurfTeam).length === 0) return;
+  const maulwuerfe = aktuelleMaulwuerfe();
+  if (Object.keys(maulwuerfe).length === 0) return;
   const lebende = lebendeSpieler(raum);
-  const lebendeMaulwuerfe = lebende.filter(uid => maulwurfTeam[uid]).length;
+  const lebendeMaulwuerfe = lebende.filter(uid => maulwuerfe[uid]).length;
   const lebendeTeam = lebende.length - lebendeMaulwuerfe;
   if (lebendeMaulwuerfe === 0) {
     beanspracheSieg(raum, "team", "Alle Maulwürfe sind enttarnt.");
@@ -1070,8 +1142,13 @@ async function meldeEigenenAusgang(raum) {
   const habeGewonnen = (raum.sieger === "team" && meineRolle === "team") || (raum.sieger === "maulwuerfe" && meineRolle === "maulwurf");
   if (!habeGewonnen) return;
   const slug = slugifyName(raum.spieler[eigeneUid].name);
-  await db.ref(`${BESTENLISTE_PFAD}/${slug}/gewonnen`)
-    .set(firebase.database.ServerValue.increment(1)).catch(() => {});
+  // Der Name wird hier mitgeschrieben, obwohl ihn auch beanspracheSieg() setzt: geht dessen
+  // Write verloren (Gerät offline im entscheidenden Moment), stünde sonst ein Eintrag ohne
+  // Namen in der Liste und würde als "?" mit 0 % angezeigt.
+  await db.ref(`${BESTENLISTE_PFAD}/${slug}`).update({
+    name: raum.spieler[eigeneUid].name,
+    gewonnen: firebase.database.ServerValue.increment(1)
+  }).catch(() => {});
 }
 
 // Rollen-Aufdeckung am Ende: jedes Gerät schreibt nur die EIGENE Rolle. Die Rule lässt das
@@ -1265,19 +1342,28 @@ async function neueRunde() {
   Object.keys(raum.spieler || {}).forEach(uid => {
     updates[`${RAEUME_PFAD}/${code}/spieler/${uid}/lebt`] = true;
   });
+  // Reihenfolge ist wichtig: die Aufdeckung ist per Rule nur beschreibbar, solange die
+  // Partie als "beendet" gilt — also VOR dem Phasenwechsel zurück in die Lobby löschen.
+  await db.ref(`${AUFDECKUNG_PFAD}/${code}`).remove().catch(() => {});
   await db.ref().update(updates);
+  // Diese beiden Aufräum-Versuche sind bewusst nur best effort: die Rules erlauben Schreiben
+  // auf $uid-Ebene, ein remove() auf den Elternknoten gelingt nur dem Host. Die Korrektheit
+  // hängt NICHT daran — Rollen- und Maulwurf-Einträge tragen ihre Rundennummer und werden
+  // beim Lesen gefiltert (siehe boxGehoertZurRunde / aktuelleMaulwuerfe).
   await db.ref(`${ROLLEN_PFAD}/${code}`).remove().catch(() => {});
   await db.ref(`${TEAM_PFAD}/${code}`).remove().catch(() => {});
-  await db.ref(`${AUFDECKUNG_PFAD}/${code}`).remove().catch(() => {});
   await db.ref(`${CHAT_PFAD}/${code}`).remove().catch(() => {});
   meineRolle = null;
   meineAufgaben = [];
   meineErledigten = [];
-  maulwurfTeam = {};
+  maulwurfTeamRoh = {};
   if (teamRef) { teamRef.off(); teamRef = null; }
   ausgangGemeldetFuerRunde = null;
   aufdeckungGeschriebenFuerRunde = null;
   revealTimerFuerRunde = null;
+  zuteilungLaeuft = false;
+  botZuteilungLaeuft = false;
+  rollenNachladenLaeuft = false;
   return { erfolg: true };
 }
 
@@ -1285,14 +1371,14 @@ async function raeumeRaumAuf() {
   const raum = letzterRaum;
   const code = aktuellerRaumCode;
   if (raum && code && raum.hostId === eigeneUid) {
-    await Promise.all([
-      db.ref(`${RAEUME_PFAD}/${code}`).remove().catch(() => {}),
-      db.ref(`${POSITIONEN_PFAD}/${code}`).remove().catch(() => {}),
-      db.ref(`${CHAT_PFAD}/${code}`).remove().catch(() => {}),
-      db.ref(`${ROLLEN_PFAD}/${code}`).remove().catch(() => {}),
-      db.ref(`${TEAM_PFAD}/${code}`).remove().catch(() => {}),
-      db.ref(`${AUFDECKUNG_PFAD}/${code}`).remove().catch(() => {})
-    ]);
+    // Bewusst sequenziell und der Raum ZULETZT: mehrere Aufräum-Regeln prüfen gegen
+    // raeume/$code (hostId bzw. phase). Wäre der Raum schon weg, würden sie fehlschlagen.
+    await db.ref(`${AUFDECKUNG_PFAD}/${code}`).remove().catch(() => {});
+    await db.ref(`${ROLLEN_PFAD}/${code}`).remove().catch(() => {});
+    await db.ref(`${TEAM_PFAD}/${code}`).remove().catch(() => {});
+    await db.ref(`${CHAT_PFAD}/${code}`).remove().catch(() => {});
+    await db.ref(`${POSITIONEN_PFAD}/${code}`).remove().catch(() => {});
+    await db.ref(`${RAEUME_PFAD}/${code}`).remove().catch(() => {});
   }
   await verlasseLokal();
   return { erfolg: true };
