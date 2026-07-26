@@ -54,6 +54,51 @@
         "$code": { ".write": "auth != null" }
       },
       "bestenliste": { ".write": "auth != null" }
+    },
+
+    "maulwurf": {
+      "raeume": {
+        ".read": true,
+        "$code": { ".write": "auth != null" }
+      },
+      "positionen": {
+        ".read": true,
+        "$code": {
+          "$uid": { ".write": "auth != null && ($uid === auth.uid || $uid.beginsWith('bot-'))" }
+        }
+      },
+      "chat": {
+        ".read": true,
+        "$code": { ".write": "auth != null" }
+      },
+
+      "geheime_rollen": {
+        "$code": {
+          "$uid": {
+            ".read": "$uid === auth.uid",
+            ".write": "auth != null && ($uid === auth.uid || $uid.beginsWith('bot-'))"
+          }
+        }
+      },
+
+      "maulwurf_team": {
+        "$code": {
+          ".read": "root.child('maulwurf/geheime_rollen/' + $code + '/' + auth.uid + '/rolle').val() === 'maulwurf'",
+          "$uid": { ".write": "auth != null && ($uid === auth.uid || $uid.beginsWith('bot-'))" }
+        }
+      },
+
+      "aufdeckung": {
+        "$code": {
+          ".read": true,
+          ".write": "auth != null && root.child('maulwurf/raeume/' + $code + '/phase').val() === 'beendet'"
+        }
+      },
+
+      "bestenliste": {
+        ".read": true,
+        ".write": "auth != null"
+      }
     }
   }
 }
