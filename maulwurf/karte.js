@@ -14,8 +14,8 @@
 // Weltkoordinaten: 0..WELT_BREITE / 0..WELT_HOEHE. Der Canvas-Renderer in app.js skaliert
 // das auf die Bildschirmgröße, hier stehen keine Pixel-Annahmen über das Endgerät.
 
-const WELT_BREITE = 2000;
-const WELT_HOEHE = 1370;
+const WELT_BREITE = 2600;
+const WELT_HOEHE = 1500;
 
 const SPIELER_RADIUS = 16;
 const INTERAKTIONS_RADIUS = 58;
@@ -25,53 +25,81 @@ const TUNNEL_RADIUS = 46;
 // Sichtweiten in Weltkoordinaten. Maulwürfe sehen etwas weiter, bei ausgefallenem Flutlicht
 // schrumpft der Radius fürs Team drastisch (Maulwürfe behalten ihre volle Sicht — das ist
 // der eigentliche Sinn dieser Sabotage).
-const SICHT_TEAM = 265;
-const SICHT_MAULWURF = 330;
-const SICHT_TEAM_DUNKEL = 95;
+//
+// Die Werte hängen an der Raumgröße, nicht an der Weltgröße: man soll den Raum, in dem man
+// steht, gerade eben überblicken können. Mit dem Umbau auf das Original-Layout sind die Räume
+// von 250×200 auf 300×310 gewachsen — die Sichtweiten mussten deshalb mitwachsen, sonst stünde
+// man in der Mitte eines Raums und sähe seine eigenen Wände nicht mehr.
+const SICHT_TEAM = 340;
+const SICHT_MAULWURF = 420;
+const SICHT_TEAM_DUNKEL = 120;
 const SICHT_GEIST = 99999;
 
 // Verstecken-Modus: alle sehen weniger, der Fänger am wenigsten. Das dreht das
 // Kräfteverhältnis des Klassik-Modus bewusst um — dort sieht der Maulwurf am weitesten. Hier
 // weiß der Fänger ohnehin, dass ihn alle kommen sehen; sein Nachteil ist, dass er selbst kaum
 // etwas erkennt und sich an der Nähe-Anzeige entlangtasten muss.
-const SICHT_VERSTECKEN_TEAM = 210;
-const SICHT_VERSTECKEN_FAENGER = 150;
+const SICHT_VERSTECKEN_TEAM = 270;
+const SICHT_VERSTECKEN_FAENGER = 195;
 
-// Raster des Layouts. Spalten A–E und Zeilen 1–4 sind 250 x 200 groß, dazwischen liegen
-// 80 px breite Gänge mit je 35 px Wand zu den Räumen.
+// Layout nach dem Vorbild von "The Skeld" (Among Us), auf achsenparallele Rechtecke
+// zurückgeführt — die Engine kennt nur solche (siehe istBegehbar). Nachgebaut ist die
+// TOPOLOGIE, nicht jeder Pixel: welcher Raum an welchen grenzt, wo die Flure langlaufen und
+// vor allem, wie viele Ein-/Ausgänge jeder Raum hat. Genau daran hängt das Spiel.
+//
+// Die beiden Sackgassen sind Absicht und der wichtigste Teil der Vorlage:
+// **Sicherheitsraum und Sanitätsraum haben je nur EINEN Eingang.** Wer dort hineingeht, kommt
+// nur auf demselben Weg wieder heraus — deshalb ist es dort so gefährlich und deshalb ist
+// "wer war mit dir drin?" eine harte Frage. Beim Ändern des Layouts nicht versehentlich eine
+// zweite Tür spendieren.
+//
+// Der Aufenthaltsraum ist das Drehkreuz: von dort führen vier Wege weg. Wer ihn verlässt,
+// wird gesehen — das macht ihn zum sicheren Ort und zum Ausgangspunkt jeder Diskussion.
 const RAEUME = [
-  // Zeile 1
-  { id: "heimkabine",   name: "Heimkabine",       x: 75,   y: 60,   w: 250,  h: 200 },
-  { id: "gaestekabine", name: "Gästekabine",      x: 475,  y: 60,   w: 250,  h: 200 },
-  { id: "waschkueche",  name: "Waschküche",       x: 875,  y: 60,   w: 250,  h: 200 },
-  { id: "physio",       name: "Physioraum",       x: 1275, y: 60,   w: 250,  h: 200 },
-  { id: "kueche",       name: "Vereinsküche",     x: 1675, y: 60,   w: 250,  h: 200 },
-  // Zeile 2
-  { id: "geraeteraum",  name: "Geräteraum",       x: 75,   y: 410,  w: 250,  h: 200 },
-  { id: "buero",        name: "Trainerbüro",      x: 475,  y: 410,  w: 250,  h: 200 },
-  { id: "vereinsheim",  name: "Vereinsheim",      x: 875,  y: 410,  w: 250,  h: 200 },
-  { id: "sanitaer",     name: "Sanitärbereich",   x: 1275, y: 410,  w: 250,  h: 200 },
-  { id: "vorstand",     name: "Vorstandszimmer",  x: 1675, y: 410,  w: 250,  h: 200 },
-  // Zeile 3
-  { id: "keller",       name: "Materialkeller",   x: 75,   y: 760,  w: 250,  h: 200 },
-  { id: "werkstatt",    name: "Werkstatt",        x: 475,  y: 760,  w: 250,  h: 200 },
-  { id: "technik",      name: "Technikraum",      x: 875,  y: 760,  w: 250,  h: 200 },
-  { id: "schiri",       name: "Schiedsrichter",   x: 1275, y: 760,  w: 250,  h: 200 },
-  { id: "tribuene",     name: "Tribüne",          x: 1675, y: 760,  w: 250,  h: 200 },
-  // Zeile 4: der Platz zieht sich über die ganze Breite
-  { id: "rasen",        name: "Rasenplatz",       x: 75,   y: 1110, w: 1850, h: 200 }
+  // obere Reihe
+  { id: "upper-engine", name: "Maschinenraum Nord", x: 190,  y: 90,   w: 330, h: 310 },
+  { id: "cafeteria",    name: "Aufenthaltsraum",    x: 1030, y: 90,   w: 620, h: 310 },
+  { id: "weapons",      name: "Torschusswand",      x: 2020, y: 90,   w: 330, h: 310 },
+  // mittlere Reihe
+  { id: "reactor",      name: "Heizungskeller",     x: 60,   y: 540,  w: 240, h: 310 },
+  { id: "security",     name: "Hausmeisterloge",    x: 600,  y: 540,  w: 200, h: 310 },
+  { id: "medbay",       name: "Sanitätsraum",       x: 1000, y: 540,  w: 300, h: 310 },
+  { id: "admin",        name: "Geschäftsstelle",    x: 1560, y: 540,  w: 300, h: 310 },
+  { id: "o2",           name: "Grünpflege",         x: 1900, y: 540,  w: 240, h: 310 },
+  { id: "navigation",   name: "Trainerbüro",        x: 2300, y: 540,  w: 260, h: 310 },
+  // untere Reihe
+  { id: "lower-engine", name: "Maschinenraum Süd",  x: 190,  y: 990,  w: 330, h: 310 },
+  { id: "electrical",   name: "Technikraum",        x: 640,  y: 990,  w: 320, h: 310 },
+  { id: "storage",      name: "Lagerraum",          x: 1080, y: 990,  w: 420, h: 310 },
+  { id: "comms",        name: "Sprecherkabine",     x: 1560, y: 990,  w: 320, h: 310 },
+  { id: "shields",      name: "Flutlichtwarte",     x: 2060, y: 990,  w: 320, h: 310 }
 ];
 
-// Drei durchgehende Quergänge und vier Längsgänge. Die Längsgänge enden am untersten
-// Quergang — der Rasenplatz hängt über eigene Türen daran und wird nicht durchschnitten.
+// Das Flurnetz. Waagerechte Verbindungsstücke oben und rechts, drei durchgehende Längsgänge
+// und ein breiter unterer Quergang — zusammen ergibt das den Rundlauf des Originals: man kann
+// im Kreis laufen, ohne je umzudrehen. Ohne diesen Rundlauf wäre jede Verfolgung eine
+// Sackgasse und "ich bin ihm ausgewichen" keine glaubhafte Aussage mehr.
 const KORRIDORE = [
-  { id: "flur-1", x: 75,   y: 295, w: 1850, h: 80 },
-  { id: "flur-2", x: 75,   y: 645, w: 1850, h: 80 },
-  { id: "flur-3", x: 75,   y: 995, w: 1850, h: 80 },
-  { id: "gang-1", x: 360,  y: 60,  w: 80,   h: 1015 },
-  { id: "gang-2", x: 760,  y: 60,  w: 80,   h: 1015 },
-  { id: "gang-3", x: 1160, y: 60,  w: 80,   h: 1015 },
-  { id: "gang-4", x: 1560, y: 60,  w: 80,   h: 1015 }
+  // oben: Maschinenraum Nord — Aufenthaltsraum — Torschusswand
+  { id: "flur-o1", x: 555,  y: 205,  w: 440,  h: 80 },
+  { id: "flur-o2", x: 1685, y: 205,  w: 300,  h: 80 },
+  // linker Längsgang: Maschinenraum Nord ↔ Süd, mit Abzweig zum Heizungskeller
+  { id: "gang-l",  x: 340,  y: 435,  w: 80,   h: 520 },
+  { id: "flur-rk", x: 455,  y: 655,  w: 110,  h: 80 },   // Abzweig zur Hausmeisterloge
+  // mittlerer Längsgang: oberer Flur ↔ Technikraum. Kreuzt flur-o1 — die beiden überlappen
+  // bewusst, das ergibt die T-Kreuzung ohne eigene Tür.
+  { id: "gang-m",  x: 880,  y: 205,  w: 80,   h: 750 },
+  // Zugang zum Sanitätsraum — der EINZIGE, siehe Kommentar oben
+  { id: "flur-md", x: 1100, y: 435,  w: 80,   h: 70 },
+  // Aufenthaltsraum nach unten in den Lagerraum, östlich am Sanitätsraum vorbei
+  { id: "gang-c",  x: 1400, y: 435,  w: 80,   h: 520 },
+  // Aufenthaltsraum ↔ Geschäftsstelle ↔ Sprecherkabine
+  { id: "gang-a",  x: 1560, y: 435,  w: 80,   h: 70 },
+  { id: "gang-ac", x: 1660, y: 885,  w: 80,   h: 70 },
+  // rechter Längsgang: Torschusswand ↕ Grünpflege ↕ Trainerbüro ↕ Flutlichtwarte
+  { id: "gang-r",  x: 2180, y: 435,  w: 80,   h: 520 },
+  // unterer Quergang: der lange Rückweg unter allem hindurch
+  { id: "flur-u",  x: 300,  y: 1335, w: 1955, h: 80 }
 ];
 
 // Türöffnungen. Angegeben wird der Mittelpunkt der Öffnung in der Raumwand plus die Achse:
@@ -89,67 +117,94 @@ function tuer(x, y, achse) {
     : { achse: "v", x: x - TUER_BREITE / 2, y: y - TUER_TIEFE, w: TUER_BREITE, h: TUER_TIEFE * 2 };
 }
 
-// Jeder Raum hat zwei Türen (das Vereinsheim als Treffpunkt vier, der Rasenplatz drei),
-// bewusst versetzt statt symmetrisch — so gibt es kurze und lange Wege zum selben Ziel.
+// Türen. Die ANZAHL je Raum ist die eigentliche Spielinformation — sie entscheidet, ob ein
+// Raum eine Falle ist. Hausmeisterloge und Sanitätsraum haben je genau eine; Heizungskeller,
+// Grünpflege und Trainerbüro haben zwei zum selben Gang (wie im Original: zwei Türen, aber nur
+// ein Fluchtweg-System).
 const TUEREN = [
-  // Zeile 1: je nach unten in Flur 1 plus eine Seitentür in einen Längsgang
-  tuer(200, 260, "v"),  tuer(325, 160, "h"),   // Heimkabine
-  tuer(600, 260, "v"),  tuer(475, 160, "h"),   // Gästekabine
-  tuer(1000, 260, "v"), tuer(1125, 160, "h"),  // Waschküche
-  tuer(1400, 260, "v"), tuer(1275, 160, "h"),  // Physioraum
-  tuer(1800, 260, "v"), tuer(1675, 160, "h"),  // Vereinsküche
-  // Zeile 2
-  tuer(200, 410, "v"),  tuer(325, 510, "h"),   // Geräteraum
-  tuer(600, 410, "v"),  tuer(600, 610, "v"),   // Trainerbüro
-  tuer(1000, 410, "v"), tuer(1000, 610, "v"),  // Vereinsheim …
-  tuer(875, 510, "h"),  tuer(1125, 510, "h"),  // … mit zwei zusätzlichen Seitentüren
-  tuer(1400, 410, "v"), tuer(1525, 510, "h"),  // Sanitärbereich
-  tuer(1800, 410, "v"), tuer(1675, 510, "h"),  // Vorstandszimmer
-  // Zeile 3
-  tuer(200, 760, "v"),  tuer(325, 860, "h"),   // Materialkeller
-  tuer(600, 760, "v"),  tuer(600, 960, "v"),   // Werkstatt
-  tuer(1000, 760, "v"), tuer(875, 860, "h"),   // Technikraum
-  tuer(1400, 760, "v"), tuer(1525, 860, "h"),  // Schiedsrichterkabine
-  tuer(1800, 760, "v"), tuer(1800, 960, "v"),  // Tribüne
-  // Rasenplatz
-  tuer(300, 1110, "v"), tuer(1000, 1110, "v"), tuer(1700, 1110, "v")
+  // oberer Flur
+  tuer(537, 245, "h"),   // Maschinenraum Nord ↔ flur-o1
+  tuer(1012, 245, "h"),  // flur-o1 ↔ Aufenthaltsraum
+  tuer(1667, 245, "h"),  // Aufenthaltsraum ↔ flur-o2
+  tuer(2002, 245, "h"),  // flur-o2 ↔ Torschusswand
+  // linker Längsgang
+  tuer(380, 417, "v"),   // Maschinenraum Nord ↓ gang-l
+  tuer(380, 972, "v"),   // gang-l ↓ Maschinenraum Süd
+  tuer(320, 620, "h"),   // Heizungskeller ↔ gang-l (obere Tür)
+  tuer(320, 790, "h"),   // Heizungskeller ↔ gang-l (untere Tür)
+  tuer(437, 695, "h"),   // gang-l ↔ flur-rk
+  tuer(582, 695, "h"),   // flur-rk ↔ Hausmeisterloge — die EINZIGE Tür dieses Raums
+  // mittlerer Längsgang
+  tuer(920, 972, "v"),   // gang-m ↓ Technikraum
+  // Sanitätsraum: der einzige Zugang, über einen Stichflur aus dem Aufenthaltsraum
+  tuer(1140, 417, "v"),  // Aufenthaltsraum ↓ flur-md
+  tuer(1140, 522, "v"),  // flur-md ↓ Sanitätsraum
+  // Aufenthaltsraum nach unten
+  tuer(1440, 417, "v"),  // Aufenthaltsraum ↓ gang-c
+  tuer(1440, 972, "v"),  // gang-c ↓ Lagerraum
+  tuer(1600, 417, "v"),  // Aufenthaltsraum ↓ gang-a
+  tuer(1600, 522, "v"),  // gang-a ↓ Geschäftsstelle
+  tuer(1700, 867, "v"),  // Geschäftsstelle ↓ gang-ac
+  tuer(1700, 972, "v"),  // gang-ac ↓ Sprecherkabine
+  // rechter Längsgang
+  tuer(2220, 417, "v"),  // Torschusswand ↓ gang-r
+  tuer(2160, 620, "h"),  // Grünpflege ↔ gang-r (obere Tür)
+  tuer(2160, 790, "h"),  // Grünpflege ↔ gang-r (untere Tür)
+  tuer(2280, 620, "h"),  // gang-r ↔ Trainerbüro (obere Tür)
+  tuer(2280, 790, "h"),  // gang-r ↔ Trainerbüro (untere Tür)
+  tuer(2220, 972, "v"),  // gang-r ↓ Flutlichtwarte
+  // unterer Quergang
+  tuer(380, 1317, "v"),  // Maschinenraum Süd ↓ flur-u
+  tuer(800, 1317, "v"),  // Technikraum ↓ flur-u
+  tuer(1180, 1317, "v"), // Lagerraum ↓ flur-u (linke Tür)
+  tuer(1400, 1317, "v"), // Lagerraum ↓ flur-u (rechte Tür)
+  tuer(1720, 1317, "v"), // Sprecherkabine ↓ flur-u
+  tuer(2220, 1317, "v")  // Flutlichtwarte ↓ flur-u
 ];
 
 // Abkürzungen: nur Maulwürfe dürfen sie benutzen. Jeder Eintrag verbindet genau zwei Punkte;
 // wer auf dem einen steht, landet per Tap auf dem anderen. Alle Enden liegen in Räumen, nie
 // in einem Gang — sonst könnte man mitten im Flur vor jemandem auftauchen.
+//
+// Nachgebaut nach den Lüftungsschächten des Originals. Wo dort drei Räume an einem Netz
+// hängen (Sanitätsraum – Technikraum – Hausmeisterloge), sind es hier zwei Paare über den
+// Technikraum: unsere Schächte verbinden immer genau zwei Enden. Räume mit zwei Enden
+// (Heizungskeller, Technikraum, Trainerbüro) haben sie weit genug auseinander, damit
+// tunnelAn() eindeutig bleibt.
 const TUNNEL = [
-  { id: "waescheschacht", name: "Wäscheschacht",  a: { x: 1080, y: 110 },  b: { x: 120,  y: 910 } },
-  { id: "kabelkanal",     name: "Kabelkanal",     a: { x: 1080, y: 910 },  b: { x: 1880, y: 460 } },
-  { id: "getraenkelift",  name: "Getränkeaufzug", a: { x: 1880, y: 110 },  b: { x: 1860, y: 1260 } },
-  { id: "regenrinne",     name: "Regenrinne",     a: { x: 120,  y: 110 },  b: { x: 1720, y: 910 } }
+  { id: "heizrohr-nord", name: "Heizrohr Nord",   a: { x: 280,  y: 180 },  b: { x: 130,  y: 620 } },
+  { id: "heizrohr-sued", name: "Heizrohr Süd",    a: { x: 280,  y: 1210 }, b: { x: 130,  y: 790 } },
+  { id: "waescheschacht", name: "Wäscheschacht",  a: { x: 1060, y: 800 },  b: { x: 700,  y: 1060 } },
+  { id: "kabelkanal",    name: "Kabelkanal",      a: { x: 660,  y: 800 },  b: { x: 900,  y: 1060 } },
+  { id: "aktenaufzug",   name: "Aktenaufzug",     a: { x: 1090, y: 150 },  b: { x: 1620, y: 800 } },
+  { id: "ballnetz",      name: "Ballnetz",        a: { x: 2300, y: 150 },  b: { x: 2510, y: 600 } },
+  { id: "kabelrinne",    name: "Kabelrinne",      a: { x: 2350, y: 800 },  b: { x: 2340, y: 1060 } }
 ];
 
 // Aufgabenstationen. 25 Typen à zwei Standorte in unterschiedlichen Räumen, damit sich nicht
 // alle am selben Ort drängeln. Angegeben wird die Lage relativ zum Raum (0..1), umgerechnet
 // wird beim Laden — so bleibt die Tabelle lesbar und übersteht Layoutänderungen.
 const STATIONS_TABELLE = [
-  ["heimkabine",   ["trikots", "stollen", "spind"]],
-  ["gaestekabine", ["waesche", "schluessel", "pfeife"]],
-  ["waschkueche",  ["waschgang", "kisten", "netz"]],
-  ["physio",       ["verbandskasten", "tabelle", "anpfiff"]],
-  ["kueche",       ["kaffee", "getraenke", "muell"]],
-  ["geraeteraum",  ["baelle", "inventur", "eckfahnen"]],
-  ["buero",        ["tabelle", "wappen", "zaehler"]],
-  ["vereinsheim",  ["getraenke", "kaffee", "anpfiff"]],
-  ["sanitaer",     ["waschgang", "muell", "waesche"]],
-  ["vorstand",     ["wappen", "schluessel", "spind"]],
-  ["keller",       ["kisten", "inventur", "stollen"]],
-  ["werkstatt",    ["kabel", "linien", "netz"]],
-  ["technik",      ["kabel", "zaehler", "fahne"]],
-  ["schiri",       ["pfeife", "verbandskasten", "trikots"]],
-  ["tribuene",     ["fahne", "elfmeterpunkt", "eckfahnen"]],
-  ["rasen",        ["maehen", "linien", "elfmeterpunkt", "maehen", "baelle"]]
+  ["cafeteria",    ["getraenke", "kaffee", "anpfiff", "muell", "tabelle"]],
+  ["upper-engine", ["kabel", "inventur", "zaehler", "kisten"]],
+  ["weapons",      ["baelle", "elfmeterpunkt", "netz", "fahne"]],
+  ["reactor",      ["kabel", "zaehler", "spind"]],
+  ["security",     ["schluessel", "wappen", "pfeife"]],
+  ["medbay",       ["verbandskasten", "waesche", "trikots", "stollen"]],
+  ["admin",        ["tabelle", "wappen", "schluessel"]],
+  ["o2",           ["maehen", "linien", "eckfahnen"]],
+  ["navigation",   ["anpfiff", "pfeife", "elfmeterpunkt"]],
+  ["lower-engine", ["inventur", "kisten", "stollen", "waschgang"]],
+  ["electrical",   ["linien", "fahne", "netz", "muell"]],
+  ["storage",      ["baelle", "trikots", "waschgang", "eckfahnen"]],
+  ["comms",        ["verbandskasten", "kaffee", "getraenke"]],
+  ["shields",      ["maehen", "waesche", "spind"]]
 ];
 
 // Verteilmuster innerhalb eines Raums, damit die Marker nicht übereinanderliegen.
 const STATIONS_RASTER = {
   3: [[0.20, 0.30], [0.50, 0.72], [0.80, 0.30]],
+  4: [[0.18, 0.32], [0.40, 0.70], [0.62, 0.32], [0.84, 0.70]],
   5: [[0.08, 0.35], [0.28, 0.70], [0.50, 0.30], [0.72, 0.70], [0.92, 0.35]]
 };
 
@@ -171,15 +226,18 @@ STATIONS_TABELLE.forEach(([raumId, typen]) => {
 // Feste Sonderpunkte: Notfallknopf und die Reparaturstellen der Sabotagen. Die beiden
 // Heizungsventile liegen bewusst in gegenüberliegenden Ecken des Geländes — sie müssen
 // gleichzeitig gehalten werden, das soll zwei Leute kosten.
-const NOTFALLKNOPF = { x: 1000, y: 470, raum: "vereinsheim" };
-const SICHERUNGSKASTEN = { x: 1000, y: 930, raum: "technik" };
-const HEIZUNG_A = { x: 200, y: 820, raum: "keller" };
-const HEIZUNG_B = { x: 1800, y: 110, raum: "kueche" };
+// Wie im Original: der Notfallknopf steht mitten im Aufenthaltsraum, der Sicherungskasten im
+// Technikraum. Die beiden Heizungsventile liegen in Heizungskeller und Grünpflege — die
+// gegenüberliegenden Enden der Karte, was genau der Punkt dieser Sabotage ist.
+const NOTFALLKNOPF = { x: 1340, y: 300, raum: "cafeteria" };
+const SICHERUNGSKASTEN = { x: 800, y: 1150, raum: "electrical" };
+const HEIZUNG_A = { x: 180, y: 695, raum: "reactor" };
+const HEIZUNG_B = { x: 2020, y: 695, raum: "o2" };
 
-// Startpositionen: alle starten im Vereinsheim, kreisförmig verteilt (max. 10 Plätze).
+// Startpositionen: alle starten im Aufenthaltsraum, kreisförmig verteilt (max. 10 Plätze).
 function startPositionen(anzahl) {
   const punkte = [];
-  const mitte = { x: 1000, y: 530 };
+  const mitte = { x: 1340, y: 190 };
   for (let i = 0; i < anzahl; i++) {
     const winkel = (i / Math.max(anzahl, 1)) * Math.PI * 2;
     punkte.push({

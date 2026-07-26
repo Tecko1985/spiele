@@ -17,7 +17,10 @@ const PHASEN_MIT_VERLASSEN_BUTTON = ["lobby", "zuteilung", "laeuft"];
 // war es vorher) funktioniert nur im Hochformat: quer gehalten würde sie oben und unten
 // abschneiden, und der Sichtkreis passte nicht mehr aufs Bild. Über die kurze Achse gerechnet
 // sieht man im Querformat mehr nach links und rechts – nie weniger als den vollen Sichtkreis.
-const SICHT_KURZE_ACHSE = 620;
+// Der Wert muss über dem größten Sichtdurchmesser liegen (2 × SICHT_MAULWURF = 840 … hier
+// bewusst knapp darunter, damit der Nebel am Rand noch sichtbar ausblendet statt abgeschnitten
+// zu wirken) und ist mit dem Umbau auf das Original-Layout von 620 mitgewachsen.
+const SICHT_KURZE_ACHSE = 790;
 
 // Bodenfarben der Karte. Türschwellen bekommen bewusst KEINE eigene Farbe, sondern übernehmen
 // je Hälfte die der angrenzenden Fläche – sonst stehen sie als helle Klötze in der Landschaft.
@@ -1579,7 +1582,7 @@ const APP_CHANGELOG = [
     groups: [
       { title: "Spielen", items: [
           "Verräterspiel für 4 bis 10 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
-          "16 beschriftete Räume, über Flure und Türen verbunden, mit begrenztem Sichtfeld.",
+          "Das Gelände ist dem Original-Grundriss von Among Us nachempfunden: 14 Räume, ein Drehkreuz in der Mitte, ein Rundlauf außen herum – und zwei Sackgassen (Hausmeisterloge, Sanitätsraum) mit nur einer Tür.",
           "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen – nur durch offene Türen fällt Licht in den Nachbarraum. Auch ein Foulspiel quer durch die Wand geht nicht mehr.",
           "25 verschiedene Aufgaben-Minispiele an 50 Stationen – jede Runde ist anders zusammengesetzt.",
           "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
