@@ -209,12 +209,26 @@ function sichtweiteFuer(zustand) {
   return karte.SICHT_TEAM;
 }
 
+// Sichtbar ist, was nah genug UND nicht hinter einer Wand ist. Der Abstand wird zuerst
+// geprüft, weil er billiger ist als die Strahlabtastung.
+function istEinsehbar(mich, punkt, sichtweite, binGeist) {
+  if (binGeist) return true; // Geister sehen durch alles hindurch
+  if (karte.abstand(punkt.x, punkt.y, mich.x, mich.y) > sichtweite) return false;
+  return karte.sichtlinieFrei(mich.x, mich.y, punkt.x, punkt.y);
+}
+
 function zeichne(zustand) {
   if (!passeCanvasAn()) return;
   const mich = zustand.meinePosition || { x: karte.WELT_BREITE / 2, y: karte.WELT_HOEHE / 2 };
   const skala = Math.min(canvas.width, canvas.height) / SICHT_KURZE_ACHSE;
   const versatzX = canvas.width / 2 - mich.x * skala;
   const versatzY = canvas.height / 2 - mich.y * skala;
+
+  // Das Sichtfeld wird einmal pro Bild bestimmt und danach für alles benutzt: Figuren,
+  // Leichen, Alibi-Spuren und die Abdunklung. Für Geister entfällt es — sie sehen ohnehin
+  // alles, und ein Polygon mit Radius SICHT_GEIST wäre nur Rechenarbeit ohne Wirkung.
+  const sichtweite = sichtweiteFuer(zustand);
+  const sichtfeld = zustand.binGeist ? null : karte.sichtPolygon(mich.x, mich.y, sichtweite);
 
   const wx = x => x * skala + versatzX;
   const wy = y => y * skala + versatzY;
@@ -311,12 +325,13 @@ function zeichne(zustand) {
   });
 
   // Sichtbare Aufgaben: die Spur, die jemand beim Arbeiten hinterlässt. Anders als die eigenen
-  // Aufgabenmarker sehen das ALLE — deshalb taugt es als Alibi. Der Nebel begrenzt die
-  // Reichweite von selbst, hier braucht es keine zusätzliche Abstandsprüfung.
+  // Aufgabenmarker sehen das ALLE — deshalb taugt es als Alibi. Ein Alibi durch die Wand wäre
+  // keins, deshalb dieselbe Sichtprüfung wie bei den Figuren.
   Object.keys(zustand.visuell || {}).forEach(stationId => {
     const spur = zustand.visuell[stationId];
     const station = karte.stationNachId(stationId);
     if (!station || !spur || spur.bis <= jetzt) return;
+    if (!istEinsehbar(mich, station, sichtweite, zustand.binGeist)) return;
     zeichneArbeitsspur(wx(station.x), wy(station.y), skala, spur, (spur.bis - jetzt) / gameService.SICHTBARE_WIRKUNG_MS);
   });
 
@@ -328,9 +343,10 @@ function zeichne(zustand) {
     });
   }
 
-  // Leichen
+  // Leichen — auch die nur, wenn nichts dazwischensteht
   Object.keys(zustand.leichen || {}).forEach(uid => {
     const leiche = zustand.leichen[uid];
+    if (!istEinsehbar(mich, leiche, sichtweite, zustand.binGeist)) return;
     ctx.fillStyle = leiche.farbe || "#dc2626";
     ctx.beginPath();
     ctx.ellipse(wx(leiche.x), wy(leiche.y), 19 * skala, 12 * skala, 0, 0, Math.PI * 2);
@@ -343,12 +359,11 @@ function zeichne(zustand) {
 
   // Mitspielende. Die eigene Figur kommt aus der lokalen Position (flüssig), fremde aus den
   // interpolierten Werten — die Rohdaten treffen nur mit 5 Hz ein und würden sonst hüpfen.
-  const sichtweite = sichtweiteFuer(zustand);
   zustand.spieler.forEach(s => {
     const eigenerZug = s.id === zustand.eigenerSpielerId;
     const pos = eigenerZug ? mich : angezeigtePositionen[s.id];
     if (!pos || s.lebt === false) return;
-    if (!eigenerZug && karte.abstand(pos.x, pos.y, mich.x, mich.y) > sichtweite) return;
+    if (!eigenerZug && !istEinsehbar(mich, pos, sichtweite, zustand.binGeist)) return;
     zeichneFigur(wx(pos.x), wy(pos.y), skala, s, zustand);
   });
 
@@ -363,7 +378,7 @@ function zeichne(zustand) {
     });
   }
 
-  if (!zustand.binGeist) zeichneNebel(wx(mich.x), wy(mich.y), sichtweite * skala);
+  if (sichtfeld) zeichneSichtfeld(wx, wy, wx(mich.x), wy(mich.y), sichtweite * skala, sichtfeld);
 }
 
 function zeichneMarker(x, y, skala, farbe, zeichen) {
@@ -444,26 +459,43 @@ function zeichneFigur(x, y, skala, spieler, zustand) {
   ctx.fillText(spieler.name.slice(0, 12), x, y - 26 * skala);
 }
 
-// Nebel: alles außerhalb des Sichtkreises abdunkeln. Der Kreis wird als zweiter, gegenläufig
-// gezeichneter Pfad ausgestanzt (evenodd).
-function zeichneNebel(x, y, radius) {
-  const rand = ctx.createRadialGradient(x, y, radius * 0.72, x, y, radius);
-  rand.addColorStop(0, "rgba(5,10,20,0)");
-  rand.addColorStop(1, "rgba(5,10,20,0.96)");
+// Abdunklung außerhalb des Sichtfelds. Zwei Lagen, die zusammen erst den Eindruck ergeben:
+//
+// 1. Alles außerhalb des Sichtpolygons wird flächig abgedunkelt — das erzeugt die harten
+//    Schattenkanten hinter Wänden und Türpfosten. Ausgestanzt wird das Polygon über einen
+//    zweiten Pfad im selben fill() mit "evenodd".
+// 2. Innerhalb des Polygons blendet ein Radialverlauf zum Sichtrand hin weich aus, damit die
+//    Sicht nicht an einer scharfen Kreiskante endet, wo gar keine Wand ist. Er wird auf das
+//    Polygon geclippt, sonst würde er über die Schatten laufen und sie wieder aufhellen.
+//
+// Die Restdeckkraft von 0.96 ist Absicht: der abgedunkelte Rest der Karte bleibt schemenhaft
+// als Orientierung erhalten. Figuren und Leichen werden davon NICHT verdeckt, sondern schon
+// vorher gar nicht erst gezeichnet (siehe istEinsehbar) — Restlicht dürfte sonst verraten,
+// wo jemand steht.
+function zeichneSichtfeld(wx, wy, mitteX, mitteY, radius, polygon) {
+  function pfad() {
+    ctx.moveTo(wx(polygon[0].x), wy(polygon[0].y));
+    for (let i = 1; i < polygon.length; i++) ctx.lineTo(wx(polygon[i].x), wy(polygon[i].y));
+    ctx.closePath();
+  }
 
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, 0, canvas.width, canvas.height);
-  ctx.arc(x, y, radius, 0, Math.PI * 2, true);
+  pfad();
   ctx.fillStyle = "rgba(5,10,20,0.96)";
   ctx.fill("evenodd");
   ctx.restore();
 
+  const rand = ctx.createRadialGradient(mitteX, mitteY, radius * 0.72, mitteX, mitteY, radius);
+  rand.addColorStop(0, "rgba(5,10,20,0)");
+  rand.addColorStop(1, "rgba(5,10,20,0.96)");
   ctx.save();
   ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  pfad();
+  ctx.clip();
   ctx.fillStyle = rand;
-  ctx.fill();
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.restore();
 }
 
@@ -656,7 +688,9 @@ function findeKillZiel(zustand) {
     const p = zustand.positionen[s.id];
     if (!p) return;
     const d = karte.abstand(pos.x, pos.y, p.x, p.y);
-    if (d <= besterAbstand) { besterAbstand = d; bestes = s; }
+    // Die Kill-Reichweite (74) ist größer als eine Wand dick ist (35) — ohne Sichtlinie
+    // ließe sich quer durch die Wand foulen.
+    if (d <= besterAbstand && karte.sichtlinieFrei(pos.x, pos.y, p.x, p.y)) { besterAbstand = d; bestes = s; }
   });
   return bestes;
 }
@@ -1428,6 +1462,7 @@ const APP_CHANGELOG = [
       { title: "Spielen", items: [
           "Verräterspiel für 4 bis 10 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
           "16 beschriftete Räume, über Flure und Türen verbunden, mit begrenztem Sichtfeld.",
+          "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen – nur durch offene Türen fällt Licht in den Nachbarraum. Auch ein Foulspiel quer durch die Wand geht nicht mehr.",
           "25 verschiedene Aufgaben-Minispiele an 50 Stationen – jede Runde ist anders zusammengesetzt.",
           "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen und Räume verriegeln.",

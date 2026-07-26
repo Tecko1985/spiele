@@ -401,15 +401,112 @@ function findeWeg(vonX, vonY, zuX, zuY) {
 const BOT_WEGPUNKTE = RAEUME.map(r => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 }))
   .concat(STATIONEN.map(st => ({ x: st.x, y: st.y })));
 
+// ============================================================
+// Sichtlinien
+// ============================================================
+//
+// Bis 2026-07-26 war die Sicht ein reiner Abstand: wer nah genug stand, war zu sehen — auch
+// quer durch eine Wand. Jetzt blockiert jede Wand den Blick, und der Sichtbereich hat die
+// Form des Raums statt eines Kreises.
+//
+// Die Sicht darf NICHT über istBegehbar laufen. Das prüft zusätzlich den Spielerradius und
+// verengt damit jede Türöffnung um 32 px — man sähe durch eine Tür schmaler, als man
+// hindurchpasst, und an Türnähten entstünden Sichtschatten, wo keine Wand ist. Für Licht
+// zählt allein, ob der Punkt überhaupt in einer Fläche liegt.
+//
+// Warum ein eigenes, feineres Raster: das Sichtpolygon schickt pro Bild einige hundert
+// Strahlen mit je dutzenden Abtastpunkten los. Jeden davon gegen alle ~90 Rechtecke zu prüfen
+// wären Millionen Vergleiche pro Bild — ein Array-Zugriff kostet dagegen nichts. Das
+// Wegfindungsraster (25 px) ist dafür zu grob: eine Türöffnung wäre darin drei Zellen breit.
+const SICHT_RASTER = 8;
+const SICHT_SCHRITT = 6;         // Abtastweite entlang eines Strahls
+const SICHT_WANDZUSCHLAG = 20;   // so weit reicht der Blick in die getroffene Wand hinein
+const SICHT_STRAHLEN = 240;      // Auflösung des Sichtpolygons rundum
+
+const sichtSpalten = Math.ceil(WELT_BREITE / SICHT_RASTER);
+const sichtZeilen = Math.ceil(WELT_HOEHE / SICHT_RASTER);
+const sichtFrei = new Uint8Array(sichtSpalten * sichtZeilen);
+
+// Aufgebaut wird über die Flächen, nicht über die Zellen: sonst müsste jede der ~43000 Zellen
+// gegen jedes Rechteck geprüft werden. Eine Zelle gilt als frei, wenn ihr MITTELPUNKT in einer
+// Fläche liegt — dieselbe Regel wie bei punktInFlaeche, nur vorberechnet.
+ALLE_FLAECHEN.forEach(f => {
+  const vonSpalte = Math.max(Math.ceil((f.x - SICHT_RASTER / 2) / SICHT_RASTER), 0);
+  const bisSpalte = Math.min(Math.floor((f.x + f.w - SICHT_RASTER / 2) / SICHT_RASTER), sichtSpalten - 1);
+  const vonZeile = Math.max(Math.ceil((f.y - SICHT_RASTER / 2) / SICHT_RASTER), 0);
+  const bisZeile = Math.min(Math.floor((f.y + f.h - SICHT_RASTER / 2) / SICHT_RASTER), sichtZeilen - 1);
+  for (let z = vonZeile; z <= bisZeile; z++) {
+    for (let s = vonSpalte; s <= bisSpalte; s++) sichtFrei[z * sichtSpalten + s] = 1;
+  }
+});
+
+function sichtFreiAn(x, y) {
+  if (x < 0 || y < 0 || x >= WELT_BREITE || y >= WELT_HOEHE) return false;
+  return sichtFrei[((y / SICHT_RASTER) | 0) * sichtSpalten + ((x / SICHT_RASTER) | 0)] === 1;
+}
+
+// Wie weit trägt der Blick in diese Richtung? Der Rückgabewert reicht bewusst ein Stück in die
+// getroffene Wand hinein: endete er exakt an der Wandkante, bliebe genau die Wand unbeleuchtet,
+// an der man steht, und die Räume hätten keine sichtbaren Kanten mehr. Der Zuschlag liegt
+// unter der Wandstärke von 35 px — hindurchsehen kann man dadurch nicht.
+function sichtDistanz(x, y, dx, dy, maxDist) {
+  for (let d = SICHT_SCHRITT; d <= maxDist; d += SICHT_SCHRITT) {
+    if (!sichtFreiAn(x + dx * d, y + dy * d)) {
+      // Den Grobtreffer nachschärfen. Ohne das hängt die Reichweite davon ab, wo zufällig ein
+      // Abtastpunkt lag: zwei benachbarte Strahlen treffen dieselbe glatte Wand und kommen
+      // trotzdem bis zu SICHT_SCHRITT unterschiedlich weit — der Lichtrand franst dann sichtbar
+      // aus und flimmert beim Laufen. Vier Halbierungen bringen ihn auf unter einen halben Pixel.
+      let frei = d - SICHT_SCHRITT;
+      let belegt = d;
+      for (let i = 0; i < 4; i++) {
+        const mitte = (frei + belegt) / 2;
+        if (sichtFreiAn(x + dx * mitte, y + dy * mitte)) frei = mitte; else belegt = mitte;
+      }
+      return Math.min(frei + SICHT_WANDZUSCHLAG, maxDist);
+    }
+  }
+  return maxDist;
+}
+
+// Der Bereich, den man von (x,y) aus tatsächlich einsehen kann — samt der Schatten, die Wände
+// und Türpfosten werfen. Rundum Strahlen schicken, Trefferpunkte verbinden.
+function sichtPolygon(x, y, radius, strahlen) {
+  const anzahl = strahlen || SICHT_STRAHLEN;
+  const punkte = [];
+  for (let i = 0; i < anzahl; i++) {
+    const winkel = (i / anzahl) * Math.PI * 2;
+    const dx = Math.cos(winkel);
+    const dy = Math.sin(winkel);
+    const d = sichtDistanz(x, y, dx, dy, radius);
+    punkte.push({ x: x + dx * d, y: y + dy * d });
+  }
+  return punkte;
+}
+
+// Steht etwas zwischen den beiden Punkten? Start und Ziel selbst werden bewusst nicht geprüft:
+// eine Figur darf dicht an einer Wand stehen, ohne sich damit selbst unsichtbar zu machen —
+// ihr Mittelpunkt kann bei 16 px Radius durchaus auf einer Zelle liegen, die als belegt gilt.
+function sichtlinieFrei(ax, ay, bx, by) {
+  const strecke = Math.hypot(bx - ax, by - ay);
+  if (strecke <= SICHT_SCHRITT) return true;
+  const schritte = Math.ceil(strecke / SICHT_SCHRITT);
+  for (let i = 1; i < schritte; i++) {
+    const t = i / schritte;
+    if (!sichtFreiAn(ax + (bx - ax) * t, ay + (by - ay) * t)) return false;
+  }
+  return true;
+}
+
 const karte = {
   WELT_BREITE, WELT_HOEHE,
   SPIELER_RADIUS, INTERAKTIONS_RADIUS, KILL_REICHWEITE, TUNNEL_RADIUS,
-  SICHT_TEAM, SICHT_MAULWURF, SICHT_TEAM_DUNKEL, SICHT_GEIST,
+  SICHT_TEAM, SICHT_MAULWURF, SICHT_TEAM_DUNKEL, SICHT_GEIST, SICHT_STRAHLEN,
   RAEUME, KORRIDORE, TUEREN, TUNNEL, STATIONEN, GEBAEUDE,
   NOTFALLKNOPF, SICHERUNGSKASTEN, HEIZUNG_A, HEIZUNG_B,
   BOT_WEGPUNKTE,
   startPositionen, istBegehbar, bewegeMitKollision, raumAn, raumName,
-  abstand, tunnelAn, stationAn, stationNachId, findeWeg
+  abstand, tunnelAn, stationAn, stationNachId, findeWeg,
+  sichtFreiAn, sichtPolygon, sichtlinieFrei, punktInFlaeche
 };
 
 if (typeof module !== "undefined" && module.exports) module.exports = karte;

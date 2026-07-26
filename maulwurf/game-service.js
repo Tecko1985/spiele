@@ -909,6 +909,12 @@ async function schalteAus(opferUid) {
   if (!meine || !seine || karte.abstand(meine.x, meine.y, seine.x, seine.y) > karte.KILL_REICHWEITE) {
     return { erfolg: false, fehler: "Zu weit weg." };
   }
+  // Die Reichweite (74) ist größer als eine Wand dick ist (35). Ohne diese Prüfung ließe sich
+  // durch die Wand foulen — und seit die Sicht an Wänden endet, sähe das Opfer nicht einmal,
+  // woher es kam.
+  if (!karte.sichtlinieFrei(meine.x, meine.y, seine.x, seine.y)) {
+    return { erfolg: false, fehler: "Da ist eine Wand dazwischen." };
+  }
   // Schutzengel: das Foulspiel geht daneben. Der Cooldown läuft trotzdem an — sonst könnte
   // man den Schutz einfach aussitzen und sofort nachsetzen, und die Rolle wäre wirkungslos.
   if (schutzAktiv(raum, opferUid)) {
@@ -1405,7 +1411,8 @@ function versucheBotKill(raum, botId, pos, einstellungen) {
     if (botZustand[uid] && botZustand[uid].rolle === "maulwurf") return false;
     if (schutzAktiv(raum, uid)) return false;   // Schutzengel gilt auch gegen die KI
     const p = positionen[uid];
-    return p && karte.abstand(pos.x, pos.y, p.x, p.y) <= karte.KILL_REICHWEITE;
+    return p && karte.abstand(pos.x, pos.y, p.x, p.y) <= karte.KILL_REICHWEITE
+             && karte.sichtlinieFrei(pos.x, pos.y, p.x, p.y);   // nicht durch die Wand
   });
   if (!opferUid) return;
   // Der Host darf hier nicht prüfen, ob das Opfer selbst Maulwurf ist (er kennt nur die
