@@ -86,13 +86,16 @@ const BOT_TICK_MS = 200;
 const BOT_AUFGABE_MS = 9000;
 const BOT_STIMME_MS = 11000;
 
+// Zahlen, keine Booleans: die Einstellungsfelder in der Lobby werden alle über denselben
+// parseInt-Weg gespeichert (siehe app.js). 1/0 statt true/false hält das einheitlich.
 const STANDARD_EINSTELLUNGEN = {
   killCooldownSek: 30,
   diskussionSek: 45,
   abstimmungSek: 60,
   notfallKnoepfe: 1,
   aufgabenProSpieler: 5,
-  tempo: 175
+  tempo: 175,
+  rolleNachRauswurf: 1
 };
 
 function anzahlMaulwuerfeFuer(spielerAnzahl) {
@@ -1013,6 +1016,8 @@ async function deckeAusgeschlosseneRolleAuf(raum) {
   if (meineRolle !== "maulwurf") return;
   const daten = raum || letzterRaum;
   if (!daten) return;
+  const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, daten.einstellungen || {});
+  if (!einstellungen.rolleNachRauswurf) return;
   const meeting = daten.meeting;
   if (!meeting || !meeting.ergebnis || meeting.ergebnis.warMaulwurf !== undefined) return;
   const uid = meeting.ergebnis.ausgeschlossenUid;
@@ -1220,7 +1225,11 @@ function fuehreBotTickAus() {
 
   Object.keys(raum.spieler).forEach(botId => {
     const bot = raum.spieler[botId];
-    if (!bot.istSimuliert || bot.lebt === false) return;
+    if (!bot.istSimuliert) return;
+    // Tote KI-Mitspieler laufen als Geister weiter und arbeiten ihre Aufgaben ab — genau wie
+    // menschliche Geister das dürfen. Ohne das bliebe der Aufgaben-Sieg im Solo-Modus nach
+    // dem ersten Foulspiel unerreichbar (der Balken zählt die Aufgaben der Toten weiter mit).
+    const istGeist = bot.lebt === false;
     const zustand = botZustand[botId] || (botZustand[botId] = {});
     const pos = positionen[botId] || karte.startPositionen(1)[0];
 
@@ -1247,7 +1256,7 @@ function fuehreBotTickAus() {
 
     // Verriegelte Räume halten auch die KI auf – sonst wäre die Sabotage "Raum verriegeln"
     // gegen Bots wirkungslos und sähe wie ein Fehler aus.
-    if (zustand.rolle !== "maulwurf" && !tuerDurchgangErlaubt(raum, pos, neu)) {
+    if (!istGeist && zustand.rolle !== "maulwurf" && !tuerDurchgangErlaubt(raum, pos, neu)) {
       zustand.pfad = null;
       return;
     }
@@ -1262,11 +1271,11 @@ function fuehreBotTickAus() {
       if (karte.abstand(neu.x, neu.y, naechster.x, naechster.y) < 28) zustand.pfad.shift();
     }
 
-    positionen[botId] = { x: neu.x, y: neu.y, geist: false };
-    db.ref(`${POSITIONEN_PFAD}/${code}/${botId}`).set({ x: Math.round(neu.x), y: Math.round(neu.y), geist: false }).catch(() => {});
+    positionen[botId] = { x: neu.x, y: neu.y, geist: istGeist };
+    db.ref(`${POSITIONEN_PFAD}/${code}/${botId}`).set({ x: Math.round(neu.x), y: Math.round(neu.y), geist: istGeist }).catch(() => {});
 
     if (zustand.rolle === "maulwurf") {
-      versucheBotKill(raum, botId, neu, einstellungen);
+      if (!istGeist) versucheBotKill(raum, botId, neu, einstellungen);
     } else if (zustand.rolle === "team") {
       if (!zustand.letzteAufgabe) zustand.letzteAufgabe = jetzt;
       if (jetzt - zustand.letzteAufgabe > BOT_AUFGABE_MS) {

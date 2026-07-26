@@ -532,9 +532,24 @@ function schleife(zeit) {
 // Kontextabhängige Aktionen
 // ============================================================
 
+function offeneStationAn(zustand, pos) {
+  const offeneIds = zustand.meineAufgaben.filter(a => !a.erledigt).map(a => a.id);
+  return karte.stationAn(pos.x, pos.y, offeneIds);
+}
+
 function ermittleAktion(zustand) {
   const pos = zustand.meinePosition;
-  if (!pos || zustand.binGeist) return null;
+  if (!pos) return null;
+
+  // Geister erledigen ihre Aufgaben weiter. Ohne das wäre der Aufgaben-Sieg ab dem ersten
+  // Todesfall unerreichbar: der Balken wird zu Rundenbeginn auf teamAnzahl × Aufgaben pro
+  // Person festgelegt und nie wieder gesenkt, die Aufgaben der Toten fehlten also für immer.
+  // Alles andere bleibt ihnen verwehrt — melden, Notfallknopf, Reparatur, Tunnel, Foulspiel.
+  if (zustand.binGeist) {
+    const station = offeneStationAn(zustand, pos);
+    return station ? { typ: "aufgabe", station, zeichen: "🛠️", label: stationName(station) } : null;
+  }
+
   const sab = zustand.sabotage;
 
   if (sab && sab.typ === "flutlicht" &&
@@ -554,8 +569,7 @@ function ermittleAktion(zustand) {
     return { typ: "notfall", zeichen: "📣", label: "Notfallknopf" };
   }
 
-  const offeneIds = zustand.meineAufgaben.filter(a => !a.erledigt).map(a => a.id);
-  const station = karte.stationAn(pos.x, pos.y, offeneIds);
+  const station = offeneStationAn(zustand, pos);
   if (station) return { typ: "aufgabe", station, zeichen: "🛠️", label: stationName(station) };
 
   if (zustand.meineRolle === "maulwurf") {
@@ -868,6 +882,7 @@ function renderLobby(zustand) {
   el("ein-diskussion").value = String(e.diskussionSek);
   el("ein-abstimmung").value = String(e.abstimmungSek);
   el("ein-tempo").value = String(e.tempo);
+  el("ein-rolle-rauswurf").value = String(e.rolleNachRauswurf ? 1 : 0);
 }
 
 function renderReveal(zustand) {
@@ -974,10 +989,14 @@ function renderMeetingErgebnis(zustand) {
   el("ergebnis-text").textContent = ergebnis.ausgeschlossenName
     ? `${ergebnis.ausgeschlossenName} muss gehen.`
     : "Niemand muss gehen.";
-  el("ergebnis-rolle").textContent = ergebnis.ausgeschlossenName
-    ? (ergebnis.warMaulwurf === undefined ? "Wird geprüft …"
-       : ergebnis.warMaulwurf ? "🕵️ … und war tatsächlich ein Maulwurf!" : "⚽ … war kein Maulwurf.")
-    : "Stimmengleichheit oder Mehrheit fürs Überspringen.";
+  // Ohne die Einstellung bliebe hier für immer "Wird geprüft …" stehen, weil dann niemand
+  // warMaulwurf schreibt.
+  const deckeAuf = !!zustand.einstellungen.rolleNachRauswurf;
+  el("ergebnis-rolle").textContent = !ergebnis.ausgeschlossenName
+    ? "Stimmengleichheit oder Mehrheit fürs Überspringen."
+    : !deckeAuf ? "Ob das richtig war, bleibt offen."
+    : ergebnis.warMaulwurf === undefined ? "Wird geprüft …"
+    : ergebnis.warMaulwurf ? "🕵️ … und war tatsächlich ein Maulwurf!" : "⚽ … war kein Maulwurf.";
   gameService.deckeAusgeschlosseneRolleAuf();
 }
 
@@ -1118,7 +1137,7 @@ el("btn-spiel-starten").addEventListener("click", async () => {
 
 [["ein-maulwuerfe", "anzahlMaulwuerfe"], ["ein-aufgaben", "aufgabenProSpieler"], ["ein-killcooldown", "killCooldownSek"],
  ["ein-notfall", "notfallKnoepfe"], ["ein-diskussion", "diskussionSek"], ["ein-abstimmung", "abstimmungSek"],
- ["ein-tempo", "tempo"]].forEach(([feldId, schluessel]) => {
+ ["ein-tempo", "tempo"], ["ein-rolle-rauswurf", "rolleNachRauswurf"]].forEach(([feldId, schluessel]) => {
   el(feldId).addEventListener("change", e => {
     gameService.speichereEinstellungen({ [schluessel]: parseInt(e.target.value, 10) });
   });
@@ -1215,7 +1234,8 @@ const APP_CHANGELOG = [
           "16 beschriftete Räume, über Flure und Türen verbunden, mit begrenztem Sichtfeld.",
           "25 verschiedene Aufgaben-Minispiele an 50 Stationen – jede Runde ist anders zusammengesetzt.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen und Räume verriegeln.",
-          "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter."
+          "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende.",
+          "Einstellbar, ob nach einem Rauswurf verraten wird, ob es wirklich ein Maulwurf war."
       ]},
       { title: "Am Handy", items: [
           "Quer halten: Das Spielfeld läuft formatfüllend über den ganzen Bildschirm.",
