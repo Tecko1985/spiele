@@ -664,16 +664,21 @@ async function zieheBotRollen(raum) {
 
       const index = await ziehIndex(code);
       if (index === null || index >= raum.rollenDeck.length) return;
-      const rolle = raum.rollenDeck[index];
+      // Der Deck-Eintrag ist "team", "maulwurf" oder "seite:sonderrolle" und MUSS aufgeteilt
+      // werden — genau wie bei Menschen. Ohne das stand bei einem Bot "team:ingenieur" im
+      // Rollenfeld, und damit griff weder der team- noch der maulwurf-Zweig des Bot-Ticks:
+      // er lief nur noch herum, erledigte nichts und trug sich als Maulwurf nirgends ein.
+      const { rolle, sonder } = rollenModul.teileDeckEintrag(raum.rollenDeck[index]);
       const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
       await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).set({
-        rolle, index, runde,
+        rolle, sonder: sonder || null, index, runde,
         aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: []
       });
       if (rolle === "maulwurf") {
         await db.ref(`${TEAM_PFAD}/${code}/${botId}`).set({ name: raum.spieler[botId].name, runde });
       }
       merker.rolle = rolle;
+      merker.sonder = sonder || null;
       merker.rundeGezogen = runde;
     }
   } catch (e) {
