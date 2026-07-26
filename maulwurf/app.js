@@ -476,44 +476,43 @@ function zeichneFigur(x, y, skala, spieler, zustand) {
   ctx.fillText((istFaenger ? "🥅 " : "") + spieler.name.slice(0, 12), x, y - 26 * skala);
 }
 
-// Abdunklung außerhalb des Sichtfelds. Zwei Lagen, die zusammen erst den Eindruck ergeben:
+// Abdunklung außerhalb des Sichtfelds. Zwei Lagen, die sich multiplizieren:
 //
-// 1. Alles außerhalb des Sichtpolygons wird flächig abgedunkelt — das erzeugt die harten
-//    Schattenkanten hinter Wänden und Türpfosten. Ausgestanzt wird das Polygon über einen
-//    zweiten Pfad im selben fill() mit "evenodd".
-// 2. Innerhalb des Polygons blendet ein Radialverlauf zum Sichtrand hin weich aus, damit die
-//    Sicht nicht an einer scharfen Kreiskante endet, wo gar keine Wand ist. Er wird auf das
-//    Polygon geclippt, sonst würde er über die Schatten laufen und sie wieder aufhellen.
+// 1. **Wandschatten** — alles außerhalb des Sichtpolygons, aber nur mäßig abgedunkelt. Was
+//    hinter einer Wand liegt, bleibt als Raumumriss angedeutet erkennbar. Das ist Absicht:
+//    man kennt das Gelände ja, und ohne diese Andeutung verliert man auf einer Karte dieser
+//    Größe schlicht die Orientierung. Ausgestanzt wird das Polygon über einen zweiten Pfad
+//    im selben fill() mit "evenodd".
+// 2. **Entfernung** — ein Radialverlauf über das GANZE Bild, unabhängig von Wänden: innen
+//    klar, zum Sichtrand hin dicht. Er liegt bewusst NICHT auf das Polygon geclippt, sonst
+//    entstünde an dessen Grenze eine harte Kante mitten im Nichts.
 //
-// Die Restdeckkraft von 0.96 ist Absicht: der abgedunkelte Rest der Karte bleibt schemenhaft
-// als Orientierung erhalten. Figuren und Leichen werden davon NICHT verdeckt, sondern schon
-// vorher gar nicht erst gezeichnet (siehe istEinsehbar) — Restlicht dürfte sonst verraten,
-// wo jemand steht.
-function zeichneSichtfeld(wx, wy, mitteX, mitteY, radius, polygon) {
-  function pfad() {
-    ctx.moveTo(wx(polygon[0].x), wy(polygon[0].y));
-    for (let i = 1; i < polygon.length; i++) ctx.lineTo(wx(polygon[i].x), wy(polygon[i].y));
-    ctx.closePath();
-  }
+// Zusammen ergibt das vier Abstufungen: im Sichtfeld nah = klar, im Sichtfeld weit = dämmrig,
+// hinter der Wand nah = angedeutet, hinter der Wand weit = praktisch schwarz.
+//
+// Wichtig: **Figuren, Leichen und Alibi-Spuren hängen NICHT an dieser Abdunklung.** Sie werden
+// schon gar nicht erst gezeichnet, wenn die Sichtlinie blockiert ist (siehe istEinsehbar). Der
+// weiche Wandschatten darf also beliebig hell werden, ohne zu verraten, wo jemand steht — wer
+// hinter einer Wand ist, bleibt unsichtbar, auch wenn man den Raum dahinter erahnt.
+const SCHATTEN_HINTER_WAND = "rgba(5,10,20,0.58)";
+const NEBEL_FERN = "rgba(5,10,20,0.93)";
 
+function zeichneSichtfeld(wx, wy, mitteX, mitteY, radius, polygon) {
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, 0, canvas.width, canvas.height);
-  pfad();
-  ctx.fillStyle = "rgba(5,10,20,0.96)";
+  ctx.moveTo(wx(polygon[0].x), wy(polygon[0].y));
+  for (let i = 1; i < polygon.length; i++) ctx.lineTo(wx(polygon[i].x), wy(polygon[i].y));
+  ctx.closePath();
+  ctx.fillStyle = SCHATTEN_HINTER_WAND;
   ctx.fill("evenodd");
   ctx.restore();
 
-  const rand = ctx.createRadialGradient(mitteX, mitteY, radius * 0.72, mitteX, mitteY, radius);
+  const rand = ctx.createRadialGradient(mitteX, mitteY, radius * 0.62, mitteX, mitteY, radius);
   rand.addColorStop(0, "rgba(5,10,20,0)");
-  rand.addColorStop(1, "rgba(5,10,20,0.96)");
-  ctx.save();
-  ctx.beginPath();
-  pfad();
-  ctx.clip();
+  rand.addColorStop(1, NEBEL_FERN);
   ctx.fillStyle = rand;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.restore();
 }
 
 // ============================================================
@@ -1583,7 +1582,7 @@ const APP_CHANGELOG = [
       { title: "Spielen", items: [
           "Verräterspiel für 4 bis 10 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
           "Das Gelände ist dem Original-Grundriss von Among Us nachempfunden: 14 Räume, ein Drehkreuz in der Mitte, ein Rundlauf außen herum – und zwei Sackgassen (Hausmeisterloge, Sanitätsraum) mit nur einer Tür.",
-          "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen – nur durch offene Türen fällt Licht in den Nachbarraum. Auch ein Foulspiel quer durch die Wand geht nicht mehr.",
+          "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen – nur durch offene Türen fällt Licht in den Nachbarraum. Die Räume selbst bleiben schwach angedeutet, damit man sich zurechtfindet; Mitspielende sieht man aber wirklich nur in direkter Sichtlinie. Auch ein Foulspiel quer durch die Wand geht nicht mehr.",
           "25 verschiedene Aufgaben-Minispiele an 50 Stationen – jede Runde ist anders zusammengesetzt.",
           "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen und Räume verriegeln.",
