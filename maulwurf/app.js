@@ -18,6 +18,16 @@ const PHASEN_MIT_VERLASSEN_BUTTON = ["lobby", "zuteilung", "laeuft"];
 // abschneiden, und der Sichtkreis passte nicht mehr aufs Bild. Über die kurze Achse gerechnet
 // sieht man im Querformat mehr nach links und rechts – nie weniger als den vollen Sichtkreis.
 const SICHT_KURZE_ACHSE = 620;
+
+// Bodenfarben der Karte. Türschwellen bekommen bewusst KEINE eigene Farbe, sondern übernehmen
+// je Hälfte die der angrenzenden Fläche – sonst stehen sie als helle Klötze in der Landschaft.
+const MAUERWERK = "#172136";
+const BODEN_GANG = "#243044";
+const BODEN_RAUM = "#2c3a52";
+const BODEN_GESPERRT = "#3a2230";
+const WANDLINIE = "#48597a";
+const TUERZARGE = "#63799e";   // heller als die Wand, damit Türen schon aus der Ferne auffallen
+const ZARGE = 13;              // Länge einer Zarge je Seite der Wand, in Weltkoordinaten
 const SCHNELL_PHRASEN = [
   "Ich war in der Kabine.",
   "Wo warst du?",
@@ -212,27 +222,76 @@ function zeichne(zustand) {
   ctx.fillStyle = "#0b1220";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Gänge zuerst, dann die Räume mit ihrer Umrandung, zuletzt die Türschwellen: die Schwellen
-  // liegen bewusst ÜBER der Raumlinie und stanzen so die Öffnung in die gezeichnete Wand.
-  ctx.fillStyle = "#243044";
+  // Mauerwerk als Untergrund, darauf die Gänge, dann die Räume mit ihrer Umrandung, dann die
+  // Türschwellen: die Schwellen liegen bewusst ÜBER der Raumlinie und stanzen so die Öffnung
+  // in die gezeichnete Wand.
+  ctx.fillStyle = MAUERWERK;
+  ctx.fillRect(wx(karte.GEBAEUDE.x), wy(karte.GEBAEUDE.y), karte.GEBAEUDE.w * skala, karte.GEBAEUDE.h * skala);
+
+  ctx.fillStyle = BODEN_GANG;
   karte.KORRIDORE.forEach(k => ctx.fillRect(wx(k.x), wy(k.y), k.w * skala, k.h * skala));
 
   const jetzt = zustand.jetzt;
+  const istGesperrt = raum => (zustand.tueren || {})[raum.id] > jetzt;
   karte.RAEUME.forEach(r => {
-    const gesperrt = (zustand.tueren || {})[r.id] > jetzt;
-    ctx.fillStyle = gesperrt ? "#3a2230" : "#2c3a52";
+    const gesperrt = istGesperrt(r);
+    ctx.fillStyle = gesperrt ? BODEN_GESPERRT : BODEN_RAUM;
     ctx.fillRect(wx(r.x), wy(r.y), r.w * skala, r.h * skala);
-    ctx.strokeStyle = gesperrt ? "#dc2626" : "#48597a";
+    ctx.strokeStyle = gesperrt ? "#dc2626" : WANDLINIE;
     ctx.lineWidth = Math.max(2.5 * skala, 2);
     ctx.strokeRect(wx(r.x), wy(r.y), r.w * skala, r.h * skala);
-    ctx.fillStyle = "rgba(255,255,255,0.36)";
-    ctx.font = `${Math.round(26 * skala)}px -apple-system, Segoe UI, Roboto, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillText(r.name, wx(r.x + r.w / 2), wy(r.y + 40));
   });
 
-  ctx.fillStyle = "#33415c";
-  karte.TUEREN.forEach(t => ctx.fillRect(wx(t.x), wy(t.y), t.w * skala, t.h * skala));
+  // Türschwellen. Jede Hälfte bekommt die Farbe der Fläche, in die sie ragt — eine eigene,
+  // hellere Türfarbe hatte sich als leuchtender Klotz beidseits der Wand abgezeichnet statt
+  // wie ein Durchgang auszusehen (gemeldet 2026-07-26). Sichtbar bleibt nur die Lücke in der
+  // Wandlinie, dazu zwei kurze Pfosten, damit eine Tür auch aus der Ferne als solche auffällt.
+  karte.TUEREN.forEach(t => {
+    const waagerecht = t.achse === "h";
+    const mx = t.x + t.w / 2;
+    const my = t.y + t.h / 2;
+
+    // Die Türmitte liegt konstruktionsbedingt genau auf einer Raumkante. Eine kurze Probe zu
+    // beiden Seiten sagt daher, welche Hälfte im Raum liegt — ganz ohne Annahme darüber, wie
+    // dick die Wand an dieser Stelle ist.
+    const raumSeiteA = karte.raumAn(waagerecht ? mx - 4 : mx, waagerecht ? my : my - 4);
+    const raum = raumSeiteA || karte.raumAn(waagerecht ? mx + 4 : mx, waagerecht ? my : my + 4);
+    const raumfarbe = raum && istGesperrt(raum) ? BODEN_GESPERRT : BODEN_RAUM;
+    const farbeA = raumSeiteA ? raumfarbe : BODEN_GANG;
+    const farbeB = raumSeiteA ? BODEN_GANG : raumfarbe;
+
+    ctx.fillStyle = farbeA;
+    if (waagerecht) ctx.fillRect(wx(t.x), wy(t.y), (t.w / 2) * skala, t.h * skala);
+    else ctx.fillRect(wx(t.x), wy(t.y), t.w * skala, (t.h / 2) * skala);
+    ctx.fillStyle = farbeB;
+    if (waagerecht) ctx.fillRect(wx(mx), wy(t.y), (t.w / 2) * skala, t.h * skala);
+    else ctx.fillRect(wx(t.x), wy(my), t.w * skala, (t.h / 2) * skala);
+
+    // Zargen quer zur Wand an beiden Rändern der Öffnung. In der Wandlinie liegend wären sie
+    // von ihr nicht zu unterscheiden — quer gestellt lesen sie sich als Durchgang.
+    ctx.strokeStyle = raum && istGesperrt(raum) ? "#dc2626" : TUERZARGE;
+    ctx.lineWidth = Math.max(2.5 * skala, 2);
+    ctx.beginPath();
+    if (waagerecht) {
+      ctx.moveTo(wx(mx - ZARGE), wy(t.y));         ctx.lineTo(wx(mx + ZARGE), wy(t.y));
+      ctx.moveTo(wx(mx - ZARGE), wy(t.y + t.h));   ctx.lineTo(wx(mx + ZARGE), wy(t.y + t.h));
+    } else {
+      ctx.moveTo(wx(t.x), wy(my - ZARGE));         ctx.lineTo(wx(t.x), wy(my + ZARGE));
+      ctx.moveTo(wx(t.x + t.w), wy(my - ZARGE));   ctx.lineTo(wx(t.x + t.w), wy(my + ZARGE));
+    }
+    ctx.stroke();
+  });
+
+  // Raumnamen erst jetzt: bei Türen in der oberen Wand hat die Schwelle den Schriftzug sonst
+  // mittendrin ausgestanzt ("Ge…raum"). Der weiche Schatten hält die Schrift auch dort lesbar,
+  // wo der Nebel schon abdunkelt; die Untergrenze der Schriftgröße rettet kleine Displays.
+  ctx.font = `600 ${Math.max(Math.round(28 * skala), 13)}px -apple-system, Segoe UI, Roboto, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(226,232,240,0.6)";
+  ctx.shadowColor = "rgba(3,7,15,0.85)";
+  ctx.shadowBlur = Math.max(5 * skala, 3);
+  karte.RAEUME.forEach(r => ctx.fillText(r.name, wx(r.x + r.w / 2), wy(r.y + 40)));
+  ctx.shadowBlur = 0;
 
   // Notfallknopf
   zeichneMarker(wx(karte.NOTFALLKNOPF.x), wy(karte.NOTFALLKNOPF.y), skala, "#dc2626", "📣");
@@ -1153,7 +1212,7 @@ const APP_CHANGELOG = [
     groups: [
       { title: "Spielen", items: [
           "Verräterspiel für 4 bis 10 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
-          "16 Räume, über Flure und Türen verbunden, mit begrenztem Sichtfeld.",
+          "16 beschriftete Räume, über Flure und Türen verbunden, mit begrenztem Sichtfeld.",
           "25 verschiedene Aufgaben-Minispiele an 50 Stationen – jede Runde ist anders zusammengesetzt.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen und Räume verriegeln.",
           "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter."

@@ -74,10 +74,12 @@ const KORRIDORE = [
 const TUER_BREITE = 84;
 const TUER_TIEFE = 56;
 
+// Die Achse bleibt am Rechteck hängen: der Renderer muss wissen, in welche Richtung eine
+// Schwelle durch die Wand stößt, um ihre beiden Hälften unterschiedlich einzufärben.
 function tuer(x, y, achse) {
   return achse === "h"
-    ? { x: x - TUER_TIEFE, y: y - TUER_BREITE / 2, w: TUER_TIEFE * 2, h: TUER_BREITE }
-    : { x: x - TUER_BREITE / 2, y: y - TUER_TIEFE, w: TUER_BREITE, h: TUER_TIEFE * 2 };
+    ? { achse: "h", x: x - TUER_TIEFE, y: y - TUER_BREITE / 2, w: TUER_TIEFE * 2, h: TUER_BREITE }
+    : { achse: "v", x: x - TUER_BREITE / 2, y: y - TUER_TIEFE, w: TUER_BREITE, h: TUER_TIEFE * 2 };
 }
 
 // Jeder Raum hat zwei Türen (das Vereinsheim als Treffpunkt vier, der Rasenplatz drei),
@@ -186,6 +188,18 @@ function inRechteck(x, y, r) {
 }
 
 const ALLE_FLAECHEN = RAEUME.concat(KORRIDORE, TUEREN);
+
+// Umriss aller Flächen plus etwas Außenwand. Der Renderer legt darunter das Mauerwerk: sonst
+// sind die Zwischenräume zwischen Räumen und Gängen genauso schwarz wie das Nichts außerhalb
+// der Karte, und die Räume schweben als lose Kacheln (gemeldet 2026-07-26).
+const GEBAEUDE = (function () {
+  const links = Math.min.apply(null, ALLE_FLAECHEN.map(f => f.x));
+  const oben = Math.min.apply(null, ALLE_FLAECHEN.map(f => f.y));
+  const rechts = Math.max.apply(null, ALLE_FLAECHEN.map(f => f.x + f.w));
+  const unten = Math.max.apply(null, ALLE_FLAECHEN.map(f => f.y + f.h));
+  const rand = 22;
+  return { x: links - rand, y: oben - rand, w: rechts - links + rand * 2, h: unten - oben + rand * 2 };
+})();
 
 function punktInFlaeche(x, y) {
   for (let i = 0; i < ALLE_FLAECHEN.length; i++) {
@@ -391,7 +405,7 @@ const karte = {
   WELT_BREITE, WELT_HOEHE,
   SPIELER_RADIUS, INTERAKTIONS_RADIUS, KILL_REICHWEITE, TUNNEL_RADIUS,
   SICHT_TEAM, SICHT_MAULWURF, SICHT_TEAM_DUNKEL, SICHT_GEIST,
-  RAEUME, KORRIDORE, TUEREN, TUNNEL, STATIONEN,
+  RAEUME, KORRIDORE, TUEREN, TUNNEL, STATIONEN, GEBAEUDE,
   NOTFALLKNOPF, SICHERUNGSKASTEN, HEIZUNG_A, HEIZUNG_B,
   BOT_WEGPUNKTE,
   startPositionen, istBegehbar, bewegeMitKollision, raumAn, raumName,
