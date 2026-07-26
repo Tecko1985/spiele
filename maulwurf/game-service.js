@@ -94,6 +94,7 @@ const BOT_STIMME_MS = 11000;
 // Zahlen, keine Booleans: die Einstellungsfelder in der Lobby werden alle über denselben
 // parseInt-Weg gespeichert (siehe app.js). 1/0 statt true/false hält das einheitlich.
 const STANDARD_EINSTELLUNGEN = {
+  modus: "klassisch",        // "klassisch" | "verstecken"
   killCooldownSek: 30,
   diskussionSek: 45,
   abstimmungSek: 60,
@@ -104,11 +105,57 @@ const STANDARD_EINSTELLUNGEN = {
   rolleIngenieur: 0,
   rolleWissenschaftler: 0,
   rolleSchutzengel: 0,
-  rolleGestaltwandler: 0
+  rolleGestaltwandler: 0,
+  vorsprungSek: 15,          // nur Verstecken: so lange steht der Fänger noch still
+  zeitlimitMin: 5            // nur Verstecken: danach hat das Team durchgehalten
 };
 
 function anzahlMaulwuerfeFuer(spielerAnzahl) {
   return spielerAnzahl >= 7 ? 2 : 1;
+}
+
+// --- Verstecken-Modus ---
+//
+// Zweiter Spielmodus nach dem Vorbild von Hide n Seek: genau ein Fänger, von Beginn an offen
+// bekannt, dafür ohne Besprechung und ohne Abstimmung. Das Team muss nur seine Aufgaben
+// schaffen oder die Zeit überstehen.
+//
+// Der Fänger steht öffentlich in raeume/$code/faengerUid. Die verdeckte Selbstziehung bleibt
+// trotzdem unverändert — wer "maulwurf" zieht, trägt sich zusätzlich dort ein. Das spart einen
+// zweiten Zuteilungsweg samt eigener Race Condition, und die Sonderrollen bleiben auch hier
+// geheim.
+function istVersteckModus(raum) {
+  return ((raum && raum.einstellungen) || {}).modus === "verstecken";
+}
+
+// Vorsprung und Zeitlimit laufen gegen den Beginn der Laufphase. Als Startzeit dient revealBis:
+// dieser Wert steht bereits in der Datenbank und ist damit auf allen Geräten derselbe, während
+// ein eigener Zeitstempel je nach schreibendem Gerät um Millisekunden abwiche — bei einem
+// Countdown, den alle sehen, wäre das sichtbar.
+function laufBeginn(raum) {
+  return raum && raum.revealBis ? raum.revealBis : 0;
+}
+
+// Beide geben 0 zurück, solange der Startzeitpunkt noch nicht feststeht. Ohne diese Prüfung
+// stünde nach der Rechnung 0 + 5 min ein Zeitpunkt im Jahr 1970 — und pruefeZeitlimit() würde
+// die Partie in derselben Sekunde als "durchgehalten" beenden, in der sie beginnt.
+function vorsprungBis(raum) {
+  const start = laufBeginn(raum);
+  if (!istVersteckModus(raum) || !start) return 0;
+  const e = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
+  return start + e.vorsprungSek * 1000;
+}
+
+function zeitlimitBis(raum) {
+  const start = laufBeginn(raum);
+  if (!istVersteckModus(raum) || !start) return 0;
+  const e = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
+  return start + e.zeitlimitMin * 60000;
+}
+
+// Während des Vorsprungs steht der Fänger fest und kann niemanden fangen.
+function faengerGesperrt(raum, uid) {
+  return istVersteckModus(raum) && raum.faengerUid === uid && serverJetzt() < vorsprungBis(raum);
 }
 
 function slugifyName(name) {
@@ -284,7 +331,13 @@ function getZustand() {
     siegGrund: raum.siegGrund || null,
     aufdeckung: raum.aufdeckungCache || null,
     einstellungen: Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {}),
-    anzahlMaulwuerfe: (raum.einstellungen && raum.einstellungen.anzahlMaulwuerfe) || anzahlMaulwuerfeFuer(spielerListe.length),
+    anzahlMaulwuerfe: istVersteckModus(raum)
+      ? 1
+      : (raum.einstellungen && raum.einstellungen.anzahlMaulwuerfe) || anzahlMaulwuerfeFuer(spielerListe.length),
+    versteckModus: istVersteckModus(raum),
+    faengerUid: raum.faengerUid || null,
+    vorsprungBis: vorsprungBis(raum),
+    zeitlimitBis: zeitlimitBis(raum),
     revealBis: raum.revealBis || 0,
     jetzt: serverJetzt(),
     maxSpieler: MAX_SPIELER,
@@ -500,7 +553,12 @@ async function starteSpiel() {
   if (uids.length < MIN_SPIELER) return { erfolg: false, fehler: `Mindestens ${MIN_SPIELER} Mitspielende nötig.` };
 
   const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
-  const anzahlMaulwuerfe = Math.min(einstellungen.anzahlMaulwuerfe || anzahlMaulwuerfeFuer(uids.length), Math.floor(uids.length / 2) - 1 || 1);
+  // Im Verstecken-Modus gibt es immer genau einen Fänger, unabhängig von der Gruppengröße:
+  // zwei bekannte Jäger würden die Hälfte der Karte gleichzeitig abdecken, und ohne
+  // Besprechung fehlt jedes Gegenmittel.
+  const anzahlMaulwuerfe = istVersteckModus(raum)
+    ? 1
+    : Math.min(einstellungen.anzahlMaulwuerfe || anzahlMaulwuerfeFuer(uids.length), Math.floor(uids.length / 2) - 1 || 1);
 
   // Das Deck ist bewusst nur eine gemischte Liste OHNE Zuordnung zu Personen — der Host
   // erfährt beim Schreiben nichts über die spätere Verteilung. Sonderrollen hängen als
@@ -530,6 +588,7 @@ async function starteSpiel() {
   updates[`${basis}/sieger`] = null;
   updates[`${basis}/siegGrund`] = null;
   updates[`${basis}/revealBis`] = 0;
+  updates[`${basis}/faengerUid`] = null;   // trägt sich beim Ziehen selbst ein
   uids.forEach(uid => {
     updates[`${basis}/spieler/${uid}/lebt`] = true;
     updates[`${basis}/spieler/${uid}/notfallUebrig`] = einstellungen.notfallKnoepfe;
@@ -606,6 +665,10 @@ async function zieheEigeneRolle(raum) {
     await db.ref(`${ROLLEN_PFAD}/${code}/${eigeneUid}`).set(daten);
     if (rolle === "maulwurf") {
       await db.ref(`${TEAM_PFAD}/${code}/${eigeneUid}`).set({ name: raum.spieler[eigeneUid].name, runde: rundeVon(raum) });
+      // Im Verstecken-Modus ist der Fänger kein Geheimnis — er meldet sich selbst öffentlich an.
+      if (istVersteckModus(raum)) {
+        await db.ref(`${RAEUME_PFAD}/${code}/faengerUid`).set(eigeneUid).catch(() => {});
+      }
     }
     uebernehmeEigeneRolle(daten);
   } catch (e) {
@@ -676,6 +739,9 @@ async function zieheBotRollen(raum) {
       });
       if (rolle === "maulwurf") {
         await db.ref(`${TEAM_PFAD}/${code}/${botId}`).set({ name: raum.spieler[botId].name, runde });
+        if (istVersteckModus(raum)) {
+          await db.ref(`${RAEUME_PFAD}/${code}/faengerUid`).set(botId).catch(() => {});
+        }
       }
       merker.rolle = rolle;
       merker.sonder = sonder || null;
@@ -719,6 +785,7 @@ function verarbeiteRaumZustand(raum) {
     pruefeSabotageAblauf(raum);
     pruefeAufgabenSieg(raum);
     pruefeRollenabhaengigenSieg(raum);
+    pruefeZeitlimit(raum);
     starteBotSchleifeFallsNoetig(raum);
     if (raum.meeting) pruefeMeetingUebergaenge(raum);
   }
@@ -755,6 +822,7 @@ function bewege(dx, dy, sekunden) {
   const raum = letzterRaum;
   if (!raum || raum.phase !== "laeuft" || raum.meeting) return;
   if (!meinePosition) return;
+  if (faengerGesperrt(raum, eigeneUid)) return; // Vorsprung: der Fänger steht noch
   const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
   const laenge = Math.hypot(dx, dy);
   if (laenge < 0.01) return;
@@ -904,6 +972,7 @@ async function schalteAus(opferUid) {
   if (!raum || !code || raum.phase !== "laeuft" || raum.meeting) return { erfolg: false };
   if (meineRolle !== "maulwurf") return { erfolg: false };
   if (raum.spieler[eigeneUid].lebt === false) return { erfolg: false };
+  if (faengerGesperrt(raum, eigeneUid)) return { erfolg: false, fehler: "Der Vorsprung läuft noch." };
   const opfer = raum.spieler[opferUid];
   if (!opfer || opfer.lebt === false) return { erfolg: false };
   if (aktuelleMaulwuerfe()[opferUid]) return { erfolg: false, fehler: "Das ist ein Maulwurf." };
@@ -952,6 +1021,7 @@ async function schalteAus(opferUid) {
 async function meldeLeiche(leicheUid) {
   const raum = letzterRaum;
   if (!raum || raum.phase !== "laeuft" || raum.meeting) return { erfolg: false };
+  if (istVersteckModus(raum)) return { erfolg: false }; // ohne Besprechung gibt es nichts zu melden
   if (raum.spieler[eigeneUid].lebt === false) return { erfolg: false };
   const leiche = (raum.leichen || {})[leicheUid];
   if (!leiche || leiche.gemeldet) return { erfolg: false };
@@ -961,6 +1031,7 @@ async function meldeLeiche(leicheUid) {
 async function drueckeNotfallknopf() {
   const raum = letzterRaum;
   if (!raum || raum.phase !== "laeuft" || raum.meeting) return { erfolg: false };
+  if (istVersteckModus(raum)) return { erfolg: false };
   const eigener = raum.spieler[eigeneUid];
   if (!eigener || eigener.lebt === false) return { erfolg: false };
   if ((eigener.notfallUebrig || 0) <= 0) return { erfolg: false, fehler: "Kein Notfallknopf mehr übrig." };
@@ -1148,6 +1219,10 @@ async function sabotiere(typ, raumId) {
   const code = aktuellerRaumCode;
   if (!raum || !code || raum.phase !== "laeuft" || raum.meeting) return { erfolg: false };
   if (meineRolle !== "maulwurf") return { erfolg: false };
+  // Im Verstecken-Modus gibt es keine Sabotage. Die Heizung setzt darauf, dass zwei Leute
+  // gemeinsam reparieren und sich vorher absprechen — ohne Besprechung wäre sie ein reiner
+  // Zeitzünder, und der Fänger gewänne, ohne jemanden gefangen zu haben.
+  if (istVersteckModus(raum)) return { erfolg: false };
   if (raum.spieler[eigeneUid].lebt === false) return { erfolg: false };
   if ((raum.sabotageCooldownBis || 0) > serverJetzt()) return { erfolg: false, fehler: "Noch nicht bereit." };
 
@@ -1226,8 +1301,27 @@ function pruefeAufgabenSieg(raum) {
   }
 }
 
+// Im Verstecken-Modus läuft die Uhr: reicht sie aus, hat das Team durchgehalten.
+function pruefeZeitlimit(raum) {
+  if (!istVersteckModus(raum)) return;
+  const ende = zeitlimitBis(raum);
+  if (ende && serverJetzt() >= ende) {
+    beanspracheSieg(raum, "team", "Die Zeit ist um – ihr habt durchgehalten.");
+  }
+}
+
 // Nur Maulwurf-Geräte können diese beiden Bedingungen überhaupt sehen (siehe Dateikopf).
 function pruefeRollenabhaengigenSieg(raum) {
+  // Ausnahme Verstecken-Modus: dort ist der Fänger öffentlich bekannt, also kann JEDES Gerät
+  // zählen, wer noch frei herumläuft. Das ist die robustere Variante — sie hängt nicht daran,
+  // dass ausgerechnet das Gerät des Fängers verbunden bleibt.
+  if (istVersteckModus(raum)) {
+    if (!raum.faengerUid) return; // Zuteilung noch nicht durch
+    const freie = lebendeSpieler(raum).filter(uid => uid !== raum.faengerUid).length;
+    if (freie === 0) beanspracheSieg(raum, "maulwuerfe", "Alle sind gefangen.");
+    return;
+  }
+
   if (meineRolle !== "maulwurf") return;
   // Wichtig: erst prüfen, wenn die Maulwurf-Liste wirklich angekommen ist. Direkt nach dem
   // Rundenstart ist sie noch leer, und ein Check dagegen würde sofort "alle Maulwürfe
@@ -1342,6 +1436,9 @@ function fuehreBotTickAus() {
     const pos = positionen[botId] || karte.startPositionen(1)[0];
 
     if (raum.meeting) return; // im Meeting bewegt sich niemand
+    // Der Vorsprung gilt auch für einen KI-Fänger — sonst wäre der Modus gegen die KI von der
+    // ersten Sekunde an aussichtslos.
+    if (faengerGesperrt(raum, botId)) return;
 
     // Wegfindung statt stumpfem Zulaufen: seit die Räume nur noch über Türen erreichbar sind,
     // würde ein Bot, der direkt auf den Raummittelpunkt zuhält, an der nächsten Wand kleben
@@ -1516,6 +1613,10 @@ async function neueRunde() {
   updates[`${RAEUME_PFAD}/${code}/siegGrund`] = null;
   updates[`${RAEUME_PFAD}/${code}/siegClaim`] = null;
   updates[`${RAEUME_PFAD}/${code}/revealBis`] = 0;
+  // Muss mit zurück auf null: sonst gälte im Rematch der Fänger der Vorrunde als markiert,
+  // bis der neue sich einträgt — und Vorsprung wie Zeitlimit rechneten gegen ein revealBis,
+  // das noch gar nicht steht.
+  updates[`${RAEUME_PFAD}/${code}/faengerUid`] = null;
   Object.keys(raum.spieler || {}).forEach(uid => {
     updates[`${RAEUME_PFAD}/${code}/spieler/${uid}/lebt`] = true;
   });
@@ -1618,5 +1719,6 @@ const gameService = {
   // für Verifikation direkt aufrufbar (reine Funktionen, kein Firebase-Zugriff):
   SICHTBARE_WIRKUNG_MS,
   ermittleAusschluss, anzahlMaulwuerfeFuer, mischeListe,
+  istVersteckModus, vorsprungBis, zeitlimitBis,
   MIN_SPIELER, MAX_SPIELER
 };

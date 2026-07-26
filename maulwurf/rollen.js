@@ -47,9 +47,14 @@ function teileDeckEintrag(eintrag) {
 
 // Welche Sonderrollen sind laut Einstellungen an, sortiert nach Seite?
 function aktiveSonderrollen(einstellungen, seite) {
+  const e = einstellungen || {};
+  // Im Verstecken-Modus steht der Fänger von Beginn an offen auf der Karte. Eine Verkleidung
+  // müsste diese Markierung entweder aushebeln (dann wäre der Modus kaputt) oder würde von ihr
+  // verraten (dann wäre die Rolle wertlos) — Maulwurf-Sonderrollen entfallen dort ganz.
+  if (seite === "maulwurf" && e.modus === "verstecken") return [];
   return Object.keys(SONDERROLLEN)
     .filter(n => SONDERROLLEN[n].seite === seite)
-    .filter(n => (einstellungen || {})[SONDERROLLEN[n].einstellung]);
+    .filter(n => e[SONDERROLLEN[n].einstellung]);
 }
 
 // Baut das Deck. Sonderrollen belegen bestehende Plätze ihrer Seite, sie schaffen keine neuen:

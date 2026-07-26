@@ -30,6 +30,13 @@ const SICHT_MAULWURF = 330;
 const SICHT_TEAM_DUNKEL = 95;
 const SICHT_GEIST = 99999;
 
+// Verstecken-Modus: alle sehen weniger, der Fänger am wenigsten. Das dreht das
+// Kräfteverhältnis des Klassik-Modus bewusst um — dort sieht der Maulwurf am weitesten. Hier
+// weiß der Fänger ohnehin, dass ihn alle kommen sehen; sein Nachteil ist, dass er selbst kaum
+// etwas erkennt und sich an der Nähe-Anzeige entlangtasten muss.
+const SICHT_VERSTECKEN_TEAM = 210;
+const SICHT_VERSTECKEN_FAENGER = 150;
+
 // Raster des Layouts. Spalten A–E und Zeilen 1–4 sind 250 x 200 groß, dazwischen liegen
 // 80 px breite Gänge mit je 35 px Wand zu den Räumen.
 const RAEUME = [
@@ -501,6 +508,7 @@ const karte = {
   WELT_BREITE, WELT_HOEHE,
   SPIELER_RADIUS, INTERAKTIONS_RADIUS, KILL_REICHWEITE, TUNNEL_RADIUS,
   SICHT_TEAM, SICHT_MAULWURF, SICHT_TEAM_DUNKEL, SICHT_GEIST, SICHT_STRAHLEN,
+  SICHT_VERSTECKEN_TEAM, SICHT_VERSTECKEN_FAENGER,
   RAEUME, KORRIDORE, TUEREN, TUNNEL, STATIONEN, GEBAEUDE,
   NOTFALLKNOPF, SICHERUNGSKASTEN, HEIZUNG_A, HEIZUNG_B,
   BOT_WEGPUNKTE,

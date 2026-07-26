@@ -157,6 +157,9 @@ h1, h2 { margin: 0 0 12px; }
 }
 .einstellungen-box summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 .einstellungen-gitter { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+/* Der Spielmodus steht über allem anderen und bekommt deshalb die volle Breite — die
+   Beschriftungen der beiden Modi passen sonst nicht in eine halbe Spalte. */
+.einstellungen-gitter label.einstellung-breit { grid-column: 1 / -1; }
 .einstellungen-gitter label { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
 .einstellungen-gitter select {
   padding: 8px; border: 1px solid var(--border); border-radius: 6px;
@@ -249,6 +252,22 @@ body.im-spiel .aktions-leiste {
   margin: 8px 0 0; padding: 8px 10px; border-radius: var(--radius-sm);
   background: #fee2e2; color: #991b1b; font-size: 13px; font-weight: 600; text-align: center;
 }
+
+/* Verstecken-Modus: Uhr und Nähe-Anzeige. Beide sitzen direkt unter der HUD-Zeile und müssen
+   im Spiel auf dunklem Grund lesbar bleiben, in der Vorschau aber auch auf hellem. */
+.hud-verstecken {
+  display: flex; gap: 8px; justify-content: space-between; align-items: center;
+  margin-top: 6px; font-size: 13px; font-weight: 700;
+}
+.hud-uhr, .hud-naehe {
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(15, 23, 42, 0.55); color: #e2e8f0;
+}
+.hud-uhr.vorsprung { background: rgba(37, 99, 235, 0.75); color: #fff; }
+.hud-uhr.knapp { background: rgba(220, 38, 38, 0.85); color: #fff; }
+.hud-naehe.naehe-gelb { background: rgba(202, 138, 4, 0.85); color: #fff; }
+.hud-naehe.naehe-orange { background: rgba(234, 88, 12, 0.9); color: #fff; }
+.hud-naehe.naehe-rot { background: rgba(220, 38, 38, 0.95); color: #fff; }
 
 .spielfeld-huelle {
   position: relative; width: 100%; aspect-ratio: 3 / 4;

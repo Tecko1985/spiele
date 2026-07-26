@@ -203,6 +203,9 @@ window.addEventListener("resize", () => passeCanvasAn());
 
 function sichtweiteFuer(zustand) {
   if (zustand.binGeist) return karte.SICHT_GEIST;
+  if (zustand.versteckModus) {
+    return zustand.meineRolle === "maulwurf" ? karte.SICHT_VERSTECKEN_FAENGER : karte.SICHT_VERSTECKEN_TEAM;
+  }
   if (zustand.meineRolle === "maulwurf") return karte.SICHT_MAULWURF;
   const sab = zustand.sabotage;
   if (sab && sab.typ === "flutlicht") return karte.SICHT_TEAM_DUNKEL;
@@ -307,8 +310,8 @@ function zeichne(zustand) {
   karte.RAEUME.forEach(r => ctx.fillText(r.name, wx(r.x + r.w / 2), wy(r.y + 40)));
   ctx.shadowBlur = 0;
 
-  // Notfallknopf
-  zeichneMarker(wx(karte.NOTFALLKNOPF.x), wy(karte.NOTFALLKNOPF.y), skala, "#dc2626", "📣");
+  // Notfallknopf — im Verstecken-Modus gibt es keine Besprechung, also auch keinen Knopf
+  if (!zustand.versteckModus) zeichneMarker(wx(karte.NOTFALLKNOPF.x), wy(karte.NOTFALLKNOPF.y), skala, "#dc2626", "📣");
 
   // Reparaturstellen nur, solange die passende Sabotage läuft
   const sab = zustand.sabotage;
@@ -445,6 +448,17 @@ function zeichneFigur(x, y, skala, spieler, zustand) {
     if (vorbild) spieler = { id: spieler.id, name: vorbild.name, farbe: vorbild.farbe, lebt: spieler.lebt };
   }
 
+  // Der Fänger im Verstecken-Modus ist für alle als solcher erkennbar — daran hängt der
+  // ganze Modus. Der Ring liegt außen um die Figur, damit er auch bei fremder Farbe auffällt.
+  const istFaenger = zustand.versteckModus && spieler.id === zustand.faengerUid;
+  if (istFaenger) {
+    ctx.strokeStyle = "#ef4444";
+    ctx.lineWidth = Math.max(3.5 * skala, 2.5);
+    ctx.beginPath();
+    ctx.arc(x, y, (karte.SPIELER_RADIUS + 8) * skala, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   ctx.fillStyle = spieler.farbe || "#1a56a0";
   ctx.beginPath();
   ctx.arc(x, y, karte.SPIELER_RADIUS * skala, 0, Math.PI * 2);
@@ -456,7 +470,7 @@ function zeichneFigur(x, y, skala, spieler, zustand) {
   ctx.fillStyle = "#fff";
   ctx.font = `bold ${Math.round(21 * skala)}px -apple-system, Segoe UI, Roboto, sans-serif`;
   ctx.textAlign = "center";
-  ctx.fillText(spieler.name.slice(0, 12), x, y - 26 * skala);
+  ctx.fillText((istFaenger ? "🥅 " : "") + spieler.name.slice(0, 12), x, y - 26 * skala);
 }
 
 // Abdunklung außerhalb des Sichtfelds. Zwei Lagen, die zusammen erst den Eindruck ergeben:
@@ -655,7 +669,7 @@ function ermittleAktion(zustand) {
       return { typ: "reparatur-heizung", seite: "b", zeichen: "🔧", label: "Ventil Küche" };
     }
   }
-  if (!zustand.meeting && (zustand.eigener.notfallUebrig || 0) > 0 &&
+  if (!zustand.versteckModus && !zustand.meeting && (zustand.eigener.notfallUebrig || 0) > 0 &&
       karte.abstand(pos.x, pos.y, karte.NOTFALLKNOPF.x, karte.NOTFALLKNOPF.y) <= karte.INTERAKTIONS_RADIUS) {
     return { typ: "notfall", zeichen: "📣", label: "Notfallknopf" };
   }
@@ -696,7 +710,7 @@ function findeKillZiel(zustand) {
 }
 
 function findeMeldbareLeiche(zustand) {
-  if (zustand.binGeist) return null;
+  if (zustand.binGeist || zustand.versteckModus) return null; // ohne Besprechung nichts zu melden
   const pos = zustand.meinePosition;
   if (!pos) return null;
   const leichen = zustand.leichen || {};
@@ -709,10 +723,73 @@ function findeMeldbareLeiche(zustand) {
 // Die Sonderrolle ersetzt die Seitenbezeichnung nicht, sie ergänzt sie — man soll auf einen
 // Blick sehen, für welche Seite man spielt, ohne die Sonderrolle erst deuten zu müssen.
 function rollenBezeichnung(zustand) {
-  const basis = zustand.meineRolle === "maulwurf" ? "🕵️ Maulwurf"
-              : zustand.meineRolle === "team" ? "⚽ Team" : "";
+  const basis = zustand.versteckModus
+    ? (zustand.meineRolle === "maulwurf" ? "🥅 Fänger" : zustand.meineRolle === "team" ? "🙈 Versteckt" : "")
+    : (zustand.meineRolle === "maulwurf" ? "🕵️ Maulwurf" : zustand.meineRolle === "team" ? "⚽ Team" : "");
   const sonder = zustand.meineSonderrolle && rollenModul.sonderrolleInfo(zustand.meineSonderrolle);
   return sonder ? `${basis} · ${sonder.icon} ${sonder.name}` : basis;
+}
+
+function mmss(millis) {
+  const rest = Math.max(Math.ceil(millis / 1000), 0);
+  return Math.floor(rest / 60) + ":" + String(rest % 60).padStart(2, "0");
+}
+
+// Nähe-Anzeige im Verstecken-Modus: der einzige Ersatz für die fehlende Besprechung. Sie sagt
+// nur, WIE nah der jeweils andere ist, nie aus welcher Richtung — sonst wäre Verstecken
+// sinnlos. Gemessen wird die Luftlinie, bewusst ohne Rücksicht auf Wände: eine Warnung, die
+// hinter der Wand verstummt, wiegt in falscher Sicherheit.
+function naechsteGegenseite(zustand) {
+  const pos = zustand.meinePosition;
+  if (!pos || !zustand.faengerUid) return null;
+  const binFaenger = zustand.eigenerSpielerId === zustand.faengerUid;
+  let bester = Infinity;
+  zustand.spieler.forEach(s => {
+    if (s.id === zustand.eigenerSpielerId || s.lebt === false) return;
+    if (binFaenger ? s.id === zustand.faengerUid : s.id !== zustand.faengerUid) return;
+    const p = zustand.positionen[s.id];
+    if (p) bester = Math.min(bester, karte.abstand(pos.x, pos.y, p.x, p.y));
+  });
+  return bester === Infinity ? null : bester;
+}
+
+const NAEHE_STUFEN = [
+  { bis: 170, text: "🔴 Ganz nah!",  klasse: "naehe-rot" },
+  { bis: 340, text: "🟠 In der Nähe", klasse: "naehe-orange" },
+  { bis: 600, text: "🟡 Irgendwo da", klasse: "naehe-gelb" }
+];
+
+function aktualisiereVersteckHud(zustand) {
+  const leiste = el("hud-verstecken");
+  if (!zustand.versteckModus) { leiste.style.display = "none"; return; }
+  leiste.style.display = "flex";
+
+  const binFaenger = zustand.eigenerSpielerId === zustand.faengerUid;
+  const vorsprungRest = zustand.vorsprungBis ? zustand.vorsprungBis - zustand.jetzt : 0;
+  const uhr = el("hud-uhr");
+  if (!zustand.zeitlimitBis) {
+    uhr.textContent = "⏳ …";       // Startzeit steht noch nicht fest
+    uhr.className = "hud-uhr";
+  } else if (vorsprungRest > 0) {
+    uhr.textContent = binFaenger
+      ? `⏳ Noch ${Math.ceil(vorsprungRest / 1000)} s – du darfst noch nicht los`
+      : `⏳ ${Math.ceil(vorsprungRest / 1000)} s Vorsprung`;
+    uhr.className = "hud-uhr vorsprung";
+  } else {
+    uhr.textContent = "⏱ " + mmss(zustand.zeitlimitBis - zustand.jetzt);
+    uhr.className = "hud-uhr" + (zustand.zeitlimitBis - zustand.jetzt < 30000 ? " knapp" : "");
+  }
+
+  const naehe = el("hud-naehe");
+  const d = zustand.binGeist ? null : naechsteGegenseite(zustand);
+  const stufe = d === null ? null : NAEHE_STUFEN.find(s => d <= s.bis);
+  if (!stufe) {
+    naehe.textContent = binFaenger ? "🔍 niemand in der Nähe" : "🟢 Luft rein";
+    naehe.className = "hud-naehe";
+  } else {
+    naehe.textContent = stufe.text;
+    naehe.className = "hud-naehe " + stufe.klasse;
+  }
 }
 
 function aktualisiereHud(zustand) {
@@ -766,16 +843,21 @@ function aktualisiereHud(zustand) {
   const sabBtn = el("btn-sabotage");
   if (zustand.meineRolle === "maulwurf" && !zustand.binGeist) {
     killBtn.style.display = "flex";
-    sabBtn.style.display = "flex";
+    // Im Verstecken-Modus gibt es keine Sabotage — der Knopf verschwindet ganz, statt nur
+    // dauerhaft ausgegraut zu bleiben.
+    sabBtn.style.display = zustand.versteckModus ? "none" : "flex";
+    const gesperrt = zustand.versteckModus && zustand.vorsprungBis > zustand.jetzt;
     const rest = Math.max(Math.ceil((zustand.killCooldownBis - zustand.jetzt) / 1000), 0);
     const ziel = findeKillZiel(zustand);
-    killBtn.disabled = !ziel || rest > 0;
-    killBtn.textContent = rest > 0 ? rest : "🥾";
+    killBtn.disabled = gesperrt || !ziel || rest > 0;
+    killBtn.textContent = gesperrt ? "⏳" : rest > 0 ? rest : "🥾";
     sabBtn.disabled = (zustand.sabotageCooldownBis || 0) > zustand.jetzt;
   } else {
     killBtn.style.display = "none";
     sabBtn.style.display = "none";
   }
+
+  aktualisiereVersteckHud(zustand);
 }
 
 async function fuehreAktionAus() {
@@ -1085,9 +1167,19 @@ function renderLobby(zustand) {
     ? (zustand.istHost ? "" : "Warte auf den Start …")
     : `Noch ${zustand.minSpieler - zustand.spieler.length} Mitspielende nötig (oder KI hinzufügen).`;
 
+  // Der Modus bestimmt, welche Einstellungen überhaupt etwas bewirken. Was im gewählten Modus
+  // wirkungslos wäre, wird ausgeblendet statt nur ignoriert — sonst stellt man Diskussionszeit
+  // für ein Spiel ohne Besprechung ein und wundert sich.
+  const versteckt = zustand.einstellungen.modus === "verstecken";
+  document.querySelectorAll("[data-nur-klassisch]").forEach(n => { n.style.display = versteckt ? "none" : ""; });
+  document.querySelectorAll("[data-nur-verstecken]").forEach(n => { n.style.display = versteckt ? "" : "none"; });
+
   // Auswahlfelder nur setzen, wenn sie nicht gerade bedient werden.
   if (document.activeElement && document.activeElement.tagName === "SELECT") return;
   const e = zustand.einstellungen;
+  el("ein-modus").value = e.modus;
+  el("ein-vorsprung").value = String(e.vorsprungSek);
+  el("ein-zeitlimit").value = String(e.zeitlimitMin);
   el("ein-maulwuerfe").value = String(zustand.anzahlMaulwuerfe);
   el("ein-aufgaben").value = String(e.aufgabenProSpieler);
   el("ein-killcooldown").value = String(e.killCooldownSek);
@@ -1112,7 +1204,21 @@ function renderReveal(zustand) {
     el("reveal-team").textContent = "";
     return;
   }
-  if (zustand.meineRolle === "maulwurf") {
+  // Verstecken-Modus: hier ist nichts geheim. Beide Seiten erfahren denselben Namen — das
+  // Spannende ist nicht, WER der Fänger ist, sondern wo er gerade steckt.
+  if (zustand.versteckModus) {
+    const faenger = zustand.spieler.find(s => s.id === zustand.faengerUid);
+    const binFaenger = zustand.meineRolle === "maulwurf";
+    karteEl.className = "reveal-karte " + (binFaenger ? "maulwurf" : "team");
+    el("reveal-icon").textContent = binFaenger ? "🥅" : "🙈";
+    el("reveal-rolle").textContent = binFaenger ? "Du bist der Fänger" : "Versteck dich!";
+    el("reveal-text").textContent = binFaenger
+      ? "Alle wissen, wer du bist. Dafür siehst du selbst kaum etwas – die Nähe-Anzeige führt dich."
+      : "Erledigt eure Aufgaben oder haltet einfach durch, bis die Zeit um ist. Besprechungen gibt es keine.";
+    el("reveal-team").textContent = binFaenger
+      ? `Du bekommst ${zustand.einstellungen.vorsprungSek} Sekunden Vorsprung – so lange stehst du fest.`
+      : faenger ? `Der Fänger ist: ${faenger.name}` : "Der Fänger wird gerade ausgelost …";
+  } else if (zustand.meineRolle === "maulwurf") {
     karteEl.className = "reveal-karte maulwurf";
     el("reveal-icon").textContent = "🕵️";
     el("reveal-rolle").textContent = "Du bist Maulwurf";
@@ -1228,7 +1334,9 @@ function renderMeetingErgebnis(zustand) {
 
 function renderEnde(zustand) {
   const teamGewinnt = zustand.sieger === "team";
-  el("ende-titel").textContent = teamGewinnt ? "⚽ Das Team gewinnt!" : "🕵️ Die Maulwürfe gewinnen!";
+  el("ende-titel").textContent = zustand.versteckModus
+    ? (teamGewinnt ? "🙈 Die Versteckten gewinnen!" : "🥅 Der Fänger gewinnt!")
+    : (teamGewinnt ? "⚽ Das Team gewinnt!" : "🕵️ Die Maulwürfe gewinnen!");
   const seite = el("ende-seite");
   seite.className = "sieger-name " + (zustand.sieger || "");
   const habeGewonnen = (teamGewinnt && zustand.meineRolle === "team") || (!teamGewinnt && zustand.meineRolle === "maulwurf");
@@ -1244,7 +1352,9 @@ function renderEnde(zustand) {
     li.innerHTML = `
       <span class="spieler-avatar" style="background:${escapeHtml(s.farbe)}">${escapeHtml(avatarInitiale(s.name))}</span>
       <span class="spieler-name">${escapeHtml(s.name)}</span>
-      <span class="spieler-badge">${rolle === "maulwurf" ? "🕵️ Maulwurf" : rolle === "team" ? "⚽ Team" : "– unbekannt"}</span>`;
+      <span class="spieler-badge">${rolle === "maulwurf" ? (zustand.versteckModus ? "🥅 Fänger" : "🕵️ Maulwurf")
+                                  : rolle === "team" ? (zustand.versteckModus ? "🙈 Versteckt" : "⚽ Team")
+                                  : "– unbekannt"}</span>`;
     liste.appendChild(li);
   });
 
@@ -1365,10 +1475,18 @@ el("btn-spiel-starten").addEventListener("click", async () => {
  ["ein-notfall", "notfallKnoepfe"], ["ein-diskussion", "diskussionSek"], ["ein-abstimmung", "abstimmungSek"],
  ["ein-tempo", "tempo"], ["ein-rolle-rauswurf", "rolleNachRauswurf"],
  ["ein-rolle-ingenieur", "rolleIngenieur"], ["ein-rolle-wissenschaftler", "rolleWissenschaftler"],
- ["ein-rolle-schutzengel", "rolleSchutzengel"], ["ein-rolle-gestaltwandler", "rolleGestaltwandler"]].forEach(([feldId, schluessel]) => {
+ ["ein-rolle-schutzengel", "rolleSchutzengel"], ["ein-rolle-gestaltwandler", "rolleGestaltwandler"],
+ ["ein-vorsprung", "vorsprungSek"], ["ein-zeitlimit", "zeitlimitMin"]].forEach(([feldId, schluessel]) => {
   el(feldId).addEventListener("change", e => {
     gameService.speichereEinstellungen({ [schluessel]: parseInt(e.target.value, 10) });
   });
+});
+
+// Der Spielmodus ist die einzige Einstellung mit einem Text statt einer Zahl — deshalb ein
+// eigener Handler und kein parseInt. In der Datenbank steht damit "verstecken" statt einer 1,
+// was beim Nachsehen im Zweifelsfall den Unterschied macht.
+el("ein-modus").addEventListener("change", e => {
+  gameService.speichereEinstellungen({ modus: e.target.value === "verstecken" ? "verstecken" : "klassisch" });
 });
 
 el("btn-interaktion").addEventListener("click", fuehreAktionAus);
@@ -1468,6 +1586,12 @@ const APP_CHANGELOG = [
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen und Räume verriegeln.",
           "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende.",
           "Einstellbar, ob nach einem Rauswurf verraten wird, ob es wirklich ein Maulwurf war."
+      ]},
+      { title: "Zwei Spielmodi", items: [
+          "🕵️ Klassisch: verdeckte Maulwürfe, Leiche melden, Besprechung und Abstimmung – das volle Spiel.",
+          "🥅 Verstecken: genau ein Fänger, von Beginn an für alle sichtbar. Keine Besprechung, keine Abstimmung, keine Sabotage.",
+          "Im Verstecken-Modus dreht sich die Sicht um: Der Fänger sieht am wenigsten und tastet sich an einer Nähe-Anzeige entlang, die nur die Entfernung verrät, nie die Richtung.",
+          "Das Team gewinnt durch alle Aufgaben oder indem es die Zeit übersteht; der Fänger, wenn er alle erwischt hat. Vorsprung und Zeitlimit sind einstellbar."
       ]},
       { title: "Am Handy", items: [
           "Quer halten: Das Spielfeld läuft formatfüllend über den ganzen Bildschirm.",
