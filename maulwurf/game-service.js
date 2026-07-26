@@ -236,7 +236,7 @@ function getZustand() {
   return {
     raumCode: aktuellerRaumCode,
     phase: raum.phase || "lobby",
-    runde: raum.runde || 1,
+    runde: rundeVon(raum),
     eigenerSpielerId: eigeneUid,
     istHost: raum.hostId === eigeneUid,
     hostId: raum.hostId,
@@ -575,12 +575,12 @@ async function zieheEigeneRolle(raum) {
     const rolle = raum.rollenDeck[index];
     const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
     const daten = {
-      rolle, index, runde: raum.runde || 1,
+      rolle, index, runde: rundeVon(raum),
       aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: []
     };
     await db.ref(`${ROLLEN_PFAD}/${code}/${eigeneUid}`).set(daten);
     if (rolle === "maulwurf") {
-      await db.ref(`${TEAM_PFAD}/${code}/${eigeneUid}`).set({ name: raum.spieler[eigeneUid].name, runde: raum.runde || 1 });
+      await db.ref(`${TEAM_PFAD}/${code}/${eigeneUid}`).set({ name: raum.spieler[eigeneUid].name, runde: rundeVon(raum) });
     }
     uebernehmeEigeneRolle(daten);
   } catch (e) {
@@ -625,11 +625,11 @@ async function zieheBotRollen(raum) {
       const rolle = raum.rollenDeck[index];
       const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
       await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).set({
-        rolle, index, runde: raum.runde || 1,
+        rolle, index, runde: rundeVon(raum),
         aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: []
       });
       if (rolle === "maulwurf") {
-        await db.ref(`${TEAM_PFAD}/${code}/${botId}`).set({ name: raum.spieler[botId].name, runde: raum.runde || 1 });
+        await db.ref(`${TEAM_PFAD}/${code}/${botId}`).set({ name: raum.spieler[botId].name, runde: rundeVon(raum) });
       }
       botZustand[botId] = botZustand[botId] || {};
       botZustand[botId].rolle = rolle;
@@ -1328,7 +1328,7 @@ async function neueRunde() {
   if (!raum || !code || raum.hostId !== eigeneUid) return { erfolg: false };
   const updates = {};
   updates[`${RAEUME_PFAD}/${code}/phase`] = "lobby";
-  updates[`${RAEUME_PFAD}/${code}/runde`] = (raum.runde || 1) + 1;
+  updates[`${RAEUME_PFAD}/${code}/runde`] = rundeVon(raum) + 1;
   updates[`${RAEUME_PFAD}/${code}/rollenDeck`] = null;
   updates[`${RAEUME_PFAD}/${code}/zuteilungZaehler`] = 0;
   updates[`${RAEUME_PFAD}/${code}/leichen`] = null;
