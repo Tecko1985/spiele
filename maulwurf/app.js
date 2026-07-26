@@ -320,8 +320,8 @@ function zeichne(zustand) {
     zeichneArbeitsspur(wx(station.x), wy(station.y), skala, spur, (spur.bis - jetzt) / gameService.SICHTBARE_WIRKUNG_MS);
   });
 
-  // Abkürzungen nur für Maulwürfe
-  if (zustand.meineRolle === "maulwurf") {
+  // Abkürzungen sehen nur, wer sie auch benutzen darf
+  if (darfTunnelSehen(zustand)) {
     karte.TUNNEL.forEach(t => {
       zeichneMarker(wx(t.a.x), wy(t.a.y), skala, "#a855f7", "↧");
       zeichneMarker(wx(t.b.x), wy(t.b.y), skala, "#a855f7", "↥");
@@ -420,6 +420,15 @@ function zeichneArbeitsspur(x, y, skala, spur, anteilUebrig) {
 function zeichneFigur(x, y, skala, spieler, zustand) {
   const istIch = spieler.id === zustand.eigenerSpielerId;
   const istMitMaulwurf = zustand.meineRolle === "maulwurf" && zustand.maulwurfTeam.indexOf(spieler.id) !== -1;
+
+  // Gestaltwandler: für alle anderen sieht er aus wie sein Ziel. Sich selbst und den eigenen
+  // Mitmaulwürfen zeigt er sich unverändert — sonst würden sie ihn verlieren, und der
+  // Gestaltwandler selbst wüsste nicht mehr, welche Figur er steuert.
+  const verkleidung = (zustand.verkleidungen || {})[spieler.id];
+  if (verkleidung && verkleidung.bis > zustand.jetzt && !istIch && !istMitMaulwurf) {
+    const vorbild = zustand.spieler.find(s => s.id === verkleidung.alsUid);
+    if (vorbild) spieler = { id: spieler.id, name: vorbild.name, farbe: vorbild.farbe, lebt: spieler.lebt };
+  }
 
   ctx.fillStyle = spieler.farbe || "#1a56a0";
   ctx.beginPath();
@@ -622,11 +631,17 @@ function ermittleAktion(zustand) {
   const station = offeneStationAn(zustand, pos);
   if (station) return { typ: "aufgabe", station, zeichen: "🛠️", label: stationName(station) };
 
-  if (zustand.meineRolle === "maulwurf") {
+  // Der Ingenieur darf dieselben Abkürzungen nehmen wie die Maulwürfe — das ist der ganze
+  // Reiz der Rolle: nützlich, aber wer ihn dabei sieht, hält ihn für einen Maulwurf.
+  if (zustand.meineRolle === "maulwurf" || zustand.meineSonderrolle === "ingenieur") {
     const tunnel = karte.tunnelAn(pos.x, pos.y);
     if (tunnel) return { typ: "tunnel", ziel: tunnel.ziel, zeichen: "↧", label: tunnel.tunnel.name };
   }
   return null;
+}
+
+function darfTunnelSehen(zustand) {
+  return zustand.meineRolle === "maulwurf" || zustand.meineSonderrolle === "ingenieur";
 }
 
 function findeKillZiel(zustand) {
@@ -657,15 +672,22 @@ function findeMeldbareLeiche(zustand) {
   }) || null;
 }
 
+// Die Sonderrolle ersetzt die Seitenbezeichnung nicht, sie ergänzt sie — man soll auf einen
+// Blick sehen, für welche Seite man spielt, ohne die Sonderrolle erst deuten zu müssen.
+function rollenBezeichnung(zustand) {
+  const basis = zustand.meineRolle === "maulwurf" ? "🕵️ Maulwurf"
+              : zustand.meineRolle === "team" ? "⚽ Team" : "";
+  const sonder = zustand.meineSonderrolle && rollenModul.sonderrolleInfo(zustand.meineSonderrolle);
+  return sonder ? `${basis} · ${sonder.icon} ${sonder.name}` : basis;
+}
+
 function aktualisiereHud(zustand) {
   const pos = zustand.meinePosition;
   el("hud-raumname").textContent = pos ? karte.raumName(pos.x, pos.y) : "";
 
   const rolleEl = el("hud-rolle");
   rolleEl.className = "hud-rolle " + (zustand.meineRolle || "");
-  rolleEl.textContent = zustand.binGeist
-    ? "👻 Geist"
-    : zustand.meineRolle === "maulwurf" ? "🕵️ Maulwurf" : zustand.meineRolle === "team" ? "⚽ Team" : "";
+  rolleEl.textContent = zustand.binGeist ? "👻 Geist" : rollenBezeichnung(zustand);
 
   const aufgaben = zustand.aufgaben || { erledigt: 0, gesamt: 0 };
   const anteil = aufgaben.gesamt > 0 ? Math.min(aufgaben.erledigt / aufgaben.gesamt, 1) : 0;
@@ -692,6 +714,19 @@ function aktualisiereHud(zustand) {
 
   const leicheUid = findeMeldbareLeiche(zustand);
   el("btn-melden").style.display = leicheUid ? "flex" : "none";
+
+  // Der Ingenieur hat keinen Knopf — seine Fähigkeit liegt auf der normalen Aktionstaste,
+  // sobald er auf einer Abkürzung steht.
+  const rollenBtn = el("btn-rollenfaehigkeit");
+  const sonder = zustand.meineSonderrolle && rollenModul.sonderrolleInfo(zustand.meineSonderrolle);
+  const mitKnopf = ["wissenschaftler", "schutzengel", "gestaltwandler"].indexOf(zustand.meineSonderrolle) !== -1;
+  rollenBtn.style.display = mitKnopf ? "flex" : "none";
+  if (mitKnopf) {
+    rollenBtn.textContent = sonder.icon;
+    rollenBtn.title = sonder.name;
+    // Schutzengel wirkt erst als Geist, alle anderen nur zu Lebzeiten
+    rollenBtn.disabled = zustand.meineSonderrolle === "schutzengel" ? !zustand.binGeist : zustand.binGeist;
+  }
 
   const killBtn = el("btn-ausschalten");
   const sabBtn = el("btn-sabotage");
@@ -821,6 +856,93 @@ function oeffneAufgabenliste() {
   el("overlay-liste").classList.add("aktiv");
 }
 
+// Ein Knopf für drei Rollen: der Wissenschaftler liest hier nur ab, Schutzengel und
+// Gestaltwandler wählen ein Ziel. Die Liste wird bei jedem Öffnen neu gebaut, weil sich
+// Lebensstatus und Cooldowns laufend ändern.
+function oeffneRollenPanel() {
+  const zustand = gameService.getZustand();
+  const sonder = zustand.meineSonderrolle && rollenModul.sonderrolleInfo(zustand.meineSonderrolle);
+  if (!sonder) return;
+  schliesseOverlay();
+  overlayOffen = "rolle";
+
+  el("rolle-titel").textContent = `${sonder.icon} ${sonder.name}`;
+  el("rolle-beschreibung").textContent = sonder.beschreibung;
+  const liste = el("rolle-liste");
+  liste.innerHTML = "";
+  const status = el("rolle-status");
+  status.textContent = "";
+
+  const andere = zustand.spieler.filter(s => s.id !== zustand.eigenerSpielerId);
+
+  if (zustand.meineSonderrolle === "wissenschaftler") {
+    andere.forEach(s => {
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${s.lebt === false ? "💀" : "❤️"}</span>
+        <span>${escapeHtml(s.name)}</span>
+        <span class="ort">${s.lebt === false ? "ausgeschaltet" : "lebt"}</span>`;
+      liste.appendChild(li);
+    });
+    const tot = andere.filter(s => s.lebt === false).length;
+    status.textContent = tot ? `${tot} von ${andere.length} sind ausgeschaltet.` : "Noch sind alle im Spiel.";
+  } else if (zustand.meineSonderrolle === "schutzengel") {
+    if (!zustand.binGeist) {
+      status.textContent = "Das geht erst, wenn du selbst ausgeschaltet bist.";
+    } else {
+      const rest = Math.max(Math.ceil(((zustand.schutzCooldownBis || 0) - zustand.jetzt) / 1000), 0);
+      andere.filter(s => s.lebt !== false).forEach(s => {
+        const geschuetzt = (zustand.schutz[s.id] || 0) > zustand.jetzt;
+        liste.appendChild(zielZeile(s, geschuetzt ? "geschützt" : rest > 0 ? `noch ${rest} s` : "schützen",
+          !geschuetzt && rest === 0, async () => {
+            const e = await gameService.schuetze(s.id);
+            status.textContent = e.erfolg ? `${s.name} ist jetzt eine Weile sicher.` : (e.fehler || "Geht gerade nicht.");
+            if (e.erfolg) setTimeout(oeffneRollenPanel, 400);
+          }));
+      });
+      if (!liste.children.length) status.textContent = "Niemand mehr da, den du schützen könntest.";
+    }
+  } else if (zustand.meineSonderrolle === "gestaltwandler") {
+    const meine = zustand.verkleidungen[zustand.eigenerSpielerId];
+    const verkleidet = meine && meine.bis > zustand.jetzt;
+    const rest = Math.max(Math.ceil(((zustand.verkleidungCooldownBis || 0) - zustand.jetzt) / 1000), 0);
+    if (verkleidet) {
+      const ziel = zustand.spieler.find(s => s.id === meine.alsUid);
+      status.textContent = `Du siehst gerade aus wie ${ziel ? ziel.name : "jemand anderes"}.`;
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.className = "btn btn-secondary btn-grow";
+      btn.textContent = "Verkleidung ablegen";
+      btn.addEventListener("click", async () => { await gameService.verkleideDich(null); setTimeout(oeffneRollenPanel, 400); });
+      li.appendChild(btn);
+      liste.appendChild(li);
+    } else {
+      andere.filter(s => s.lebt !== false).forEach(s => {
+        liste.appendChild(zielZeile(s, rest > 0 ? `noch ${rest} s` : "aussehen wie", rest === 0, async () => {
+          const e = await gameService.verkleideDich(s.id);
+          status.textContent = e.erfolg ? `Du siehst jetzt aus wie ${s.name}.` : (e.fehler || "Geht gerade nicht.");
+          if (e.erfolg) setTimeout(oeffneRollenPanel, 400);
+        }));
+      });
+      if (rest > 0) status.textContent = `Noch ${rest} s, bis du dich wieder verwandeln kannst.`;
+    }
+  }
+  el("overlay-rolle").classList.add("aktiv");
+}
+
+function zielZeile(spieler, knopfText, aktiv, beiKlick) {
+  const li = document.createElement("li");
+  const name = document.createElement("span");
+  name.textContent = spieler.name;
+  const btn = document.createElement("button");
+  btn.className = "btn btn-secondary rolle-ziel-btn";
+  btn.textContent = knopfText;
+  btn.disabled = !aktiv;
+  btn.addEventListener("click", beiKlick);
+  li.appendChild(name);
+  li.appendChild(btn);
+  return li;
+}
+
 function oeffneSabotageMenue() {
   const zustand = gameService.getZustand();
   schliesseOverlay();
@@ -940,6 +1062,10 @@ function renderLobby(zustand) {
   el("ein-abstimmung").value = String(e.abstimmungSek);
   el("ein-tempo").value = String(e.tempo);
   el("ein-rolle-rauswurf").value = String(e.rolleNachRauswurf ? 1 : 0);
+  el("ein-rolle-ingenieur").value = String(e.rolleIngenieur ? 1 : 0);
+  el("ein-rolle-wissenschaftler").value = String(e.rolleWissenschaftler ? 1 : 0);
+  el("ein-rolle-schutzengel").value = String(e.rolleSchutzengel ? 1 : 0);
+  el("ein-rolle-gestaltwandler").value = String(e.rolleGestaltwandler ? 1 : 0);
 }
 
 function renderReveal(zustand) {
@@ -968,6 +1094,15 @@ function renderReveal(zustand) {
     el("reveal-rolle").textContent = "Du gehörst zum Team";
     el("reveal-text").textContent = "Erledige deine Aufgaben auf dem Gelände und finde heraus, wer sabotiert.";
     el("reveal-team").textContent = `Achtung: ${zustand.anzahlMaulwuerfe === 1 ? "Ein Maulwurf ist" : zustand.anzahlMaulwuerfe + " Maulwürfe sind"} unter euch.`;
+  }
+
+  // Sonderrolle überschreibt Symbol und Überschrift, behält aber die Seitenfarbe der Karte —
+  // die Zugehörigkeit ist die wichtigere Information und darf nicht untergehen.
+  const sonder = zustand.meineSonderrolle && rollenModul.sonderrolleInfo(zustand.meineSonderrolle);
+  if (sonder) {
+    el("reveal-icon").textContent = sonder.icon;
+    el("reveal-rolle").textContent = "Du bist " + sonder.name;
+    el("reveal-text").textContent = sonder.beschreibung;
   }
 }
 
@@ -1194,7 +1329,9 @@ el("btn-spiel-starten").addEventListener("click", async () => {
 
 [["ein-maulwuerfe", "anzahlMaulwuerfe"], ["ein-aufgaben", "aufgabenProSpieler"], ["ein-killcooldown", "killCooldownSek"],
  ["ein-notfall", "notfallKnoepfe"], ["ein-diskussion", "diskussionSek"], ["ein-abstimmung", "abstimmungSek"],
- ["ein-tempo", "tempo"], ["ein-rolle-rauswurf", "rolleNachRauswurf"]].forEach(([feldId, schluessel]) => {
+ ["ein-tempo", "tempo"], ["ein-rolle-rauswurf", "rolleNachRauswurf"],
+ ["ein-rolle-ingenieur", "rolleIngenieur"], ["ein-rolle-wissenschaftler", "rolleWissenschaftler"],
+ ["ein-rolle-schutzengel", "rolleSchutzengel"], ["ein-rolle-gestaltwandler", "rolleGestaltwandler"]].forEach(([feldId, schluessel]) => {
   el(feldId).addEventListener("change", e => {
     gameService.speichereEinstellungen({ [schluessel]: parseInt(e.target.value, 10) });
   });
@@ -1202,6 +1339,8 @@ el("btn-spiel-starten").addEventListener("click", async () => {
 
 el("btn-interaktion").addEventListener("click", fuehreAktionAus);
 el("btn-aufgabenliste").addEventListener("click", oeffneAufgabenliste);
+el("btn-rollenfaehigkeit").addEventListener("click", oeffneRollenPanel);
+el("btn-rolle-schliessen").addEventListener("click", schliesseOverlay);
 el("btn-sabotage").addEventListener("click", oeffneSabotageMenue);
 el("btn-liste-schliessen").addEventListener("click", schliesseOverlay);
 el("btn-sabotage-schliessen").addEventListener("click", schliesseOverlay);
@@ -1298,6 +1437,12 @@ const APP_CHANGELOG = [
       { title: "Am Handy", items: [
           "Quer halten: Das Spielfeld läuft formatfüllend über den ganzen Bildschirm.",
           "Vollbild lässt sich jederzeit über das Symbol oben rechts ein- und ausschalten."
+      ]},
+      { title: "Sonderrollen (einzeln zuschaltbar)", items: [
+          "🔧 Ingenieur: darf die Abkürzungen benutzen wie ein Maulwurf – wer ihn dabei sieht, hält ihn für einen.",
+          "🔬 Wissenschaftler: sieht jederzeit, wer noch lebt, auch ohne die Leiche gefunden zu haben.",
+          "😇 Schutzengel: kann nach dem eigenen Ausscheiden Lebende kurz schützen – ein Foulspiel geht dann daneben.",
+          "🎭 Gestaltwandler: Maulwurf, der zeitweise wie jemand anderes aussieht. Nur seine Mitmaulwürfe erkennen ihn."
       ]},
       { title: "Fair verteilt", items: [
           "Die Rollen zieht jedes Handy selbst aus einem anonym gemischten Stapel – auch das Gerät der Gastgeberin oder des Gastgebers erfährt nichts.",

@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1a56a0">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=1.2">
+<link rel="stylesheet" href="style.css?v=1.3">
 </head>
 <body>
 
@@ -104,6 +104,18 @@
           <label>Rolle nach Rauswurf
             <select id="ein-rolle-rauswurf"><option value="1" selected>verraten</option><option value="0">geheim halten</option></select>
           </label>
+          <label>🔧 Ingenieur
+            <select id="ein-rolle-ingenieur"><option value="0" selected>aus</option><option value="1">an</option></select>
+          </label>
+          <label>🔬 Wissenschaftler
+            <select id="ein-rolle-wissenschaftler"><option value="0" selected>aus</option><option value="1">an</option></select>
+          </label>
+          <label>😇 Schutzengel
+            <select id="ein-rolle-schutzengel"><option value="0" selected>aus</option><option value="1">an</option></select>
+          </label>
+          <label>🎭 Gestaltwandler
+            <select id="ein-rolle-gestaltwandler"><option value="0" selected>aus</option><option value="1">an</option></select>
+          </label>
         </div>
       </details>
 
@@ -156,6 +168,7 @@
 
       <div class="aktions-leiste">
         <button class="aktions-btn" id="btn-aufgabenliste" title="Aufgabenliste">📋</button>
+        <button class="aktions-btn" id="btn-rollenfaehigkeit" title="Sonderrolle" style="display:none">✨</button>
         <button class="aktions-btn" id="btn-sabotage" title="Sabotieren" style="display:none">💥</button>
         <button class="aktions-btn gefahr" id="btn-ausschalten" title="Foulspiel" style="display:none" disabled>🥾</button>
         <button class="aktions-btn" id="btn-melden" title="Melden" style="display:none">📣</button>
@@ -179,6 +192,17 @@
         <ul class="aufgaben-liste" id="aufgaben-liste"></ul>
         <p class="hinweis-text" id="aufgaben-liste-hinweis"></p>
         <button class="btn btn-link" id="btn-liste-schliessen">Schließen</button>
+      </div>
+    </div>
+
+    <!-- Sonderrolle: je nach Rolle Statusliste (Wissenschaftler) oder Zielauswahl -->
+    <div class="overlay" id="overlay-rolle">
+      <div class="overlay-karte">
+        <h3 id="rolle-titel">✨ Sonderrolle</h3>
+        <p class="hinweis-text" id="rolle-beschreibung"></p>
+        <ul class="rollen-liste" id="rolle-liste"></ul>
+        <p class="hinweis-text" id="rolle-status"></p>
+        <button class="btn btn-link" id="btn-rolle-schliessen">Schließen</button>
       </div>
     </div>
 
@@ -300,8 +324,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js?v=1.0"></script>
 <script src="karte.js?v=1.2"></script>
+<script src="rollen.js?v=1.0"></script>
 <script src="aufgaben.js?v=1.2"></script>
-<script src="game-service.js?v=1.5"></script>
-<script src="app.js?v=1.4"></script>
+<script src="game-service.js?v=1.6"></script>
+<script src="app.js?v=1.5"></script>
 </body>
 </html>

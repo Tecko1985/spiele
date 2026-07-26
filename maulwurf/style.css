@@ -311,6 +311,16 @@ body.im-spiel .aktions-leiste {
 .aufgaben-liste li:last-child { border-bottom: none; }
 .aufgaben-liste li.erledigt { color: var(--muted); text-decoration: line-through; }
 .aufgaben-liste .ort { margin-left: auto; font-size: 12px; color: var(--muted); text-decoration: none; }
+/* Zielauswahl der Sonderrollen: Name links, Aktionsknopf rechts. */
+.rollen-liste { list-style: none; margin: 10px 0 0; padding: 0; }
+.rollen-liste li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 4px; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.rollen-liste li:last-child { border-bottom: none; }
+.rollen-liste .ort { margin-left: auto; font-size: 12px; color: var(--muted); }
+.rollen-liste .rolle-ziel-btn { margin-left: auto; padding: 6px 12px; font-size: 13px; width: auto; }
+
 /* Sichtbare Aufgabe: verschafft ein Alibi, weil Umstehende die Arbeit mitbekommen. */
 .aufgaben-liste .sichtbar-marke {
   font-size: 12px; font-weight: 400; color: #0284c7;

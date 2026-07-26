@@ -83,6 +83,10 @@ const SABOTAGE_HEIZUNG_MS = 45000;
 const TUEREN_SPERRE_MS = 12000;
 const SABOTAGE_COOLDOWN_MS = 25000;
 const SICHTBARE_WIRKUNG_MS = 6000;   // so lange bleibt eine sichtbare Aufgabe als Alibi stehen
+const SCHUTZ_DAUER_MS = 12000;
+const SCHUTZ_COOLDOWN_MS = 40000;
+const VERKLEIDUNG_DAUER_MS = 20000;
+const VERKLEIDUNG_COOLDOWN_MS = 45000;
 const BOT_TICK_MS = 200;
 const BOT_AUFGABE_MS = 9000;
 const BOT_STIMME_MS = 11000;
@@ -96,7 +100,11 @@ const STANDARD_EINSTELLUNGEN = {
   notfallKnoepfe: 1,
   aufgabenProSpieler: 5,
   tempo: 175,
-  rolleNachRauswurf: 1
+  rolleNachRauswurf: 1,
+  rolleIngenieur: 0,
+  rolleWissenschaftler: 0,
+  rolleSchutzengel: 0,
+  rolleGestaltwandler: 0
 };
 
 function anzahlMaulwuerfeFuer(spielerAnzahl) {
@@ -143,6 +151,7 @@ let letzterRaum = null;
 let listener = null;
 
 let meineRolle = null;         // "team" | "maulwurf" | null
+let meineSonderrolle = null;   // "ingenieur" | "wissenschaftler" | "schutzengel" | "gestaltwandler" | null
 let meineAufgaben = [];        // Stations-Ids
 let meineErledigten = [];      // Stations-Ids
 let maulwurfTeamRoh = {};      // uid -> {name, runde}, nur wenn ich Maulwurf bin
@@ -254,6 +263,11 @@ function getZustand() {
       station: karte.stationNachId(id),
       erledigt: meineErledigten.indexOf(id) !== -1
     })),
+    meineSonderrolle,
+    schutz: raum.schutz || {},
+    schutzCooldownBis: raum.schutzCooldownBis || 0,
+    verkleidungen: raum.verkleidung || {},
+    verkleidungCooldownBis: raum.verkleidungCooldownBis || 0,
     maulwurfTeam: meineRolle === "maulwurf" ? Object.keys(aktuelleMaulwuerfe()) : [],
     positionen,
     meinePosition,
@@ -290,6 +304,7 @@ function loeseListenerAb() {
   roomRef = positionenRef = chatRef = teamRef = null;
   letzterRaum = null;
   meineRolle = null;
+  meineSonderrolle = null;
   meineAufgaben = [];
   meineErledigten = [];
   maulwurfTeamRoh = {};
@@ -362,6 +377,7 @@ function betretRaumLokal(code) {
 
 function uebernehmeEigeneRolle(daten) {
   meineRolle = daten.rolle || null;
+  meineSonderrolle = daten.sonder || null;
   meineAufgaben = daten.aufgaben || [];
   meineErledigten = daten.erledigt || [];
   if (meineRolle === "maulwurf" && !teamRef && aktuellerRaumCode) {
@@ -487,10 +503,9 @@ async function starteSpiel() {
   const anzahlMaulwuerfe = Math.min(einstellungen.anzahlMaulwuerfe || anzahlMaulwuerfeFuer(uids.length), Math.floor(uids.length / 2) - 1 || 1);
 
   // Das Deck ist bewusst nur eine gemischte Liste OHNE Zuordnung zu Personen — der Host
-  // erfährt beim Schreiben nichts über die spätere Verteilung.
-  const deck = [];
-  for (let i = 0; i < uids.length; i++) deck.push(i < anzahlMaulwuerfe ? "maulwurf" : "team");
-  const gemischt = mischeListe(deck);
+  // erfährt beim Schreiben nichts über die spätere Verteilung. Sonderrollen hängen als
+  // "seite:sonderrolle" am Eintrag und belegen bestehende Plätze, siehe rollen.js.
+  const gemischt = mischeListe(rollenModul.baueDeck(uids.length, anzahlMaulwuerfe, einstellungen));
 
   const teamAnzahl = uids.length - anzahlMaulwuerfe;
   const updates = {};
@@ -501,6 +516,10 @@ async function starteSpiel() {
   updates[`${basis}/einstellungen/anzahlMaulwuerfe`] = anzahlMaulwuerfe;
   updates[`${basis}/aufgaben`] = { erledigt: 0, gesamt: teamAnzahl * einstellungen.aufgabenProSpieler };
   updates[`${basis}/visuell`] = null;
+  updates[`${basis}/schutz`] = null;
+  updates[`${basis}/schutzCooldownBis`] = 0;
+  updates[`${basis}/verkleidung`] = null;
+  updates[`${basis}/verkleidungCooldownBis`] = 0;
   updates[`${basis}/leichen`] = null;
   updates[`${basis}/sabotage`] = null;
   updates[`${basis}/tueren`] = null;
@@ -578,10 +597,10 @@ async function zieheEigeneRolle(raum) {
     const index = await ziehIndex(code);
     if (index === null || index >= raum.rollenDeck.length) return;
 
-    const rolle = raum.rollenDeck[index];
+    const { rolle, sonder } = rollenModul.teileDeckEintrag(raum.rollenDeck[index]);
     const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
     const daten = {
-      rolle, index, runde: rundeVon(raum),
+      rolle, sonder: sonder || null, index, runde: rundeVon(raum),
       aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: []
     };
     await db.ref(`${ROLLEN_PFAD}/${code}/${eigeneUid}`).set(daten);
@@ -822,6 +841,56 @@ async function zeigeSichtbareWirkung(stationId) {
     .set({ name, zeichen: typ.sichtbar, bis: serverJetzt() + SICHTBARE_WIRKUNG_MS }).catch(() => {});
 }
 
+// --- Sonderrollen ---
+
+// Schutzengel: erst als Geist einsetzbar, wirkt auf eine lebende Person in der Nähe. Der
+// Schutz liegt offen im Raumobjekt — er MUSS für das Maulwurf-Gerät lesbar sein, weil dort
+// der Kill geprüft wird. Dass ein Maulwurf dadurch sieht, wer gerade geschützt ist, ist kein
+// Leck, sondern beabsichtigt: er soll das vergebliche Foulspiel ja bemerken können.
+async function schuetze(zielUid) {
+  const raum = letzterRaum;
+  const code = aktuellerRaumCode;
+  if (!raum || !code || raum.phase !== "laeuft" || raum.meeting) return { erfolg: false };
+  if (meineSonderrolle !== "schutzengel") return { erfolg: false };
+  if (raum.spieler[eigeneUid].lebt !== false) return { erfolg: false, fehler: "Das geht erst, wenn du ausgeschaltet bist." };
+  if (!raum.spieler[zielUid] || raum.spieler[zielUid].lebt === false) return { erfolg: false };
+  if ((raum.schutzCooldownBis || 0) > serverJetzt()) {
+    return { erfolg: false, fehler: `Noch ${Math.ceil(((raum.schutzCooldownBis || 0) - serverJetzt()) / 1000)} s.` };
+  }
+  const updates = {};
+  updates[`${RAEUME_PFAD}/${code}/schutz/${zielUid}`] = serverJetzt() + SCHUTZ_DAUER_MS;
+  updates[`${RAEUME_PFAD}/${code}/schutzCooldownBis`] = serverJetzt() + SCHUTZ_COOLDOWN_MS;
+  await db.ref().update(updates).catch(() => {});
+  return { erfolg: true };
+}
+
+// Gestaltwandler: übernimmt zeitweise Name und Farbe einer lebenden Person. Auch das steht
+// offen im Raum — jedes fremde Gerät muss die Verkleidung ja zeichnen können. Wer die Konsole
+// öffnet, sieht die Täuschung auffliegen; das ist dieselbe Grenze wie bei den Positionen.
+async function verkleideDich(zielUid) {
+  const raum = letzterRaum;
+  const code = aktuellerRaumCode;
+  if (!raum || !code || raum.phase !== "laeuft" || raum.meeting) return { erfolg: false };
+  if (meineSonderrolle !== "gestaltwandler") return { erfolg: false };
+  if (raum.spieler[eigeneUid].lebt === false) return { erfolg: false };
+  if ((raum.verkleidungCooldownBis || 0) > serverJetzt()) {
+    return { erfolg: false, fehler: `Noch ${Math.ceil(((raum.verkleidungCooldownBis || 0) - serverJetzt()) / 1000)} s.` };
+  }
+  const updates = {};
+  if (zielUid && raum.spieler[zielUid]) {
+    updates[`${RAEUME_PFAD}/${code}/verkleidung/${eigeneUid}`] = { alsUid: zielUid, bis: serverJetzt() + VERKLEIDUNG_DAUER_MS };
+    updates[`${RAEUME_PFAD}/${code}/verkleidungCooldownBis`] = serverJetzt() + VERKLEIDUNG_COOLDOWN_MS;
+  } else {
+    updates[`${RAEUME_PFAD}/${code}/verkleidung/${eigeneUid}`] = null;   // vorzeitig abstreifen
+  }
+  await db.ref().update(updates).catch(() => {});
+  return { erfolg: true };
+}
+
+function schutzAktiv(raum, uid) {
+  return ((raum.schutz || {})[uid] || 0) > serverJetzt();
+}
+
 // --- Ausschalten ("Foulspiel") ---
 
 async function schalteAus(opferUid) {
@@ -839,6 +908,14 @@ async function schalteAus(opferUid) {
   const seine = positionen[opferUid];
   if (!meine || !seine || karte.abstand(meine.x, meine.y, seine.x, seine.y) > karte.KILL_REICHWEITE) {
     return { erfolg: false, fehler: "Zu weit weg." };
+  }
+  // Schutzengel: das Foulspiel geht daneben. Der Cooldown läuft trotzdem an — sonst könnte
+  // man den Schutz einfach aussitzen und sofort nachsetzen, und die Rolle wäre wirkungslos.
+  if (schutzAktiv(raum, opferUid)) {
+    const einst = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
+    await db.ref(`${RAEUME_PFAD}/${code}/killCooldownBis/${eigeneUid}`)
+      .set(serverJetzt() + einst.killCooldownSek * 1000).catch(() => {});
+    return { erfolg: false, fehler: "Da war etwas dazwischen …" };
   }
 
   // Race: zwei Maulwürfe könnten gleichzeitig dieselbe Person erwischen. Die Leiche wird
@@ -1326,6 +1403,7 @@ function versucheBotKill(raum, botId, pos, einstellungen) {
   const opferUid = Object.keys(raum.spieler).find(uid => {
     if (uid === botId || raum.spieler[uid].lebt === false) return false;
     if (botZustand[uid] && botZustand[uid].rolle === "maulwurf") return false;
+    if (schutzAktiv(raum, uid)) return false;   // Schutzengel gilt auch gegen die KI
     const p = positionen[uid];
     return p && karte.abstand(pos.x, pos.y, p.x, p.y) <= karte.KILL_REICHWEITE;
   });
@@ -1415,6 +1493,10 @@ async function neueRunde() {
   updates[`${RAEUME_PFAD}/${code}/zuteilungZaehler`] = 0;
   updates[`${RAEUME_PFAD}/${code}/leichen`] = null;
   updates[`${RAEUME_PFAD}/${code}/visuell`] = null;
+  updates[`${RAEUME_PFAD}/${code}/schutz`] = null;
+  updates[`${RAEUME_PFAD}/${code}/schutzCooldownBis`] = 0;
+  updates[`${RAEUME_PFAD}/${code}/verkleidung`] = null;
+  updates[`${RAEUME_PFAD}/${code}/verkleidungCooldownBis`] = 0;
   updates[`${RAEUME_PFAD}/${code}/meeting`] = null;
   updates[`${RAEUME_PFAD}/${code}/sabotage`] = null;
   updates[`${RAEUME_PFAD}/${code}/tueren`] = null;
@@ -1437,6 +1519,7 @@ async function neueRunde() {
   await db.ref(`${TEAM_PFAD}/${code}`).remove().catch(() => {});
   await db.ref(`${CHAT_PFAD}/${code}`).remove().catch(() => {});
   meineRolle = null;
+  meineSonderrolle = null;
   meineAufgaben = [];
   meineErledigten = [];
   maulwurfTeamRoh = {};
@@ -1516,6 +1599,7 @@ const gameService = {
   erledigeAufgabe, schalteAus, meldeLeiche, drueckeNotfallknopf,
   sendeChat, stimmeAb, deckeAusgeschlosseneRolleAuf,
   sabotiere, repariereFlutlicht, setzeHeizungsventil,
+  schuetze, verkleideDich,
   verlasseSpiel, neueRunde, raeumeRaumAuf,
   getZustand, onZustandsAenderung, ladeBestenliste, setzeBestenlisteZurueck,
   serverJetzt,
