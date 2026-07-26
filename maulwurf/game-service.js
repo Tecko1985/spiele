@@ -612,27 +612,44 @@ async function zieheBotRollen(raum) {
   if (!code || raum.hostId !== eigeneUid || botZuteilungLaeuft) return;
   botZuteilungLaeuft = true;
   try {
+    const runde = rundeVon(raum);
     const bots = Object.keys(raum.spieler).filter(uid => raum.spieler[uid].istSimuliert);
     for (const botId of bots) {
-      const vorhanden = await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).once("value");
-      if (vorhanden.exists() && boxGehoertZurRunde(vorhanden.val(), raum)) {
-        botZustand[botId] = botZustand[botId] || {};
-        botZustand[botId].rolle = vorhanden.val().rolle;
+      const merker = botZustand[botId] || (botZustand[botId] = {});
+      if (merker.rolle && merker.rundeGezogen === runde) continue;
+
+      // Die Box eines Bots ist per Rule NICHT lesbar: ".read" verlangt $uid === auth.uid,
+      // und eine bot-Id ist nie die eigene uid. Ein once() darauf wirft PERMISSION_DENIED
+      // und brach früher die ganze Zuteilung ab — mit KI-Mitspielenden startete das Spiel
+      // deshalb überhaupt nicht (gefunden 2026-07-26). Der lokale Merker oben ist der
+      // eigentliche Doppelzieh-Schutz; das Lesen ist nur der Zusatz für den Fall, dass der
+      // Host mitten in der Zuteilung neu lädt, und darf scheitern.
+      let vorhanden = null;
+      try {
+        const snap = await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).once("value");
+        if (snap.exists() && boxGehoertZurRunde(snap.val(), raum)) vorhanden = snap.val();
+      } catch (e) {
+        // nicht lesbar — dann entscheidet allein der lokale Merker
+      }
+      if (vorhanden) {
+        merker.rolle = vorhanden.rolle;
+        merker.rundeGezogen = runde;
         continue;
       }
+
       const index = await ziehIndex(code);
       if (index === null || index >= raum.rollenDeck.length) return;
       const rolle = raum.rollenDeck[index];
       const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
       await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).set({
-        rolle, index, runde: rundeVon(raum),
+        rolle, index, runde,
         aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: []
       });
       if (rolle === "maulwurf") {
-        await db.ref(`${TEAM_PFAD}/${code}/${botId}`).set({ name: raum.spieler[botId].name, runde: rundeVon(raum) });
+        await db.ref(`${TEAM_PFAD}/${code}/${botId}`).set({ name: raum.spieler[botId].name, runde });
       }
-      botZustand[botId] = botZustand[botId] || {};
-      botZustand[botId].rolle = rolle;
+      merker.rolle = rolle;
+      merker.rundeGezogen = runde;
     }
   } catch (e) {
     console.error("Bot-Rollenziehung fehlgeschlagen:", e);
@@ -1160,12 +1177,15 @@ async function schreibeEigeneAufdeckung(raum) {
   const updates = {};
   updates[`${AUFDECKUNG_PFAD}/${code}/${eigeneUid}`] = meineRolle;
   if (raum.hostId === eigeneUid) {
-    // Bots haben kein eigenes Gerät, ihre Rollen kommen vom Host.
-    const bots = Object.keys(raum.spieler).filter(uid => raum.spieler[uid].istSimuliert);
-    for (const botId of bots) {
-      const snap = await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).once("value");
-      if (snap.exists()) updates[`${AUFDECKUNG_PFAD}/${code}/${botId}`] = snap.val().rolle;
-    }
+    // Bots haben kein eigenes Gerät, ihre Rollen kommen vom Host — aus dem lokalen Merker,
+    // denn deren Boxen sind per Rule nicht lesbar (siehe zieheBotRollen). Ein once() darauf
+    // hätte diese Funktion abgebrochen und auch die EIGENE Aufdeckung verhindert.
+    Object.keys(raum.spieler)
+      .filter(uid => raum.spieler[uid].istSimuliert)
+      .forEach(botId => {
+        const rolle = botZustand[botId] && botZustand[botId].rolle;
+        if (rolle) updates[`${AUFDECKUNG_PFAD}/${code}/${botId}`] = rolle;
+      });
   }
   await db.ref().update(updates).catch(() => {});
 }
@@ -1364,6 +1384,12 @@ async function neueRunde() {
   zuteilungLaeuft = false;
   botZuteilungLaeuft = false;
   rollenNachladenLaeuft = false;
+  // Der Bot-Zustand ist strikt rundengebunden: er hält neben der Rolle auch den Zähler
+  // aufgabenErledigt. Ohne dieses Leeren startete jeder Bot im Rematch mit dem vollen
+  // Zähler der Vorrunde und erledigte keine einzige Aufgabe mehr — die Siegbedingung
+  // "alle Aufgaben erledigt" war ab der zweiten Runde unerreichbar (gefunden 2026-07-26).
+  Object.keys(botZustand).forEach(k => delete botZustand[k]);
+  if (botTimer) { clearInterval(botTimer); botTimer = null; }
   return { erfolg: true };
 }
 

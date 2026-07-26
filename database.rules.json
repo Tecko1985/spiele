@@ -77,7 +77,7 @@
         "$code": {
           ".write": "auth != null && !newData.exists() && root.child('maulwurf/raeume/' + $code + '/hostId').val() === auth.uid",
           "$uid": {
-            ".read": "$uid === auth.uid",
+            ".read": "$uid === auth.uid || ($uid.beginsWith('bot-') && root.child('maulwurf/raeume/' + $code + '/hostId').val() === auth.uid)",
             ".write": "auth != null && ($uid === auth.uid || $uid.beginsWith('bot-'))"
           }
         }
