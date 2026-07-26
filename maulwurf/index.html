@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1a56a0">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=1.4">
+<link rel="stylesheet" href="style.css?v=1.5">
 </head>
 <body>
 
@@ -228,12 +228,26 @@
         <h3>💥 Sabotieren</h3>
         <button class="btn btn-secondary btn-grow" id="btn-sab-flutlicht">💡 Flutlicht ausschalten</button>
         <button class="btn btn-secondary btn-grow" id="btn-sab-heizung">🔥 Heizung überdrehen</button>
+        <button class="btn btn-secondary btn-grow" id="btn-sab-funk">📻 Funk stören</button>
         <div class="sab-tueren">
           <p class="hinweis-text">🚪 Raum verriegeln:</p>
           <div class="sab-tueren-gitter" id="sab-tueren-gitter"></div>
         </div>
         <p class="hinweis-text" id="sabotage-hinweis"></p>
         <button class="btn btn-link" id="btn-sabotage-schliessen">Schließen</button>
+      </div>
+    </div>
+
+    <!-- Kameras (Hausmeisterloge) -->
+    <div class="overlay" id="overlay-kameras">
+      <div class="overlay-karte overlay-karte-breit">
+        <h3>📹 Kameras</h3>
+        <p class="hinweis-text kamera-stoerung" id="kamera-stoerung" style="display:none">
+          📻 Kein Signal – der Funk ist gestört.
+        </p>
+        <div class="kamera-gitter" id="kamera-gitter"></div>
+        <p class="hinweis-text">Solange du zusiehst, blinken die Kameras auf der Karte – für alle, die davorstehen.</p>
+        <button class="btn btn-link" id="btn-kameras-schliessen">Schließen</button>
       </div>
     </div>
   </section>
@@ -340,10 +354,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js?v=1.0"></script>
-<script src="karte.js?v=1.5"></script>
+<script src="karte.js?v=1.6"></script>
 <script src="rollen.js?v=1.1"></script>
 <script src="aufgaben.js?v=1.2"></script>
-<script src="game-service.js?v=1.9"></script>
-<script src="app.js?v=1.9"></script>
+<script src="game-service.js?v=2.0"></script>
+<script src="app.js?v=2.0"></script>
 </body>
 </html>

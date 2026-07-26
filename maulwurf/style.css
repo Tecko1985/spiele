@@ -321,6 +321,21 @@ body.im-spiel .aktions-leiste {
   overflow-y: auto; text-align: center;
 }
 .overlay-karte h3 { margin: 0 0 12px; color: var(--primary); font-size: 17px; }
+/* Vier Kamerabilder brauchen mehr Breite als ein Minispiel — sonst wird jedes so klein,
+   dass man die Punkte darin nicht mehr auseinanderhält. */
+.overlay-karte-breit { max-width: 760px; }
+
+.kamera-gitter { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kamera-kachel { margin: 0; }
+.kamera-kachel canvas {
+  width: 100%; height: auto; display: block;
+  border-radius: var(--radius-sm); border: 1px solid #1f6b3d; background: #04120a;
+}
+.kamera-kachel figcaption {
+  margin-top: 3px; font-size: 11px; letter-spacing: 0.04em;
+  color: #4ade80; text-transform: uppercase;
+}
+.kamera-stoerung { color: #b91c1c; font-weight: 600; }
 
 .aufgaben-liste { list-style: none; padding: 0; margin: 0; text-align: left; }
 .aufgaben-liste li {

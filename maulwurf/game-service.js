@@ -82,6 +82,12 @@ const MEETING_ERGEBNIS_MS = 6000;
 const SABOTAGE_HEIZUNG_MS = 45000;
 const TUEREN_SPERRE_MS = 12000;
 const SABOTAGE_COOLDOWN_MS = 25000;
+// Wer die Kameras ansieht, verlängert seinen Eintrag alle 3 s um 8 s. Der Vorlauf ist Absicht:
+// ohne ihn erlischt das Warnsignal auf der Karte zwischen zwei Taktschlägen kurz und flackert.
+// Und weil der Eintrag von selbst abläuft, bleibt er nach einem Absturz nicht stehen — sonst
+// stünde die Warnung für den Rest der Partie und wäre wertlos.
+const KAMERA_TAKT_MS = 3000;
+const KAMERA_GUELTIG_MS = 8000;
 const SICHTBARE_WIRKUNG_MS = 6000;   // so lange bleibt eine sichtbare Aufgabe als Alibi stehen
 const SCHUTZ_DAUER_MS = 12000;
 const SCHUTZ_COOLDOWN_MS = 40000;
@@ -322,6 +328,10 @@ function getZustand() {
     aufgaben: raum.aufgaben || { erledigt: 0, gesamt: 0 },
     visuell: raum.visuell || {},
     sabotage: raum.sabotage || null,
+    // Nur der Boolean geht nach draußen, nie die uid-Liste: sonst stünde in jedem Client, WER
+    // gerade zusieht — und die Warnung soll aussagen "jemand", nicht "Sabine".
+    kameraBeobachtet: kameraBeobachtet(raum),
+    funkGestoert: !!(raum.sabotage && raum.sabotage.typ === "funk"),
     tueren: raum.tueren || {},
     meeting: raum.meeting || null,
     chat: chatVerlauf,
@@ -580,6 +590,7 @@ async function starteSpiel() {
   updates[`${basis}/verkleidungCooldownBis`] = 0;
   updates[`${basis}/leichen`] = null;
   updates[`${basis}/sabotage`] = null;
+  updates[`${basis}/kameras`] = null;
   updates[`${basis}/tueren`] = null;
   updates[`${basis}/meeting`] = null;
   updates[`${basis}/killCooldownBis`] = null;
@@ -1065,7 +1076,7 @@ function starteMeeting(grund, opferName) {
       async (fehler, committed) => {
         if (fehler || !committed) return resolve({ erfolg: false });
         // Sabotagen enden mit dem Meeting, Leichen werden abgeräumt.
-        await db.ref(`${RAEUME_PFAD}/${code}`).update({ sabotage: null, tueren: null, leichen: null }).catch(() => {});
+        await db.ref(`${RAEUME_PFAD}/${code}`).update({ sabotage: null, tueren: null, leichen: null, kameras: null }).catch(() => {});
         resolve({ erfolg: true });
       }
     );
@@ -1236,8 +1247,12 @@ async function sabotiere(typ, raumId) {
   }
 
   if (raum.sabotage) return { erfolg: false, fehler: "Läuft schon eine Sabotage." };
+  // Funk und Flutlicht laufen beide ohne Countdown und werden von einer einzelnen Person
+  // repariert — nur an unterschiedlichen Pulten und mit unterschiedlicher Wirkung.
   const neu = typ === "heizung"
     ? { typ: "heizung", endeAt: serverJetzt() + SABOTAGE_HEIZUNG_MS, ventile: null, reparaturClaim: null, aufloesungClaim: null }
+    : typ === "funk"
+    ? { typ: "funk", endeAt: 0, reparaturClaim: null, aufloesungClaim: null }
     : { typ: "flutlicht", endeAt: 0, reparaturClaim: null, aufloesungClaim: null };
 
   const gesetzt = await new Promise(resolve => {
@@ -1256,6 +1271,38 @@ async function repariereFlutlicht() {
   if (!raum || !raum.sabotage || raum.sabotage.typ !== "flutlicht") return { erfolg: false };
   await db.ref(`${RAEUME_PFAD}/${aktuellerRaumCode}/sabotage`).set(null).catch(() => {});
   return { erfolg: true };
+}
+
+async function repariereFunk() {
+  const raum = letzterRaum;
+  if (!raum || !raum.sabotage || raum.sabotage.typ !== "funk") return { erfolg: false };
+  await db.ref(`${RAEUME_PFAD}/${aktuellerRaumCode}/sabotage`).set(null).catch(() => {});
+  return { erfolg: true };
+}
+
+// --- Kameras ---
+//
+// Der Eintrag trägt seinen eigenen Ablaufzeitpunkt statt eines simplen "true": ein Gerät, das
+// mitten im Zusehen abstürzt oder den Tab schließt, käme sonst nie dazu, sich auszutragen — die
+// Warnung bliebe für den Rest der Partie stehen und niemand würde ihr mehr glauben.
+function kameraZusehen() {
+  const code = aktuellerRaumCode;
+  if (!code || !eigeneUid) return;
+  db.ref(`${RAEUME_PFAD}/${code}/kameras/${eigeneUid}`)
+    .set(serverJetzt() + KAMERA_GUELTIG_MS).catch(() => {});
+}
+
+function kameraWegsehen() {
+  const code = aktuellerRaumCode;
+  if (!code || !eigeneUid) return;
+  db.ref(`${RAEUME_PFAD}/${code}/kameras/${eigeneUid}`).remove().catch(() => {});
+}
+
+// Sieht IRGENDWER gerade zu? Abgelaufene Einträge zählen nicht mit.
+function kameraBeobachtet(raum) {
+  const eintraege = (raum && raum.kameras) || {};
+  const jetzt = serverJetzt();
+  return Object.keys(eintraege).some(uid => eintraege[uid] > jetzt);
 }
 
 // Heizung: beide Ventile müssen GLEICHZEITIG gehalten werden. Jedes Gerät schreibt nur sein
@@ -1608,6 +1655,7 @@ async function neueRunde() {
   updates[`${RAEUME_PFAD}/${code}/verkleidungCooldownBis`] = 0;
   updates[`${RAEUME_PFAD}/${code}/meeting`] = null;
   updates[`${RAEUME_PFAD}/${code}/sabotage`] = null;
+  updates[`${RAEUME_PFAD}/${code}/kameras`] = null;
   updates[`${RAEUME_PFAD}/${code}/tueren`] = null;
   updates[`${RAEUME_PFAD}/${code}/sieger`] = null;
   updates[`${RAEUME_PFAD}/${code}/siegGrund`] = null;
@@ -1711,7 +1759,8 @@ const gameService = {
   bewege, setzeStartposition, springeZu, startePositionsSchleife, schreibePosition,
   erledigeAufgabe, schalteAus, meldeLeiche, drueckeNotfallknopf,
   sendeChat, stimmeAb, deckeAusgeschlosseneRolleAuf,
-  sabotiere, repariereFlutlicht, setzeHeizungsventil,
+  sabotiere, repariereFlutlicht, repariereFunk, setzeHeizungsventil,
+  kameraZusehen, kameraWegsehen, KAMERA_TAKT_MS,
   schuetze, verkleideDich,
   verlasseSpiel, neueRunde, raeumeRaumAuf,
   getZustand, onZustandsAenderung, ladeBestenliste, setzeBestenlisteZurueck,

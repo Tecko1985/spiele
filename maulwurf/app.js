@@ -319,10 +319,26 @@ function zeichne(zustand) {
   // Reparaturstellen nur, solange die passende Sabotage läuft
   const sab = zustand.sabotage;
   if (sab && sab.typ === "flutlicht") zeichneMarker(wx(karte.SICHERUNGSKASTEN.x), wy(karte.SICHERUNGSKASTEN.y), skala, "#fbbf24", "💡");
+  if (sab && sab.typ === "funk") zeichneMarker(wx(karte.FUNKPULT.x), wy(karte.FUNKPULT.y), skala, "#fbbf24", "📻");
   if (sab && sab.typ === "heizung") {
     zeichneMarker(wx(karte.HEIZUNG_A.x), wy(karte.HEIZUNG_A.y), skala, "#fbbf24", "🔧");
     zeichneMarker(wx(karte.HEIZUNG_B.x), wy(karte.HEIZUNG_B.y), skala, "#fbbf24", "🔧");
   }
+
+  // Kamerapult
+  zeichneMarker(wx(karte.KAMERAPULT.x), wy(karte.KAMERAPULT.y), skala, "#64748b", "📹");
+
+  // Die vier Kamerastandorte stehen dauerhaft auf der Karte — man soll wissen, wo man gefilmt
+  // wird. Das Gegengewicht zum Zusehen: sieht gerade jemand hin, blinken sie rot.
+  //
+  // Sichtbar ist das nur für den, der den Standort im eigenen Sichtfeld hat — dadurch bleibt
+  // es eine Beobachtung vor Ort und keine kostenlose Warnung an alle. Ohne dieses Signal wäre
+  // Zusehen risikofrei und die Loge der beste Platz im Spiel.
+  const kameraBlinkt = zustand.kameraBeobachtet && Math.floor(jetzt / 450) % 2 === 0;
+  karte.KAMERAS.forEach(k => {
+    if (!istEinsehbar(mich, k, sichtweite, zustand.binGeist)) return;
+    zeichneMarker(wx(k.x), wy(k.y), skala, kameraBlinkt ? "#dc2626" : "#475569", kameraBlinkt ? "🔴" : "📹");
+  });
 
   // Eigene Aufgabenstationen (nur die eigenen — fremde Aufgaben sieht niemand)
   zustand.meineAufgaben.forEach(a => {
@@ -665,11 +681,20 @@ function ermittleAktion(zustand) {
   }
   if (sab && sab.typ === "heizung") {
     if (karte.abstand(pos.x, pos.y, karte.HEIZUNG_A.x, karte.HEIZUNG_A.y) <= karte.INTERAKTIONS_RADIUS) {
-      return { typ: "reparatur-heizung", seite: "a", zeichen: "🔧", label: "Ventil Keller" };
+      return { typ: "reparatur-heizung", seite: "a", zeichen: "🔧", label: "Ventil Heizungskeller" };
     }
     if (karte.abstand(pos.x, pos.y, karte.HEIZUNG_B.x, karte.HEIZUNG_B.y) <= karte.INTERAKTIONS_RADIUS) {
-      return { typ: "reparatur-heizung", seite: "b", zeichen: "🔧", label: "Ventil Küche" };
+      return { typ: "reparatur-heizung", seite: "b", zeichen: "🔧", label: "Ventil Grünpflege" };
     }
+  }
+  if (sab && sab.typ === "funk" &&
+      karte.abstand(pos.x, pos.y, karte.FUNKPULT.x, karte.FUNKPULT.y) <= karte.INTERAKTIONS_RADIUS) {
+    return { typ: "reparatur-funk", zeichen: "📻", label: "Funkpult" };
+  }
+  // Das Kamerapult steht vor den Aufgaben in der Reihenfolge, weil in der Loge ohnehin
+  // Stationen liegen — sonst käme man nie an die Kameras heran.
+  if (karte.abstand(pos.x, pos.y, karte.KAMERAPULT.x, karte.KAMERAPULT.y) <= karte.INTERAKTIONS_RADIUS) {
+    return { typ: "kameras", zeichen: "📹", label: zustand.funkGestoert ? "Kameras (kein Signal)" : "Kameras" };
   }
   if (!zustand.versteckModus && !zustand.meeting && (zustand.eigener.notfallUebrig || 0) > 0 &&
       karte.abstand(pos.x, pos.y, karte.NOTFALLKNOPF.x, karte.NOTFALLKNOPF.y) <= karte.INTERAKTIONS_RADIUS) {
@@ -814,10 +839,20 @@ function aktualisiereHud(zustand) {
     warnung.textContent = `🔥 Heizung überdreht – ${rest} s bis zum Knall. Beide Ventile gleichzeitig halten!`;
   } else if (sab && sab.typ === "flutlicht") {
     warnung.style.display = "block";
-    warnung.textContent = "💡 Flutlicht aus – Sicherungskasten in der Werkstatt.";
+    warnung.textContent = "💡 Flutlicht aus – Sicherungskasten im Technikraum.";
+  } else if (sab && sab.typ === "funk") {
+    warnung.style.display = "block";
+    warnung.textContent = "📻 Funk gestört – keine Kameras, keine Aufgabenliste. Funkpult in der Sprecherkabine.";
   } else {
     warnung.style.display = "none";
   }
+
+  // Die Aufgabenliste fällt mit dem Funk aus. Der eigene Fortschritt bleibt sichtbar (die
+  // Marker auf der Karte), nur der gemeinsame Überblick ist weg — das ist der Punkt: man
+  // weiß nicht mehr, wie weit das Team wirklich ist.
+  const listenBtn = el("btn-aufgabenliste");
+  listenBtn.disabled = !!zustand.funkGestoert;
+  listenBtn.title = zustand.funkGestoert ? "Funk gestört" : "Aufgabenliste";
 
   const aktion = ermittleAktion(zustand);
   const interaktion = el("btn-interaktion");
@@ -886,6 +921,14 @@ async function fuehreAktionAus() {
   }
   if (aktion.typ === "reparatur-heizung") {
     oeffneReparaturHeizung(aktion.seite);
+    return;
+  }
+  if (aktion.typ === "reparatur-funk") {
+    await gameService.repariereFunk();
+    return;
+  }
+  if (aktion.typ === "kameras") {
+    oeffneKameras();
   }
 }
 
@@ -898,6 +941,10 @@ function schliesseOverlay() {
     aktiveAufgabeAufraeumen();
     aktiveAufgabeAufraeumen = null;
   }
+  // Wer die Kameras verlässt, meldet sich sofort ab, statt den Eintrag auslaufen zu lassen —
+  // sonst blinkt die Warnung noch acht Sekunden weiter, obwohl niemand mehr hinsieht.
+  if (kameraTakt) { clearInterval(kameraTakt); kameraTakt = null; }
+  if (overlayOffen === "kameras") gameService.kameraWegsehen();
   document.querySelectorAll(".overlay").forEach(o => o.classList.remove("aktiv"));
   overlayOffen = null;
   aktiveStationId = null;
@@ -1061,6 +1108,131 @@ function zielZeile(spieler, knopfText, aktiv, beiKlick) {
   return li;
 }
 
+// ---------- Kameras ----------
+//
+// Bewusst EIGENE, grobe Darstellung statt des Hauptrenderers: erstens muss der geprüfte
+// Spielfeld-Code dafür nicht umgebaut werden, zweitens soll ein Kamerabild anders aussehen
+// als der eigene Blick — grün, körnig, ohne Beschriftung. Was man sieht, sind Punkte in
+// Bewegung, nicht wer sie sind.
+//
+// Namen werden NICHT angezeigt. Eine Kamera, die Namen verrät, würde jede Diskussion
+// beenden; so bleibt "da war jemand im Nordflur" eine Beobachtung, die man vertreten muss.
+let kameraTakt = null;
+const KAMERA_BILD_MS = 140;   // ~7 Bilder/s reichen; die Positionen treffen ohnehin nur mit 5 Hz ein
+
+function zeichneKamerabild(flaeche, kamera, zustand) {
+  const ctx2 = flaeche.getContext("2d");
+  const b = flaeche.width, h = flaeche.height;
+  const s = b / kamera.breite;
+  const kx = x => (x - kamera.links) * s;
+  const ky = y => (y - kamera.oben) * s;
+
+  ctx2.fillStyle = "#04120a";
+  ctx2.fillRect(0, 0, b, h);
+
+  ctx2.fillStyle = "#0d2a18";
+  karte.KORRIDORE.forEach(k => ctx2.fillRect(kx(k.x), ky(k.y), k.w * s, k.h * s));
+  ctx2.fillStyle = "#123520";
+  karte.RAEUME.forEach(r => ctx2.fillRect(kx(r.x), ky(r.y), r.w * s, r.h * s));
+  karte.TUEREN.forEach(t => ctx2.fillRect(kx(t.x), ky(t.y), t.w * s, t.h * s));
+  ctx2.strokeStyle = "#1f6b3d";
+  ctx2.lineWidth = 1.5;
+  karte.RAEUME.forEach(r => ctx2.strokeRect(kx(r.x), ky(r.y), r.w * s, r.h * s));
+
+  // Nur Lebende, und nur wer wirklich im Ausschnitt steht. Geister tauchen nirgends auf —
+  // sie könnten sonst durch Wände laufend die halbe Karte ausleuchten.
+  let gesehen = 0;
+  zustand.spieler.forEach(sp => {
+    if (sp.lebt === false) return;
+    const p = sp.id === zustand.eigenerSpielerId ? zustand.meinePosition : angezeigtePositionen[sp.id];
+    if (!p || !karte.imKamerabild(kamera, p.x, p.y)) return;
+    gesehen++;
+    ctx2.fillStyle = "#7dfcae";
+    ctx2.beginPath();
+    ctx2.arc(kx(p.x), ky(p.y), Math.max(karte.SPIELER_RADIUS * s, 4), 0, Math.PI * 2);
+    ctx2.fill();
+  });
+
+  // Leichen sind auch auf dem Band zu sehen — das ist der eigentliche Wert der Kameras.
+  Object.keys(zustand.leichen || {}).forEach(uid => {
+    const l = zustand.leichen[uid];
+    if (!karte.imKamerabild(kamera, l.x, l.y)) return;
+    ctx2.strokeStyle = "#7dfcae";
+    ctx2.lineWidth = 2;
+    const cx = kx(l.x), cy = ky(l.y), r = Math.max(karte.SPIELER_RADIUS * s, 4);
+    ctx2.beginPath();
+    ctx2.moveTo(cx - r, cy - r); ctx2.lineTo(cx + r, cy + r);
+    ctx2.moveTo(cx + r, cy - r); ctx2.lineTo(cx - r, cy + r);
+    ctx2.stroke();
+  });
+
+  // Scanzeilen über alles — ohne sie sieht das Bild aus wie eine zweite, bessere Karte.
+  ctx2.fillStyle = "rgba(0,0,0,0.22)";
+  for (let y = 0; y < h; y += 4) ctx2.fillRect(0, y, b, 2);
+  return gesehen;
+}
+
+function aktualisiereKameras() {
+  if (overlayOffen !== "kameras") return;
+  const zustand = gameService.getZustand();
+  const gestoert = zustand.funkGestoert;
+  el("kamera-stoerung").style.display = gestoert ? "block" : "none";
+  karte.KAMERAS.forEach((kamera, i) => {
+    const flaeche = el("kamera-bild-" + i);
+    if (!flaeche) return;
+    if (gestoert) {
+      const c = flaeche.getContext("2d");
+      c.fillStyle = "#04120a";
+      c.fillRect(0, 0, flaeche.width, flaeche.height);
+      // Rauschen statt Bild: man sieht sofort, dass hier etwas kaputt ist, statt zu glauben,
+      // der Gang sei einfach leer.
+      c.fillStyle = "rgba(125,252,174,0.20)";
+      for (let n = 0; n < 260; n++) {
+        c.fillRect(Math.random() * flaeche.width, Math.random() * flaeche.height, 2, 2);
+      }
+      return;
+    }
+    zeichneKamerabild(flaeche, kamera, zustand);
+  });
+}
+
+function oeffneKameras() {
+  schliesseOverlay();
+  overlayOffen = "kameras";
+  const gitter = el("kamera-gitter");
+  gitter.innerHTML = "";
+  karte.KAMERAS.forEach((kamera, i) => {
+    const kachel = document.createElement("figure");
+    kachel.className = "kamera-kachel";
+    const flaeche = document.createElement("canvas");
+    flaeche.id = "kamera-bild-" + i;
+    flaeche.width = 480;
+    flaeche.height = Math.round(480 * (kamera.hoehe / kamera.breite));
+    const titel = document.createElement("figcaption");
+    titel.textContent = kamera.name;
+    kachel.appendChild(flaeche);
+    kachel.appendChild(titel);
+    gitter.appendChild(kachel);
+  });
+  el("overlay-kameras").classList.add("aktiv");
+
+  // Zwei Takte mit verschiedenen Aufgaben: das Bild muss flüssig nachziehen (die Positionen
+  // treffen mit 5 Hz ein), der Firebase-Eintrag darf das nicht — sonst schriebe jedes
+  // zusehende Gerät achtmal pro Sekunde in den Raum, den alle anderen mithören.
+  gameService.kameraZusehen();
+  aktualisiereKameras();
+  let seitLetztemWrite = 0;
+  if (kameraTakt) clearInterval(kameraTakt);
+  kameraTakt = setInterval(() => {
+    aktualisiereKameras();
+    seitLetztemWrite += KAMERA_BILD_MS;
+    if (seitLetztemWrite >= gameService.KAMERA_TAKT_MS) {
+      seitLetztemWrite = 0;
+      gameService.kameraZusehen();
+    }
+  }, KAMERA_BILD_MS);
+}
+
 function oeffneSabotageMenue() {
   const zustand = gameService.getZustand();
   schliesseOverlay();
@@ -1080,6 +1252,7 @@ function oeffneSabotageMenue() {
   });
   el("btn-sab-heizung").disabled = !!zustand.sabotage;
   el("btn-sab-flutlicht").disabled = !!zustand.sabotage;
+  el("btn-sab-funk").disabled = !!zustand.sabotage;
   el("sabotage-hinweis").textContent = zustand.sabotage ? "Es läuft schon eine Sabotage." : "";
   el("overlay-sabotage").classList.add("aktiv");
 }
@@ -1500,9 +1673,17 @@ el("btn-liste-schliessen").addEventListener("click", schliesseOverlay);
 el("btn-sabotage-schliessen").addEventListener("click", schliesseOverlay);
 el("btn-aufgabe-schliessen").addEventListener("click", schliesseOverlay);
 
+el("btn-kameras-schliessen").addEventListener("click", schliesseOverlay);
+
 el("btn-sab-flutlicht").addEventListener("click", async () => {
   const ergebnis = await gameService.sabotiere("flutlicht");
   el("sabotage-hinweis").textContent = ergebnis.erfolg ? "Flutlicht ist aus." : (ergebnis.fehler || "Geht gerade nicht.");
+  if (ergebnis.erfolg) setTimeout(schliesseOverlay, 500);
+});
+
+el("btn-sab-funk").addEventListener("click", async () => {
+  const ergebnis = await gameService.sabotiere("funk");
+  el("sabotage-hinweis").textContent = ergebnis.erfolg ? "Funk ist gestört." : (ergebnis.fehler || "Geht gerade nicht.");
   if (ergebnis.erfolg) setTimeout(schliesseOverlay, 500);
 });
 
@@ -1585,7 +1766,9 @@ const APP_CHANGELOG = [
           "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen – nur durch offene Türen fällt Licht in den Nachbarraum. Die Räume selbst bleiben schwach angedeutet, damit man sich zurechtfindet; Mitspielende sieht man aber wirklich nur in direkter Sichtlinie. Auch ein Foulspiel quer durch die Wand geht nicht mehr.",
           "25 verschiedene Aufgaben-Minispiele an 50 Stationen – jede Runde ist anders zusammengesetzt.",
           "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
-          "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen und Räume verriegeln.",
+          "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen, den Funk stören und Räume verriegeln.",
+          "📹 Kameras in der Hausmeisterloge zeigen vier feste Bereiche des Geländes – ohne Namen, nur Punkte in Bewegung. Wer zusieht, wird verraten: die Kameras blinken dann rot für jeden, der davorsteht.",
+          "📻 Ist der Funk gestört, fallen Kameras und Aufgabenliste aus, bis jemand am Funkpult in der Sprecherkabine war.",
           "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende.",
           "Einstellbar, ob nach einem Rauswurf verraten wird, ob es wirklich ein Maulwurf war."
       ]},

@@ -229,10 +229,54 @@ STATIONS_TABELLE.forEach(([raumId, typen]) => {
 // Wie im Original: der Notfallknopf steht mitten im Aufenthaltsraum, der Sicherungskasten im
 // Technikraum. Die beiden Heizungsventile liegen in Heizungskeller und Grünpflege — die
 // gegenüberliegenden Enden der Karte, was genau der Punkt dieser Sabotage ist.
+//
+// **Alle Sonderpunkte müssen deutlich mehr als INTERAKTIONS_RADIUS von jeder Aufgabenstation
+// entfernt liegen.** ermittleAktion() gibt nur EINE Aktion zurück; überlappen die Radien, gibt
+// es Standpunkte, von denen aus die jeweils zweite unerreichbar ist. Deshalb sitzen sie
+// bewusst in Raumecken statt in der Mitte — der Kartentest misst die verbleibende
+// Überlappungszone und lässt höchstens ein paar Pixel durch.
 const NOTFALLKNOPF = { x: 1340, y: 300, raum: "cafeteria" };
-const SICHERUNGSKASTEN = { x: 800, y: 1150, raum: "electrical" };
-const HEIZUNG_A = { x: 180, y: 695, raum: "reactor" };
-const HEIZUNG_B = { x: 2020, y: 695, raum: "o2" };
+const SICHERUNGSKASTEN = { x: 660, y: 1270, raum: "electrical" };
+const HEIZUNG_A = { x: 100, y: 830, raum: "reactor" };
+const HEIZUNG_B = { x: 1940, y: 830, raum: "o2" };
+// Das Kamerapult gibt der Hausmeisterloge ihren Zweck — bis dahin war sie reines Risiko ohne
+// Gegenwert (eine Tür, drei Stationen, sonst nichts). Das Funkpult ist der Reparaturplatz der
+// vierten Sabotage und füllt die Sprecherkabine.
+const KAMERAPULT = { x: 630, y: 830, raum: "security" };
+const FUNKPULT = { x: 1590, y: 1280, raum: "comms" };
+
+// Die vier festen Kamerabereiche. Bewusst überwiegend GÄNGE statt Räume: Kameras sollen
+// verraten, wer wohin unterwegs ist, nicht was jemand in einem Raum tut — sonst wären
+// Aufgaben und Alibis wertlos. Der Aufenthaltsraum ist die Ausnahme, weil dort ohnehin
+// ständig alle durchlaufen.
+//
+// Alle Ausschnitte haben dieselbe Größe, damit die vier Bilder nebeneinander gleich wirken
+// und keiner unbeabsichtigt mehr Fläche abdeckt als die anderen.
+const KAMERA_BREITE = 660;
+const KAMERA_HOEHE = 340;
+// x/y ist der STANDORT der Kamera — dort blinkt sie auf der Karte, und dieser Punkt muss
+// deshalb begehbar in einer Fläche liegen. Läge er in einer Wand, gäbe es nie eine Sichtlinie
+// dorthin und die Warnung wäre für niemanden zu sehen (genau so gebaut und im Test aufgefallen).
+// links/oben ist davon getrennt der BILDAUSSCHNITT: um den Standort zentriert, aber in die
+// Welt hineingeschoben, wo er sonst über den Rand ragen würde — der Südgang liegt so dicht am
+// unteren Rand, dass sein Bild sonst zur Hälfte aus Nichts bestünde.
+const KAMERAS = [
+  { id: "kam-cafeteria", name: "Aufenthaltsraum", x: 1340, y: 245 },
+  { id: "kam-nord",      name: "Nordflur",        x: 775,  y: 245 },
+  { id: "kam-west",      name: "Westkreuzung",    x: 480,  y: 695 },
+  { id: "kam-sued",      name: "Südgang",         x: 1280, y: 1375 }
+].map(k => ({
+  ...k,
+  links: Math.min(Math.max(k.x - KAMERA_BREITE / 2, 0), WELT_BREITE - KAMERA_BREITE),
+  oben: Math.min(Math.max(k.y - KAMERA_HOEHE / 2, 0), WELT_HOEHE - KAMERA_HOEHE),
+  breite: KAMERA_BREITE, hoehe: KAMERA_HOEHE
+}));
+
+// Liegt der Punkt im Bild dieser Kamera?
+function imKamerabild(kamera, x, y) {
+  return x >= kamera.links && x <= kamera.links + kamera.breite &&
+         y >= kamera.oben && y <= kamera.oben + kamera.hoehe;
+}
 
 // Startpositionen: alle starten im Aufenthaltsraum, kreisförmig verteilt (max. 10 Plätze).
 function startPositionen(anzahl) {
@@ -568,7 +612,8 @@ const karte = {
   SICHT_TEAM, SICHT_MAULWURF, SICHT_TEAM_DUNKEL, SICHT_GEIST, SICHT_STRAHLEN,
   SICHT_VERSTECKEN_TEAM, SICHT_VERSTECKEN_FAENGER,
   RAEUME, KORRIDORE, TUEREN, TUNNEL, STATIONEN, GEBAEUDE,
-  NOTFALLKNOPF, SICHERUNGSKASTEN, HEIZUNG_A, HEIZUNG_B,
+  NOTFALLKNOPF, SICHERUNGSKASTEN, HEIZUNG_A, HEIZUNG_B, KAMERAPULT, FUNKPULT,
+  KAMERAS, imKamerabild,
   BOT_WEGPUNKTE,
   startPositionen, istBegehbar, bewegeMitKollision, raumAn, raumName,
   abstand, tunnelAn, stationAn, stationNachId, findeWeg,
