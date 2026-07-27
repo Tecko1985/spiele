@@ -102,7 +102,15 @@ const SCHUTZ_DAUER_MS = 12000;
 const SCHUTZ_COOLDOWN_MS = 40000;
 const VERKLEIDUNG_DAUER_MS = 20000;
 const VERKLEIDUNG_COOLDOWN_MS = 45000;
-const BOT_TICK_MS = 200;
+// Die KI rechnet ihre Bewegung mit 20 Hz, schreibt sie aber weiterhin nur mit 5 Hz nach
+// Firebase. Bis 2026-07-27 lief beides mit 200 ms: die Figuren sprangen fünfmal pro Sekunde um
+// 46 px weiter und ruckelten sichtbar. Die Trennung macht sie flüssig, ohne das Schreibvolumen
+// anzufassen — für alle anderen Geräte ändert sich nichts, deren Interpolation glättet weiter.
+const BOT_TICK_MS = 50;
+const BOT_SCHREIB_MS = 200;
+// Nach so vielen Ticks ohne Fortschritt wird der Weg verworfen. Hängt an der Tickrate: bei
+// 20 Hz sind 32 Ticks dieselben 1,6 Sekunden, die vorher 8 Ticks waren.
+const BOT_KLEMM_TICKS = 32;
 const BOT_AUFGABE_MS = 9000;
 const BOT_STIMME_MS = 11000;
 
@@ -115,7 +123,10 @@ const STANDARD_EINSTELLUNGEN = {
   abstimmungSek: 60,
   notfallKnoepfe: 1,
   aufgabenProSpieler: 5,
-  tempo: 232,          // mit dem Original-Layout gewachsen: die Karte ist deutlich größer
+  // 2026-07-27 um ein Fünftel gesenkt (232 → 186): mit dem Original-Layout war die Figur so
+  // flott unterwegs, dass Räume im Vorbeilaufen abgehakt wurden, statt dass Wege etwas kosten.
+  // Alle drei Stufen sind gleichmäßig mitgesenkt, damit die Abstufung erhalten bleibt.
+  tempo: 186,
   rolleNachRauswurf: 1,
   rolleIngenieur: 0,
   rolleWissenschaftler: 0,
@@ -1634,8 +1645,35 @@ function fuehreBotTickAus() {
     const dx = naechster.x - pos.x;
     const dy = naechster.y - pos.y;
     const laenge = Math.hypot(dx, dy) || 1;
-    const schritt = einstellungen.tempo * (BOT_TICK_MS / 1000);
-    const neu = karte.bewegeMitKollision(pos.x, pos.y, (dx / laenge) * schritt, (dy / laenge) * schritt);
+    // **Nie über den Wegpunkt hinaus.** Ohne die Begrenzung auf die Restdistanz schoss die KI
+    // darüber hinweg: bei 200 ms Tick und Tempo 232 war ein Schritt 46 px lang, ein Wegpunkt
+    // gilt aber erst ab 28 px als erreicht. Der Bot sprang über den Radius, lief vorbei, drehte
+    // um, sprang zurück — und pendelte um den Punkt, ohne ihn je abzuhaken.
+    const schritt = Math.min(einstellungen.tempo * (BOT_TICK_MS / 1000), laenge);
+
+    // **Achsenweise laufen, nicht anteilig.** Der zweite Grund, warum die KI im Laufe des
+    // Spiels stehenblieb — und der schwerer wiegende. Ein auf die Schrittlänge normierter
+    // Richtungsvektor auf ein weit entferntes Ziel ist fast achsenparallel: bei 692 px Rest
+    // nach oben und 9 px nach rechts entfallen von 9,3 px Schritt ganze 0,1 px auf x. Steckt
+    // die dominante Achse in einer Wand (typisch: der Bot steht drei Pixel neben einer
+    // Türöffnung), löst bewegeMitKollision() nur die andere auf — und der Bot kriecht mit
+    // einem Zehntel Pixel pro Tick seitwärts. Das liegt unter der Klemm-Schwelle, er gilt als
+    // festsitzend, obwohl er sich bewegt. Im Simulationstest kamen so 129 von 200 Fahrten nie
+    // an. Menschen trifft das nicht: bei Tastensteuerung ist die Richtung ±1, nicht normiert.
+    //
+    // Deshalb: erst die Achse mit dem größeren Rest mit VOLLEM Schritt; ist die blockiert, die
+    // andere — das schiebt den Bot an der Wand entlang, bis er vor der Öffnung steht.
+    const zuerstX = Math.abs(dx) > Math.abs(dy);
+    const schrittX = Math.sign(dx) * Math.min(schritt, Math.abs(dx));
+    const schrittY = Math.sign(dy) * Math.min(schritt, Math.abs(dy));
+    let neu = zuerstX
+      ? karte.bewegeMitKollision(pos.x, pos.y, schrittX, 0)
+      : karte.bewegeMitKollision(pos.x, pos.y, 0, schrittY);
+    if (karte.abstand(neu.x, neu.y, pos.x, pos.y) < schritt * 0.3) {
+      neu = zuerstX
+        ? karte.bewegeMitKollision(pos.x, pos.y, 0, schrittY)
+        : karte.bewegeMitKollision(pos.x, pos.y, schrittX, 0);
+    }
 
     // Verriegelte Räume halten auch die KI auf – sonst wäre die Sabotage "Raum verriegeln"
     // gegen Bots wirkungslos und sähe wie ein Fehler aus.
@@ -1648,14 +1686,19 @@ function fuehreBotTickAus() {
     // Wand zu drücken (kann passieren, wenn ihn eine Kollision aus dem Raster gedrängt hat).
     if (karte.abstand(neu.x, neu.y, pos.x, pos.y) < schritt * 0.3) {
       zustand.klemmt = (zustand.klemmt || 0) + 1;
-      if (zustand.klemmt > 8) { zustand.pfad = null; zustand.klemmt = 0; }
+      if (zustand.klemmt > BOT_KLEMM_TICKS) { zustand.pfad = null; zustand.klemmt = 0; }
     } else {
       zustand.klemmt = 0;
       if (karte.abstand(neu.x, neu.y, naechster.x, naechster.y) < 28) zustand.pfad.shift();
     }
 
+    // Lokal jeden Tick (das Host-Gerät sieht die KI dadurch flüssig laufen), nach Firebase nur
+    // alle BOT_SCHREIB_MS — sonst vervierfachte die feinere Tickrate das Schreibvolumen.
     positionen[botId] = { x: neu.x, y: neu.y, geist: istGeist };
-    db.ref(`${POSITIONEN_PFAD}/${code}/${botId}`).set({ x: Math.round(neu.x), y: Math.round(neu.y), geist: istGeist }).catch(() => {});
+    if (jetzt - (zustand.letzterWrite || 0) >= BOT_SCHREIB_MS) {
+      zustand.letzterWrite = jetzt;
+      db.ref(`${POSITIONEN_PFAD}/${code}/${botId}`).set({ x: Math.round(neu.x), y: Math.round(neu.y), geist: istGeist }).catch(() => {});
+    }
 
     if (zustand.rolle === "maulwurf") {
       if (!istGeist) versucheBotKill(raum, botId, neu, einstellungen);

@@ -73,7 +73,9 @@ const RAEUME = [
   // dem Oberflur in ihre NORDwand münden kann. Vorher lag sie rechts vom Längsgang und wurde
   // von Westen betreten — im Original kommt man von oben herein.
   { id: "medbay",       name: "Krankenstation", x: 970, y: 598, w: 346, h: 344 },
-  { id: "admin",        name: "Verwaltung",    x: 1800, y: 598, w: 346, h: 344 },
+  // 46 px nach links gerückt, damit die WESTwand an den Gang Cafeteria–Lager heranreicht:
+  // die Verwaltung wird von dort betreten, nicht über einen eigenen Stummel aus der Cafeteria.
+  { id: "admin",        name: "Verwaltung",    x: 1754, y: 598, w: 346, h: 344 },
   { id: "o2",           name: "O2",            x: 2192, y: 598, w: 277, h: 344 },
   { id: "navigation",   name: "Navigation",    x: 2654, y: 598, w: 300, h: 344 },
   // untere Reihe
@@ -110,8 +112,10 @@ const KORRIDORE = [
   { id: "gang-med", x: 1015, y: 227, w: 93, h: 331 },
   // Cafeteria nach unten in den Lager, östlich am Krankenstation vorbei
   { id: "gang-c",  x: 1615, y: 482, w: 93, h: 576 },
-  // Cafeteria ↓ Verwaltung, der obere der beiden Verwaltungs-Ausgänge.
-  { id: "gang-a",  x: 1800, y: 482, w: 92, h: 78 },
+  // **Hier lag bis 2026-07-27 `gang-a`**, ein eigener Stummel von der Cafeteria hinunter in die
+  // NORDwand der Verwaltung. Den gibt es im Original nicht: dort öffnet Admin nach WESTEN auf
+  // den Gang, der ohnehin von der Cafeteria zum Lager führt. Die Cafeteria hat dadurch drei
+  // Ausgänge statt vier — ihr unterer Ausgang ist einer, der sich hinter der Tür verzweigt.
   // Verwaltung ↓ Ostflur, der untere Ausgang. Im Original öffnet Admin unten rechts auf genau
   // den Korridor, der Lager und Schilde verbindet — von dort kommt man in den ganzen Ostflügel,
   // ohne über die Cafeteria zu müssen. Bis 2026-07-27 stieß diese Tür stattdessen direkt in die
@@ -172,10 +176,13 @@ function tuer(x, y, achse) {
 const TUEREN = [
   // oberer Flur
   tuer(620, 271, "h"),   // Oberer Motor ↔ flur-o1
-  // Ein paar Pixel weiter rechts als die Wandmitte: bei 1168 ragte die Schwelle drei Pixel in
-  // den Mittelgang, der den Oberflur genau dort kreuzt, und die Tür berührte drei Flächen statt
-  // zwei. Ohne Spielwirkung, aber tueranalyse.js kann sie so eindeutig zuordnen.
-  tuer(1174, 271, "h"),  // flur-o1 ↔ Cafeteria
+  // **Bewusst bei 1168, nicht in der Wandmitte.** Die Schwelle ragt damit drei Pixel in den
+  // Stichflur hinein, der den Oberflur genau hier kreuzt — tueranalyse.js meldet deshalb "drei
+  // Flächen" statt zwei. Das ist Absicht: bei 1174 klaffte zwischen Gangrand (1108) und
+  // Schwellenrand (1111) eine drei Pixel breite Lücke, und wer mit SPIELER_RADIUS dort
+  // entlanglief, blieb mit dem rechten Randpunkt daran hängen und kam weder vor noch zurück.
+  // Der Bot-Simulationstest fand genau diese eine Stelle. **Die Meldung nicht "aufräumen".**
+  tuer(1168, 271, "h"),  // flur-o1 ↔ Cafeteria
   tuer(1923, 271, "h"),  // Cafeteria ↔ flur-o2
   tuer(2310, 271, "h"),  // flur-o2 ↔ Waffen
   // linker Längsgang
@@ -194,8 +201,9 @@ const TUEREN = [
   // Cafeteria nach unten
   tuer(1662, 462, "v"),  // Cafeteria ↓ gang-c
   tuer(1662, 1077, "v"),  // gang-c ↓ Lager
-  tuer(1846, 462, "v"),  // Cafeteria ↓ gang-a
-  tuer(1846, 578, "v"),  // gang-a ↓ Verwaltung
+  // Die Verwaltung wird von WESTEN betreten, aus dem Gang Cafeteria–Lager. Vorher führte ein
+  // eigener Stummel aus der Cafeteria in ihre Nordwand — den gibt es im Original nicht.
+  tuer(1731, 770, "h"),  // gang-c ↔ Verwaltung (WESTwand)
   // Der zweite Ausgang der Verwaltung führt nach UNTEN auf den Ostflur (Lager ↔ Schilde), wie
   // im Original. Er stieß vorher direkt in die O2 — die einzige Tür der Karte, die zwei Räume
   // ohne Gang dazwischen verband, und die der O2 eine dritte Tür gab.
@@ -620,6 +628,15 @@ function findeWeg(vonX, vonY, zuX, zuY) {
   roh.reverse();
 
   const weg = [];
+  // **Den ersten Rasterpunkt immer mitgeben.** Wer den Weg abläuft, steht selten exakt auf der
+  // Rasterlinie — und weil unten nur Richtungswechsel behalten werden, kann ein rein
+  // senkrechter oder waagerechter Weg komplett wegoptimiert werden. Übrig bliebe allein das
+  // Ziel, und wer darauf zuläuft, läuft von seiner tatsächlichen Position schräg dorthin. Die
+  // paar Pixel Versatz reichen, um eine Türöffnung zu verfehlen: die KI drückte dann seitlich
+  // gegen den Türpfosten, kam nicht durch und stand (gefunden 2026-07-27, Bots blieben mitten
+  // im Spiel stehen). Mit dem Startpunkt läuft sie erst auf die Rasterlinie und dann durch.
+  const rasterStart = zelleZuPunkt(start);
+  if (Math.hypot(rasterStart.x - vonX, rasterStart.y - vonY) > 8) weg.push(rasterStart);
   for (let i = 0; i < roh.length; i++) {
     const vorher = i === 0 ? start : roh[i - 1];
     const nachher = roh[i + 1];
@@ -628,6 +645,12 @@ function findeWeg(vonX, vonY, zuX, zuY) {
     const richtungB = nachher - roh[i];
     if (richtungA !== richtungB) weg.push(zelleZuPunkt(roh[i]));
   }
+  // **Und den letzten Rasterpunkt.** Aus demselben Grund wie oben, nur am anderen Ende: das
+  // echte Ziel liegt fast nie auf der Rasterlinie. Ohne diesen Punkt zieht der Zielpunkt den
+  // Läufer schon von weit her seitlich von der Linie herunter — und wenn dazwischen noch eine
+  // Tür liegt, steht er davor. Erst auf die Linie bis kurz vors Ziel, dann die letzten Pixel.
+  const rasterZiel = zelleZuPunkt(ziel);
+  if (Math.hypot(rasterZiel.x - zuX, rasterZiel.y - zuY) > 8) weg.push(rasterZiel);
   weg.push({ x: zuX, y: zuY });
   return weg;
 }

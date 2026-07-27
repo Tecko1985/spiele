@@ -1472,12 +1472,30 @@ function renderLobby(zustand) {
   el("ein-notfall").value = String(e.notfallKnoepfe);
   el("ein-diskussion").value = String(e.diskussionSek);
   el("ein-abstimmung").value = String(e.abstimmungSek);
-  el("ein-tempo").value = String(e.tempo);
+  // Ein Raum kann noch einen Tempowert aus einer früheren Fassung tragen (die Stufen wurden
+  // am 2026-07-27 gesenkt). Ein `value`, den es als Option nicht gibt, lässt das Auswahlfeld
+  // LEER stehen — sichtbar kaputt, obwohl der Raum in Ordnung ist. Dann die nächstgelegene
+  // Stufe anzeigen; gespielt wird weiter mit dem gespeicherten Wert, bis jemand umstellt.
+  setzeAuswahlNaheliegend(el("ein-tempo"), e.tempo);
   el("ein-rolle-rauswurf").value = String(e.rolleNachRauswurf ? 1 : 0);
   el("ein-rolle-ingenieur").value = String(e.rolleIngenieur ? 1 : 0);
   el("ein-rolle-wissenschaftler").value = String(e.rolleWissenschaftler ? 1 : 0);
   el("ein-rolle-schutzengel").value = String(e.rolleSchutzengel ? 1 : 0);
   el("ein-rolle-gestaltwandler").value = String(e.rolleGestaltwandler ? 1 : 0);
+}
+
+// Setzt ein Zahlen-Auswahlfeld auf den gespeicherten Wert — oder auf die nächstgelegene
+// angebotene Stufe, falls es den Wert als Option nicht (mehr) gibt.
+function setzeAuswahlNaheliegend(feld, wert) {
+  const zahl = Number(wert);
+  feld.value = String(zahl);
+  if (feld.value !== "") return;
+  let beste = null;
+  Array.prototype.forEach.call(feld.options, opt => {
+    const abstand = Math.abs(Number(opt.value) - zahl);
+    if (beste === null || abstand < beste.abstand) beste = { wert: opt.value, abstand };
+  });
+  if (beste) feld.value = beste.wert;
 }
 
 function renderReveal(zustand) {
