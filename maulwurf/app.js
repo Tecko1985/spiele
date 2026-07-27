@@ -459,18 +459,28 @@ function zeichneArbeitsspur(x, y, skala, spur, anteilUebrig) {
   }
 }
 
-function zeichneFigur(x, y, skala, spieler, zustand) {
+// Wie sieht diese Figur für MICH aus? Gestaltwandler: für alle anderen sieht er aus wie sein
+// Ziel. Sich selbst und den eigenen Mitmaulwürfen zeigt er sich unverändert — sonst würden sie
+// ihn verlieren, und der Gestaltwandler selbst wüsste nicht mehr, welche Figur er steuert.
+//
+// **Diese Regel gehört an EINE Stelle.** Karte und Kamerabild zeigen beide Namen und Farbe;
+// würde nur die Karte die Verkleidung berücksichtigen, verriete ein Blick auf die Kameras den
+// Gestaltwandler und die Rolle wäre wertlos.
+function sichtbareIdentitaet(spieler, zustand) {
   const istIch = spieler.id === zustand.eigenerSpielerId;
   const istMitMaulwurf = zustand.meineRolle === "maulwurf" && zustand.maulwurfTeam.indexOf(spieler.id) !== -1;
-
-  // Gestaltwandler: für alle anderen sieht er aus wie sein Ziel. Sich selbst und den eigenen
-  // Mitmaulwürfen zeigt er sich unverändert — sonst würden sie ihn verlieren, und der
-  // Gestaltwandler selbst wüsste nicht mehr, welche Figur er steuert.
   const verkleidung = (zustand.verkleidungen || {})[spieler.id];
   if (verkleidung && verkleidung.bis > zustand.jetzt && !istIch && !istMitMaulwurf) {
     const vorbild = zustand.spieler.find(s => s.id === verkleidung.alsUid);
-    if (vorbild) spieler = { id: spieler.id, name: vorbild.name, farbe: vorbild.farbe, lebt: spieler.lebt };
+    if (vorbild) return { id: spieler.id, name: vorbild.name, farbe: vorbild.farbe, lebt: spieler.lebt };
   }
+  return spieler;
+}
+
+function zeichneFigur(x, y, skala, spieler, zustand) {
+  const istIch = spieler.id === zustand.eigenerSpielerId;
+  const istMitMaulwurf = zustand.meineRolle === "maulwurf" && zustand.maulwurfTeam.indexOf(spieler.id) !== -1;
+  spieler = sichtbareIdentitaet(spieler, zustand);
 
   // Der Fänger im Verstecken-Modus ist für alle als solcher erkennbar — daran hängt der
   // ganze Modus. Der Ring liegt außen um die Figur, damit er auch bei fremder Farbe auffällt.
@@ -1212,35 +1222,63 @@ function zeichneKamerabild(flaeche, kamera, zustand) {
   ctx2.lineWidth = 1.5;
   karte.RAEUME.forEach(r => ctx2.strokeRect(kx(r.x), ky(r.y), r.w * s, r.h * s));
 
+  // Beschriftung mit dunklem Träger darunter: auf dem grünen Boden wäre weiße Schrift bei
+  // manchen Spielerfarben nicht zu lesen.
+  const schrift = Math.max(Math.round(22 * s), 10);
+  function beschrifte(text, cx, cy) {
+    ctx2.font = `bold ${schrift}px -apple-system, Segoe UI, Roboto, sans-serif`;
+    ctx2.textAlign = "center";
+    const breite = ctx2.measureText(text).width + 8;
+    ctx2.fillStyle = "rgba(2,18,10,0.72)";
+    ctx2.fillRect(cx - breite / 2, cy - schrift, breite, schrift + 4);
+    ctx2.fillStyle = "#eafff2";
+    ctx2.fillText(text, cx, cy);
+  }
+
   // Nur Lebende, und nur wer wirklich im Ausschnitt steht. Geister tauchen nirgends auf —
   // sie könnten sonst durch Wände laufend die halbe Karte ausleuchten.
+  //
+  // Namen und Spielerfarben wie im Original: die Kamera sagt WER, nicht nur DASS jemand da ist.
+  // Die Verkleidung des Gestaltwandlers wird dabei mitgeführt (sichtbareIdentitaet) — sonst
+  // wäre ein Blick aufs Band die einfachste Art, ihn zu enttarnen.
   let gesehen = 0;
   zustand.spieler.forEach(sp => {
     if (sp.lebt === false) return;
     const p = sp.id === zustand.eigenerSpielerId ? zustand.meinePosition : angezeigtePositionen[sp.id];
     if (!p || !karte.imKamerabild(kamera, p.x, p.y)) return;
     gesehen++;
-    ctx2.fillStyle = "#7dfcae";
+    const wie = sichtbareIdentitaet(sp, zustand);
+    const r = Math.max(karte.SPIELER_RADIUS * s, 5);
+    ctx2.fillStyle = wie.farbe || "#7dfcae";
     ctx2.beginPath();
-    ctx2.arc(kx(p.x), ky(p.y), Math.max(karte.SPIELER_RADIUS * s, 4), 0, Math.PI * 2);
+    ctx2.arc(kx(p.x), ky(p.y), r, 0, Math.PI * 2);
     ctx2.fill();
+    ctx2.lineWidth = 1.5;
+    ctx2.strokeStyle = "rgba(2,18,10,0.65)";
+    ctx2.stroke();
+    beschrifte(wie.name.slice(0, 12), kx(p.x), ky(p.y) - r - 3);
   });
 
   // Leichen sind auch auf dem Band zu sehen — das ist der eigentliche Wert der Kameras.
+  // Auch sie in ihrer Farbe und mit Namen: "in der Elektrik liegt Sabine" ist eine ganz
+  // andere Meldung als "in der Elektrik liegt jemand".
   Object.keys(zustand.leichen || {}).forEach(uid => {
     const l = zustand.leichen[uid];
     if (!karte.imKamerabild(kamera, l.x, l.y)) return;
-    ctx2.strokeStyle = "#7dfcae";
-    ctx2.lineWidth = 2;
-    const cx = kx(l.x), cy = ky(l.y), r = Math.max(karte.SPIELER_RADIUS * s, 4);
+    const cx = kx(l.x), cy = ky(l.y), r = Math.max(karte.SPIELER_RADIUS * s, 5);
+    ctx2.strokeStyle = l.farbe || "#dc2626";
+    ctx2.lineWidth = 3;
     ctx2.beginPath();
     ctx2.moveTo(cx - r, cy - r); ctx2.lineTo(cx + r, cy + r);
     ctx2.moveTo(cx + r, cy - r); ctx2.lineTo(cx - r, cy + r);
     ctx2.stroke();
+    if (l.name) beschrifte("✖ " + l.name.slice(0, 12), cx, cy - r - 3);
   });
 
   // Scanzeilen über alles — ohne sie sieht das Bild aus wie eine zweite, bessere Karte.
-  ctx2.fillStyle = "rgba(0,0,0,0.22)";
+  // Schwächer als früher (0.22): seit die Namen mit im Bild stehen, fraßen die Balken die
+  // Schrift an. Der Röhrencharakter bleibt, die Lesbarkeit gewinnt.
+  ctx2.fillStyle = "rgba(0,0,0,0.14)";
   for (let y = 0; y < h; y += 4) ctx2.fillRect(0, y, b, 2);
   return gesehen;
 }
