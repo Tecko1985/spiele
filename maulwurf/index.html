@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1a56a0">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=1.9">
+<link rel="stylesheet" href="style.css?v=2.0">
 </head>
 <body>
 
@@ -238,14 +238,16 @@
       </div>
     </div>
 
-    <!-- Schacht-Ziel wählen (nur bei Dreiernetzen) -->
-    <div class="overlay" id="overlay-schacht">
-      <div class="overlay-karte">
-        <h3>↧ Wohin?</h3>
-        <p class="hinweis-text" id="schacht-titel"></p>
-        <div class="schacht-ziele" id="schacht-ziele"></div>
-        <button class="btn btn-link" id="btn-schacht-schliessen">Abbrechen</button>
+    <!-- Schachtpanel: bleibt eingeblendet, solange man drinsitzt. Kein Dialog — man sieht die
+         Karte weiter und kann an jedem Ende erst schauen, bevor man auftaucht. -->
+    <div class="schacht-panel" id="schacht-panel">
+      <div class="schacht-panel-kopf">
+        <span class="schacht-panel-marke">↧ im Schacht</span>
+        <strong id="schacht-panel-ort"></strong>
+        <span class="schacht-panel-netz" id="schacht-panel-netz"></span>
       </div>
+      <div class="schacht-ziele" id="schacht-panel-ziele"></div>
+      <button class="btn btn-primary btn-grow" id="btn-schacht-raus">↥ Hier aussteigen</button>
     </div>
 
     <!-- Kameras (Sicherheit) -->
@@ -365,9 +367,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js?v=1.0"></script>
 <script src="karte.js?v=3.0"></script>
-<script src="rollen.js?v=1.1"></script>
+<script src="rollen.js?v=1.2"></script>
 <script src="aufgaben.js?v=2.2"></script>
-<script src="game-service.js?v=2.6"></script>
-<script src="app.js?v=3.1"></script>
+<script src="game-service.js?v=2.7"></script>
+<script src="app.js?v=3.2"></script>
 </body>
 </html>

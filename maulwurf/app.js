@@ -48,6 +48,7 @@ let letzteMeetingUnterphase = null;
 let laufAnimation = null;
 let letzterFrameZeit = 0;
 let overlayOffen = null;       // "aufgabe" | "liste" | "sabotage" | null
+let schachtPanelStand = "";    // "netzId#index" des zuletzt gezeichneten Schachtpanels
 let aktiveAufgabeAufraeumen = null;
 let aktiveStationId = null;
 let meineStimme = null;
@@ -390,6 +391,9 @@ function zeichne(zustand) {
     const eigenerZug = s.id === zustand.eigenerSpielerId;
     const pos = eigenerZug ? mich : angezeigtePositionen[s.id];
     if (!pos || s.lebt === false) return;
+    // Wer im Schacht sitzt, ist für alle anderen weg — auch für Mitmaulwürfe und für Geister.
+    // Sich selbst sieht man weiterhin, sonst wüsste man nicht, wo man gerade steckt.
+    if (!eigenerZug && imSchachtLaut(zustand, s.id)) return;
     if (!eigenerZug && !istEinsehbar(mich, pos, sichtweite, zustand.binGeist)) return;
     zeichneFigur(wx(pos.x), wy(pos.y), skala, s, zustand);
   });
@@ -739,6 +743,13 @@ function darfTunnelSehen(zustand) {
   return zustand.meineRolle === "maulwurf" || zustand.meineSonderrolle === "ingenieur";
 }
 
+// Sitzt diese Person gerade in einem Schacht? Steht als Flag an ihrer Position — welches Netz
+// und welches Ende, erfährt niemand außer ihr selbst.
+function imSchachtLaut(zustand, uid) {
+  const p = zustand.positionen[uid];
+  return !!(p && p.schacht);
+}
+
 function findeKillZiel(zustand) {
   if (zustand.meineRolle !== "maulwurf" || zustand.binGeist) return null;
   const pos = zustand.meinePosition;
@@ -908,14 +919,17 @@ function aktualisiereHud(zustand) {
     const gesperrt = zustand.versteckModus && zustand.vorsprungBis > zustand.jetzt;
     const rest = Math.max(Math.ceil((zustand.killCooldownBis - zustand.jetzt) / 1000), 0);
     const ziel = findeKillZiel(zustand);
-    killBtn.disabled = gesperrt || !ziel || rest > 0;
+    // Aus dem Schacht heraus geht nichts — erst aussteigen. Der Server lehnt es ohnehin ab;
+    // ein Knopf, der sich drücken lässt und dann nichts tut, wäre nur verwirrend.
+    killBtn.disabled = !!zustand.schacht || gesperrt || !ziel || rest > 0;
     killBtn.textContent = gesperrt ? "⏳" : rest > 0 ? rest : "🥾";
-    sabBtn.disabled = (zustand.sabotageCooldownBis || 0) > zustand.jetzt;
+    sabBtn.disabled = !!zustand.schacht || (zustand.sabotageCooldownBis || 0) > zustand.jetzt;
   } else {
     killBtn.style.display = "none";
     sabBtn.style.display = "none";
   }
 
+  aktualisiereSchachtpanel(zustand);
   aktualisiereVersteckHud(zustand);
 }
 
@@ -925,10 +939,10 @@ async function fuehreAktionAus() {
   if (!aktion) return;
 
   if (aktion.typ === "tunnel") {
-    // Zweiernetz: sofort springen, wie bisher. Dreiernetz: fragen — die Wahl ist der ganze
-    // Vorteil eines Dreiecks und darf nicht per Zufall oder Reihenfolge fallen.
-    if (aktion.ziele.length === 1) gameService.springeZu(aktion.ziele[0].x, aktion.ziele[0].y);
-    else oeffneSchachtwahl(aktion.tunnel, aktion.ziele);
+    // **Nur einsteigen, nicht springen.** Wohin es geht, entscheidet man drinnen — dort sieht
+    // man an jedem Ende erst die Umgebung, bevor man auftaucht.
+    gameService.betreteSchacht();
+    render();
     return;
   }
   if (aktion.typ === "notfall") {
@@ -1018,27 +1032,46 @@ function oeffneAufgabe(station) {
   el("overlay-aufgabe").classList.add("aktiv");
 }
 
-// Zielauswahl der Dreiernetze. Bewusst ein Overlay und kein Durchtippen: wer im Schacht
-// sitzt, will sehen, wohin er kommt, bevor er auftaucht.
-function oeffneSchachtwahl(tunnel, ziele) {
-  schliesseOverlay();
-  overlayOffen = "schacht";
-  el("schacht-titel").textContent = tunnel.name;
-  const box = el("schacht-ziele");
+// Das Schachtpanel bleibt eingeblendet, SOLANGE man drinsitzt — es ist kein Dialog, den man
+// wegklickt, sondern die Anzeige eines Aufenthalts. Man wechselt zwischen den Enden, sieht bei
+// jedem die Umgebung im Sichtfeld und steigt aus, wenn die Luft rein ist.
+//
+// Deshalb wird es aus render() heraus gepflegt und nicht einmalig geöffnet: nach jedem Wechsel
+// muss die Beschriftung stimmen, und wer während des Meetings oder beim Ausscheiden im Schacht
+// war, muss es verschwinden sehen.
+function aktualisiereSchachtpanel(zustand) {
+  const panel = el("schacht-panel");
+  if (!panel) return;
+  const schacht = zustand.schacht;
+  if (!schacht || zustand.phase !== "laeuft" || zustand.meeting) {
+    panel.classList.remove("aktiv");
+    schachtPanelStand = "";
+    return;
+  }
+  panel.classList.add("aktiv");
+  // Neu aufbauen nur, wenn sich wirklich etwas geändert hat — sonst verlöre ein Fingerdruck
+  // mitten im Antippen sein Ziel, weil der Knopf unter ihm ersetzt wurde.
+  const stand = schacht.tunnel.id + "#" + schacht.index;
+  if (schachtPanelStand === stand) return;
+  schachtPanelStand = stand;
+
+  el("schacht-panel-ort").textContent = schacht.hier.ort;
+  el("schacht-panel-netz").textContent = schacht.tunnel.name;
+  el("schacht-panel-netz").style.color = schacht.tunnel.farbe;
+  const box = el("schacht-panel-ziele");
   box.innerHTML = "";
-  ziele.forEach(ziel => {
+  schacht.ziele.forEach(ziel => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "btn btn-secondary btn-grow";
-    btn.textContent = "↥ " + ziel.ort;
-    btn.style.borderColor = tunnel.farbe;
+    btn.textContent = "↝ " + ziel.ort;
+    btn.style.borderColor = schacht.tunnel.farbe;
     btn.addEventListener("click", () => {
-      gameService.springeZu(ziel.x, ziel.y);
-      schliesseOverlay();
+      gameService.wechsleSchachtEnde(ziel.index);
+      render();
     });
     box.appendChild(btn);
   });
-  el("overlay-schacht").classList.add("aktiv");
 }
 
 function oeffneReparaturLicht() {
@@ -1800,7 +1833,7 @@ el("btn-rolle-schliessen").addEventListener("click", schliesseOverlay);
 el("btn-sabotage").addEventListener("click", oeffneSabotageMenue);
 el("btn-liste-schliessen").addEventListener("click", schliesseOverlay);
 el("btn-sabotage-schliessen").addEventListener("click", schliesseOverlay);
-el("btn-schacht-schliessen").addEventListener("click", schliesseOverlay);
+el("btn-schacht-raus").addEventListener("click", () => { gameService.verlasseSchacht(); render(); });
 el("btn-aufgabe-schliessen").addEventListener("click", schliesseOverlay);
 
 el("btn-kameras-schliessen").addEventListener("click", schliesseOverlay);
@@ -1897,6 +1930,7 @@ const APP_CHANGELOG = [
           "17 verschiedene Aufgaben-Minispiele an 35 Stationen – jede Runde ist anders zusammengesetzt.",
           "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Licht kappen, den Reaktor überhitzen, den Funk stören und Räume verriegeln.",
+          "↧ In den Abkürzungen hält man sich auf, statt nur durchzuspringen: drinnen ist man für alle unsichtbar, kann zwischen den Enden eines Netzes wechseln und sieht bei jedem erst die Umgebung – ausgestiegen wird per Knopf, wenn die Luft rein ist. Ausschalten und Sabotieren gehen aus dem Schacht heraus nicht.",
           "Die ersten 10 Sekunden einer Runde ist der Ausschalten-Knopf gesperrt – er zählt sichtbar herunter. So kommen alle erst einmal aus der Cafeteria heraus, statt dass die Partie in der ersten Sekunde entschieden wird.",
           "📹 Am Pult in der Sicherheit laufen vier Kameras – wie im Original vor Navigation, Verwaltung, Krankenstation und Reaktor. Sie hängen alle im Flur und zeigen, wer wohin unterwegs ist, nicht was jemand im Raum tut. Namen und Spielerfarben sind zu sehen. Wer zusieht, wird verraten: die Kameras blinken dann rot für jeden, der davorsteht.",
           "📻 Ist der Funk gestört, fallen Kameras und Aufgabenliste aus, bis jemand am Funkpult in der Kommunikation war.",
@@ -1913,12 +1947,17 @@ const APP_CHANGELOG = [
           "Quer halten: Das Spielfeld läuft formatfüllend über den ganzen Bildschirm.",
           "Vollbild lässt sich jederzeit über das Symbol oben rechts ein- und ausschalten."
       ]},
-      { title: "Sonderrollen (einzeln zuschaltbar)", items: [
-          "🔧 Ingenieur: darf die Abkürzungen benutzen wie ein Maulwurf – wer ihn dabei sieht, hält ihn für einen.",
-          "🔬 Wissenschaftler: sieht jederzeit, wer noch lebt, auch ohne die Leiche gefunden zu haben.",
-          "😇 Schutzengel: kann nach dem eigenen Ausscheiden Lebende kurz schützen – ein Foulspiel geht dann daneben.",
-          "🎭 Gestaltwandler: Maulwurf, der zeitweise wie jemand anderes aussieht. Nur seine Mitmaulwürfe erkennen ihn."
-      ]},
+      // **Aus rollen.js erzeugt, nicht abgeschrieben.** Die Beschreibungen standen hier
+      // doppelt und liefen bei jeder Rollenänderung auseinander — im Info-Tab stand dann
+      // etwas anderes als beim Ziehen der Rolle. Jede Zeile nennt Können UND Preis: eine
+      // Rolle ohne Einschränkung liest sich wie ein Geschenk.
+      { title: "Sonderrollen (einzeln zuschaltbar)", items:
+          Object.keys(rollenModul.SONDERROLLEN).map(id => {
+            const r = rollenModul.SONDERROLLEN[id];
+            const seite = r.seite === "maulwurf" ? "Maulwurf-Rolle" : "Team-Rolle";
+            return `${r.icon} ${r.name} (${seite}): ${r.koennen} ⚖️ ${r.haken}`;
+          })
+      },
       { title: "Fair verteilt", items: [
           "Die Rollen zieht jedes Handy selbst aus einem anonym gemischten Stapel – auch das Gerät der Gastgeberin oder des Gastgebers erfährt nichts.",
           "Fremde Rollen sind serverseitig gesperrt, nicht nur ausgeblendet."

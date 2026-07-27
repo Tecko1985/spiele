@@ -9,25 +9,37 @@
 // rolle immer "team" oder "maulwurf", und die Sonderrolle liegt in einem eigenen Feld.
 // Nebeneffekt: sämtliche bestehenden Rollenvergleiche im Spiel gelten unverändert weiter.
 
+// Jede Rolle trägt ihre Beschreibung in DREI Teilen, weil sie an drei Stellen unterschiedlich
+// viel Platz hat: `beschreibung` beim Ziehen der Rolle (kurz, das Wichtigste zuerst),
+// `koennen` und `haken` für die Übersicht im Info-Tab. Der `haken` ist Absicht — eine Rolle
+// ohne Preis liest sich wie ein Geschenk, und genau die Einschränkung macht sie interessant.
 const SONDERROLLEN = {
   ingenieur: {
     seite: "team", icon: "🔧", name: "Ingenieur",
     beschreibung: "Du darfst die Abkürzungen benutzen – genau wie die Maulwürfe. Vorsicht: Wer dich dabei sieht, hält dich für einen.",
+    koennen: "Du kannst die Lüftungsschächte benutzen wie ein Maulwurf: einsteigen, im Netz zu einem anderen Ende wechseln und dort wieder heraus.",
+    haken: "Wer dich beim Ein- oder Aussteigen sieht, hält dich für einen Maulwurf – und du kannst es im Meeting kaum widerlegen.",
     einstellung: "rolleIngenieur"
   },
   wissenschaftler: {
     seite: "team", icon: "🔬", name: "Wissenschaftler",
     beschreibung: "Du siehst jederzeit, wer noch lebt – auch ohne die Leiche gefunden zu haben.",
+    koennen: "Du siehst jederzeit die Lebenszeichen aller Mitspielenden und merkst sofort, wenn jemand ausgeschaltet wird – ohne die Leiche gefunden zu haben.",
+    haken: "Du weißt, DASS jemand weg ist, nie wo oder durch wen. Und wer zu genau Bescheid weiß, macht sich verdächtig.",
     einstellung: "rolleWissenschaftler"
   },
   schutzengel: {
     seite: "team", icon: "😇", name: "Schutzengel",
     beschreibung: "Sobald du ausgeschaltet bist, kannst du Lebende für kurze Zeit schützen. Ein Foulspiel an ihnen geht dann daneben.",
+    koennen: "Nach deinem Ausscheiden kannst du einen Lebenden mit einem Schild versehen. Der nächste Angriff auf ihn geht daneben.",
+    haken: "Die Rolle wirkt erst, wenn du schon draußen bist – und das Schild hält nur kurz. Wer es trägt, weiß nicht, dass du es warst.",
     einstellung: "rolleSchutzengel"
   },
   gestaltwandler: {
     seite: "maulwurf", icon: "🎭", name: "Gestaltwandler",
     beschreibung: "Du kannst kurzzeitig wie jemand anderes aussehen. Wer dich sieht, sieht dessen Namen und Farbe.",
+    koennen: "Du kannst für kurze Zeit wie jemand anderes aussehen – Name und Farbe inklusive, auf der Karte wie im Kamerabild. Nur deine Mitmaulwürfe erkennen dich.",
+    haken: "Die Verwandlung hält nicht lange und hat eine Abklingzeit. Taucht das Original gleichzeitig auf, fliegst du sofort auf.",
     einstellung: "rolleGestaltwandler"
   }
 };

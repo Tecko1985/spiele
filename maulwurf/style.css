@@ -368,10 +368,36 @@ body.im-spiel .aktions-leiste {
   border-radius: 6px; background: #fff; color: var(--text); cursor: pointer;
 }
 
-/* Zielauswahl der Dreiernetze. Der linke Rand trägt die Netzfarbe, damit die Auswahl zu den
+/* Zielauswahl im Schacht. Der linke Rand trägt die Netzfarbe, damit die Auswahl zu den
    Markern auf der Karte passt — sonst müsste man sich merken, welches Netz welches war. */
 .schacht-ziele { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
 .schacht-ziele button { border-left-width: 5px; }
+
+/* Das Schachtpanel ist bewusst KEIN Overlay: es verdunkelt den Hintergrund nicht und sperrt
+   die Karte nicht. Genau darum geht es — wer drinsitzt, soll sein Sichtfeld am aktuellen Ende
+   beobachten können, bevor er auftaucht. Deshalb links unten und schmal, damit möglichst viel
+   Karte frei bleibt. */
+.schacht-panel {
+  position: fixed; left: 12px; bottom: 12px; z-index: 60;
+  display: none; width: min(280px, calc(100vw - 24px));
+  padding: 12px 14px; border-radius: 14px;
+  background: rgba(8, 12, 22, 0.93);
+  border: 2px solid #a855f7;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+.schacht-panel.aktiv { display: block; }
+.schacht-panel-kopf { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
+.schacht-panel-marke { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: #c4b5fd; }
+.schacht-panel-kopf strong { font-size: 1.05rem; color: #f8fafc; }
+.schacht-panel-netz { font-size: 0.78rem; opacity: 0.85; }
+
+/* Quer am Handy ist unten wenig Platz — dort das Panel flacher halten, sonst deckt es die
+   halbe Karte ab und man sieht genau das nicht, wofür man hineingestiegen ist. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .schacht-panel { padding: 8px 10px; width: min(230px, 45vw); }
+  .schacht-panel .schacht-ziele { margin: 6px 0; gap: 6px; }
+  .schacht-panel .btn { padding: 7px 10px; font-size: 0.85rem; }
+}
 
 /* ---------- Aufgaben-Minispiele ---------- */
 /* 20 Minispiele nach der Vorlage. Gemeinsame Bausteine oben (Anleitung, Status, Ziffernblock,

@@ -401,6 +401,7 @@ function getZustand() {
     meeting: raum.meeting || null,
     chat: chatVerlauf,
     killCooldownBis: killBereitAb(raum, eigeneUid),
+    schacht: schachtZustand(),
     sabotageCooldownBis: raum.sabotageCooldownBis || 0,
     sieger: raum.sieger || null,
     siegGrund: raum.siegGrund || null,
@@ -923,6 +924,9 @@ function verarbeiteRaumZustand(raum) {
 function setzeStartposition(raum) {
   const daten = raum || letzterRaum;
   if (!daten) return;
+  // Wer beim Meeting im Schacht sitzt, kommt mit heraus. Ohne das bliebe das Flag stehen und
+  // die Figur wäre nach der Besprechung unsichtbar — mitten in der Cafeteria.
+  imSchacht = null;
   const uids = Object.keys(daten.spieler || {});
   const punkte = karte.startPositionen(uids.length);
   const index = Math.max(uids.indexOf(eigeneUid), 0);
@@ -930,18 +934,76 @@ function setzeStartposition(raum) {
   schreibePosition(true);
 }
 
-// Abkürzung: Positionssprung ohne Kollisionsprüfung (nur Maulwürfe, siehe karte.TUNNEL).
-function springeZu(x, y) {
-  if (!meinePosition) return;
-  meinePosition.x = x;
-  meinePosition.y = y;
+// --- Abkürzungen (Schächte) ---
+//
+// **Man steigt EIN und wieder AUS, statt nur zu springen.** Bis 2026-07-27 setzte ein Druck auf
+// den Knopf die Figur sofort ans andere Ende — man tauchte blind auf, mitten in einer Gruppe,
+// ohne es vorher sehen zu können. Jetzt ist der Schacht ein Aufenthalt: drin ist man für alle
+// unsichtbar, kann zwischen den Enden des Netzes wechseln, sieht bei jedem die Umgebung und
+// steigt erst aus, wenn die Luft rein ist. Genau darin liegt der Wert der Rolle.
+//
+// Der Zustand lebt lokal; nach außen geht nur das Flag `schacht` in der Position. Mehr braucht
+// niemand: welches Netz jemand benutzt und an welchem Ende er sitzt, geht keinen etwas an, und
+// jedes zusätzliche Feld wäre ein Datenleck über die Konsole.
+let imSchacht = null;   // { tunnelId, index } oder null
+
+function schachtZustand() {
+  if (!imSchacht) return null;
+  const tunnel = karte.TUNNEL.find(t => t.id === imSchacht.tunnelId);
+  if (!tunnel) return null;
+  return {
+    tunnel,
+    index: imSchacht.index,
+    hier: tunnel.enden[imSchacht.index],
+    ziele: tunnel.enden.map((e, i) => ({ ...e, index: i })).filter((_, i) => i !== imSchacht.index)
+  };
+}
+
+// Einsteigen: nur, wo tatsächlich ein Schachtende liegt, und nur lebend.
+function betreteSchacht() {
+  const raum = letzterRaum;
+  if (!raum || raum.phase !== "laeuft" || raum.meeting) return false;
+  if (raum.spieler[eigeneUid] && raum.spieler[eigeneUid].lebt === false) return false;
+  if (!meinePosition || imSchacht) return false;
+  const treffer = karte.tunnelAn(meinePosition.x, meinePosition.y);
+  if (!treffer) return false;
+  imSchacht = { tunnelId: treffer.tunnel.id, index: treffer.index };
+  // Sauber auf dem Ende sitzen, sonst steigt man einen Schritt daneben wieder aus.
+  meinePosition.x = treffer.tunnel.enden[treffer.index].x;
+  meinePosition.y = treffer.tunnel.enden[treffer.index].y;
   schreibePosition(true);
+  return true;
+}
+
+// Zu einem anderen Ende desselben Netzes wechseln — man bleibt im Schacht.
+function wechsleSchachtEnde(index) {
+  const zustand = schachtZustand();
+  if (!zustand) return false;
+  const ziel = zustand.tunnel.enden[index];
+  if (!ziel || index === imSchacht.index) return false;
+  imSchacht.index = index;
+  meinePosition.x = ziel.x;
+  meinePosition.y = ziel.y;
+  schreibePosition(true);
+  return true;
+}
+
+function verlasseSchacht() {
+  if (!imSchacht) return false;
+  imSchacht = null;
+  schreibePosition(true);
+  return true;
+}
+
+function binImSchacht() {
+  return !!imSchacht;
 }
 
 function bewege(dx, dy, sekunden) {
   const raum = letzterRaum;
   if (!raum || raum.phase !== "laeuft" || raum.meeting) return;
   if (!meinePosition) return;
+  if (imSchacht) return;   // im Schacht bewegt man sich nur zwischen den Enden
   if (faengerGesperrt(raum, eigeneUid)) return; // Vorsprung: der Fänger steht noch
   const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
   const laenge = Math.hypot(dx, dy);
@@ -987,7 +1049,12 @@ function schreibePosition(sofort) {
   db.ref(`${POSITIONEN_PFAD}/${aktuellerRaumCode}/${eigeneUid}`).set({
     x: Math.round(meinePosition.x),
     y: Math.round(meinePosition.y),
-    geist
+    geist,
+    // Wer im Schacht sitzt, wird von den anderen nicht gezeichnet. Bewusst ein Flag an der
+    // Position und kein eigener Knoten: es muss mit derselben Nachricht ankommen wie die
+    // Koordinaten, sonst gäbe es Bilder, in denen jemand schon am neuen Ende steht, aber noch
+    // als sichtbar gilt — ein Aufblitzen quer über die Karte.
+    schacht: !!imSchacht
   }).catch(() => {});
 }
 
@@ -1126,9 +1193,13 @@ async function schalteAus(opferUid) {
   if (!raum || !code || raum.phase !== "laeuft" || raum.meeting) return { erfolg: false };
   if (meineRolle !== "maulwurf") return { erfolg: false };
   if (raum.spieler[eigeneUid].lebt === false) return { erfolg: false };
+  if (imSchacht) return { erfolg: false, fehler: "Nicht aus dem Schacht heraus." };
   if (faengerGesperrt(raum, eigeneUid)) return { erfolg: false, fehler: "Der Vorsprung läuft noch." };
   const opfer = raum.spieler[opferUid];
   if (!opfer || opfer.lebt === false) return { erfolg: false };
+  // Wer im Schacht sitzt, ist unsichtbar und damit auch unerreichbar — sonst könnte man jemanden
+  // treffen, den man gar nicht sieht, und das Opfer verstünde nicht, was passiert ist.
+  if (positionen[opferUid] && positionen[opferUid].schacht) return { erfolg: false, fehler: "Da ist niemand." };
   if (aktuelleMaulwuerfe()[opferUid]) return { erfolg: false, fehler: "Das ist ein Maulwurf." };
   if (killBereitAb(raum, eigeneUid) > serverJetzt()) return { erfolg: false, fehler: "Noch nicht bereit." };
   const meine = positionen[eigeneUid];
@@ -1930,7 +2001,8 @@ function onZustandsAenderung(callback) {
 const gameService = {
   erstelleRaum, tritRaumBei, fuegeKiMitspielerHinzu, entferneKiMitspieler,
   speichereEinstellungen, starteSpiel,
-  bewege, setzeStartposition, springeZu, startePositionsSchleife, schreibePosition,
+  bewege, setzeStartposition, startePositionsSchleife, schreibePosition,
+  betreteSchacht, wechsleSchachtEnde, verlasseSchacht, binImSchacht,
   erledigeAufgabe, starteWartezeit, schalteAus, meldeLeiche, drueckeNotfallknopf,
   sendeChat, stimmeAb, deckeAusgeschlosseneRolleAuf,
   sabotiere, repariereLicht, repariereFunk, setzeKuehlventil,
