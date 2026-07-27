@@ -156,6 +156,30 @@ function laufBeginn(raum) {
   return raum && raum.revealBis ? raum.revealBis : 0;
 }
 
+// Anlaufsperre: die ersten Sekunden einer Runde darf niemand ausgeschaltet werden.
+//
+// Ohne sie stehen alle noch dicht beieinander in der Cafeteria, und ein Maulwurf kann in der
+// ersten Sekunde zuschlagen — vor Zeugen zwar, aber das Opfer hatte nie eine Chance und die
+// halbe Runde ist entschieden, bevor jemand einen Fuß vor die Tür gesetzt hat.
+//
+// **Die Sperre steht NICHT in der Datenbank**, sondern wird aus `revealBis` abgeleitet. Dieser
+// Wert markiert ohnehin den Beginn der Laufphase und liegt auf allen Geräten identisch vor —
+// ein eigener Zeitstempel bräuchte einen zusätzlichen Write, könnte je nach schreibendem Gerät
+// abweichen und ginge bei einem Reload mitten in der Partie verloren.
+const START_KILL_COOLDOWN_MS = 10000;
+
+// Ab wann darf diese Person wieder ausschalten? Zwei Sperren laufen parallel — die Abklingzeit
+// seit dem letzten Foulspiel und die Anlaufsperre seit Rundenbeginn; es gilt die spätere.
+//
+// **Diese Funktion ist die einzige Quelle dafür.** Anzeige (Countdown auf dem Knopf), Prüfung
+// beim Ausschalten und die KI-Mitspieler müssen dieselbe Rechnung benutzen: rechnete die
+// Anzeige anders als die Prüfung, zeigte der Knopf "bereit" und der Versuch liefe ins Leere.
+function killBereitAb(raum, uid) {
+  const nachFoulspiel = (raum && raum.killCooldownBis && raum.killCooldownBis[uid]) || 0;
+  const start = laufBeginn(raum);
+  return Math.max(nachFoulspiel, start ? start + START_KILL_COOLDOWN_MS : 0);
+}
+
 // Beide geben 0 zurück, solange der Startzeitpunkt noch nicht feststeht. Ohne diese Prüfung
 // stünde nach der Rechnung 0 + 5 min ein Zeitpunkt im Jahr 1970 — und pruefeZeitlimit() würde
 // die Partie in derselben Sekunde als "durchgehalten" beenden, in der sie beginnt.
@@ -365,7 +389,7 @@ function getZustand() {
     tueren: raum.tueren || {},
     meeting: raum.meeting || null,
     chat: chatVerlauf,
-    killCooldownBis: (raum.killCooldownBis && raum.killCooldownBis[eigeneUid]) || 0,
+    killCooldownBis: killBereitAb(raum, eigeneUid),
     sabotageCooldownBis: raum.sabotageCooldownBis || 0,
     sieger: raum.sieger || null,
     siegGrund: raum.siegGrund || null,
@@ -1095,8 +1119,7 @@ async function schalteAus(opferUid) {
   const opfer = raum.spieler[opferUid];
   if (!opfer || opfer.lebt === false) return { erfolg: false };
   if (aktuelleMaulwuerfe()[opferUid]) return { erfolg: false, fehler: "Das ist ein Maulwurf." };
-  const cooldownBis = (raum.killCooldownBis && raum.killCooldownBis[eigeneUid]) || 0;
-  if (cooldownBis > serverJetzt()) return { erfolg: false, fehler: "Noch nicht bereit." };
+  if (killBereitAb(raum, eigeneUid) > serverJetzt()) return { erfolg: false, fehler: "Noch nicht bereit." };
   const meine = positionen[eigeneUid];
   const seine = positionen[opferUid];
   if (!meine || !seine || karte.abstand(meine.x, meine.y, seine.x, seine.y) > karte.KILL_REICHWEITE) {
@@ -1659,8 +1682,7 @@ function fuehreBotTickAus() {
 
 function versucheBotKill(raum, botId, pos, einstellungen) {
   const jetzt = serverJetzt();
-  const cooldownBis = (raum.killCooldownBis && raum.killCooldownBis[botId]) || 0;
-  if (cooldownBis > jetzt) return;
+  if (killBereitAb(raum, botId) > jetzt) return;
   const code = aktuellerRaumCode;
 
   const opferUid = Object.keys(raum.spieler).find(uid => {
@@ -1878,5 +1900,6 @@ const gameService = {
   SICHTBARE_WIRKUNG_MS,
   ermittleAusschluss, anzahlMaulwuerfeFuer, mischeListe,
   istVersteckModus, vorsprungBis, zeitlimitBis,
+  laufBeginn, killBereitAb, START_KILL_COOLDOWN_MS,
   MIN_SPIELER, MAX_SPIELER
 };

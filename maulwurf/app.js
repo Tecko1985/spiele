@@ -1879,6 +1879,7 @@ const APP_CHANGELOG = [
           "17 verschiedene Aufgaben-Minispiele an 35 Stationen – jede Runde ist anders zusammengesetzt.",
           "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Licht kappen, den Reaktor überhitzen, den Funk stören und Räume verriegeln.",
+          "Die ersten 10 Sekunden einer Runde ist der Ausschalten-Knopf gesperrt – er zählt sichtbar herunter. So kommen alle erst einmal aus der Cafeteria heraus, statt dass die Partie in der ersten Sekunde entschieden wird.",
           "📹 Kameras in der Sicherheit zeigen vier feste Bereiche des Geländes – ohne Namen, nur Punkte in Bewegung. Wer zusieht, wird verraten: die Kameras blinken dann rot für jeden, der davorsteht.",
           "📻 Ist der Funk gestört, fallen Kameras und Aufgabenliste aus, bis jemand am Funkpult in der Kommunikation war.",
           "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende.",
