@@ -6,7 +6,7 @@
 // was in der VEREINIGUNG dieser Rechtecke liegt (siehe istBegehbar).
 //
 // Anders als in der ersten Fassung grenzen die Räume NICHT mehr aneinander und die Gänge
-// laufen auch nicht mehr quer durch sie hindurch: zwischen allen Flächen liegen 35 px Wand,
+// laufen auch nicht mehr quer durch sie hindurch: zwischen allen Flächen liegen 40 px Wand,
 // verbunden wird ausschließlich über Türöffnungen. Dadurch gibt es echte Flure, in denen man
 // sich begegnet, und Räume mit zählbaren Ein-/Ausgängen — die Grundlage dafür, dass "wo warst
 // du?" im Meeting überhaupt eine sinnvolle Frage ist.
@@ -14,13 +14,13 @@
 // Weltkoordinaten: 0..WELT_BREITE / 0..WELT_HOEHE. Der Canvas-Renderer in app.js skaliert
 // das auf die Bildschirmgröße, hier stehen keine Pixel-Annahmen über das Endgerät.
 
-const WELT_BREITE = 2600;
-const WELT_HOEHE = 1500;
+const WELT_BREITE = 3000;
+const WELT_HOEHE = 1662;
 
-const SPIELER_RADIUS = 16;
-const INTERAKTIONS_RADIUS = 58;
-const KILL_REICHWEITE = 74;
-const TUNNEL_RADIUS = 46;
+const SPIELER_RADIUS = 18;
+const INTERAKTIONS_RADIUS = 66;
+const KILL_REICHWEITE = 84;
+const TUNNEL_RADIUS = 52;
 
 // Sichtweiten in Weltkoordinaten. Maulwürfe sehen etwas weiter, bei ausgefallenem Licht
 // schrumpft der Radius fürs Team drastisch (Maulwürfe behalten ihre volle Sicht — das ist
@@ -30,17 +30,17 @@ const TUNNEL_RADIUS = 46;
 // steht, gerade eben überblicken können. Mit dem Umbau auf das Original-Layout sind die Räume
 // von 250×200 auf 300×310 gewachsen — die Sichtweiten mussten deshalb mitwachsen, sonst stünde
 // man in der Mitte eines Raums und sähe seine eigenen Wände nicht mehr.
-const SICHT_TEAM = 340;
-const SICHT_MAULWURF = 420;
-const SICHT_TEAM_DUNKEL = 120;
+const SICHT_TEAM = 384;
+const SICHT_MAULWURF = 475;
+const SICHT_TEAM_DUNKEL = 136;
 const SICHT_GEIST = 99999;
 
 // Verstecken-Modus: alle sehen weniger, der Fänger am wenigsten. Das dreht das
 // Kräfteverhältnis des Klassik-Modus bewusst um — dort sieht der Maulwurf am weitesten. Hier
 // weiß der Fänger ohnehin, dass ihn alle kommen sehen; sein Nachteil ist, dass er selbst kaum
 // etwas erkennt und sich an der Nähe-Anzeige entlangtasten muss.
-const SICHT_VERSTECKEN_TEAM = 270;
-const SICHT_VERSTECKEN_FAENGER = 195;
+const SICHT_VERSTECKEN_TEAM = 305;
+const SICHT_VERSTECKEN_FAENGER = 220;
 
 // Layout nach dem Vorbild von "The Skeld" (Among Us), auf achsenparallele Rechtecke
 // zurückgeführt — die Engine kennt nur solche (siehe istBegehbar). Nachgebaut ist die
@@ -63,22 +63,22 @@ const SICHT_VERSTECKEN_FAENGER = 195;
 // Türliste und Schächten und sind nicht für Spieleraugen bestimmt.
 const RAEUME = [
   // obere Reihe
-  { id: "upper-engine", name: "Oberer Motor",  x: 190,  y: 90,   w: 330, h: 310 },
-  { id: "cafeteria",    name: "Cafeteria",     x: 1030, y: 90,   w: 620, h: 310 },
-  { id: "weapons",      name: "Waffen",        x: 2020, y: 90,   w: 330, h: 310 },
+  { id: "upper-engine", name: "Oberer Motor",  x: 219, y: 100, w: 381, h: 343 },
+  { id: "cafeteria",    name: "Cafeteria",     x: 1188, y: 100, w: 716, h: 343 },
+  { id: "weapons",      name: "Waffen",        x: 2331, y: 100, w: 381, h: 343 },
   // mittlere Reihe
-  { id: "reactor",      name: "Reaktor",       x: 60,   y: 540,  w: 240, h: 310 },
-  { id: "security",     name: "Sicherheit",    x: 455,  y: 540,  w: 345, h: 310 },
-  { id: "medbay",       name: "Krankenstation", x: 1000, y: 540, w: 300, h: 310 },
-  { id: "admin",        name: "Verwaltung",    x: 1560, y: 540,  w: 300, h: 310 },
-  { id: "o2",           name: "O2",            x: 1900, y: 540,  w: 240, h: 310 },
-  { id: "navigation",   name: "Navigation",    x: 2300, y: 540,  w: 260, h: 310 },
+  { id: "reactor",      name: "Reaktor",       x: 69, y: 598, w: 277, h: 344 },
+  { id: "security",     name: "Sicherheit",    x: 525, y: 598, w: 398, h: 344 },
+  { id: "medbay",       name: "Krankenstation", x: 1154, y: 598, w: 346, h: 344 },
+  { id: "admin",        name: "Verwaltung",    x: 1800, y: 598, w: 346, h: 344 },
+  { id: "o2",           name: "O2",            x: 2192, y: 598, w: 277, h: 344 },
+  { id: "navigation",   name: "Navigation",    x: 2654, y: 598, w: 300, h: 344 },
   // untere Reihe
-  { id: "lower-engine", name: "Unterer Motor", x: 190,  y: 990,  w: 330, h: 310 },
-  { id: "electrical",   name: "Elektrik",      x: 560,  y: 990,  w: 280, h: 310 },
-  { id: "storage",      name: "Lager",         x: 1080, y: 990,  w: 420, h: 310 },
-  { id: "comms",        name: "Kommunikation", x: 1560, y: 1205, w: 320, h: 235 },
-  { id: "shields",      name: "Schilde",       x: 2060, y: 990,  w: 320, h: 310 }
+  { id: "lower-engine", name: "Unterer Motor", x: 219, y: 1097, w: 381, h: 343 },
+  { id: "electrical",   name: "Elektrik",      x: 646, y: 1097, w: 323, h: 343 },
+  { id: "storage",      name: "Lager",         x: 1246, y: 1097, w: 485, h: 343 },
+  { id: "comms",        name: "Kommunikation", x: 1800, y: 1335, w: 369, h: 261 },
+  { id: "shields",      name: "Schilde",       x: 2377, y: 1097, w: 369, h: 343 }
 ];
 
 // Das Flurnetz. Waagerechte Verbindungsstücke oben und rechts, drei Längsgänge und ein
@@ -88,39 +88,39 @@ const RAEUME = [
 // aber bewusst DURCH das Lager und nicht daran vorbei — siehe unten.
 const KORRIDORE = [
   // oben: Oberer Motor — Cafeteria — Waffen
-  { id: "flur-o1", x: 555,  y: 205,  w: 440,  h: 80 },
-  { id: "flur-o2", x: 1685, y: 205,  w: 300,  h: 80 },
+  { id: "flur-o1", x: 640, y: 227, w: 508, h: 89 },
+  { id: "flur-o2", x: 1944, y: 227, w: 346, h: 89 },
   // linker Längsgang: Oberer Motor ↔ Süd, mit Abzweig zum Reaktor
-  { id: "gang-l",  x: 340,  y: 435,  w: 80,   h: 520 },
+  { id: "gang-l",  x: 392, y: 482, w: 93, h: 576 },
   // Mittlerer Längsgang, die Hauptschlagader der Westhälfte: vom oberen Flur durchgehend
   // bis zum unteren Quergang. Kreuzt flur-o1 und flur-u — die Flächen überlappen bewusst,
   // das ergibt T-Kreuzungen ohne eigene Tür. An ihm hängen Krankenstation und Elektrik mit
   // je genau EINER Tür, wie im Original.
-  { id: "gang-m",  x: 880,  y: 205,  w: 80,   h: 1210 },
+  { id: "gang-m",  x: 1015, y: 227, w: 93, h: 1341 },
   // Cafeteria nach unten in den Lager, östlich am Krankenstation vorbei
-  { id: "gang-c",  x: 1400, y: 435,  w: 80,   h: 520 },
+  { id: "gang-c",  x: 1615, y: 482, w: 93, h: 576 },
   // Cafeteria ↓ Verwaltung. Die Verwaltung hat ihre zweite Tür zum Gang Cafeteria–Lager,
   // nicht zur Kommunikation — sonst wäre die Kommunikation keine Sackgasse mehr.
-  { id: "gang-a",  x: 1560, y: 435,  w: 80,   h: 70 },
+  { id: "gang-a",  x: 1800, y: 482, w: 92, h: 78 },
   // rechter Längsgang: Waffen ↕ O2 ↕ Navigation ↕ Schilde
-  { id: "gang-r",  x: 2180, y: 435,  w: 80,   h: 520 },
+  { id: "gang-r",  x: 2515, y: 482, w: 93, h: 576 },
   // Unterer Quergang, ZWEIGETEILT. Er lief bis 2026-07-27 in einem Stück über 1955 px unter
   // der ganzen Karte durch — ein Gang, den das Original nicht hat und der das Lager
   // umgehbar machte. Jetzt endet die Westhälfte am Lager und die Osthälfte beginnt dahinter:
   // **wer von links nach rechts will, muss durch das Lager.** Damit ist es der Knotenpunkt,
   // der es im Original ist, und der lange unbeobachtete Rückweg existiert nicht mehr.
-  { id: "flur-uw", x: 300,  y: 1335, w: 880,  h: 80 },
+  { id: "flur-uw", x: 346, y: 1479, w: 1016, h: 89 },
   // Ostgang Lager ↔ Schilde, auf RAUMHÖHE — nicht unter allem hindurch. Die Kommunikation
   // hängt als Sackgasse darunter und wird von hier aus betreten, genau wie im Original.
-  { id: "flur-so", x: 1535, y: 1090, w: 490,  h: 80 }
+  { id: "flur-so", x: 1771, y: 1208, w: 566, h: 88 }
 ];
 
 // Türöffnungen. Angegeben wird der Mittelpunkt der Öffnung in der Raumwand plus die Achse:
 // "h" = Durchgang in x-Richtung (Öffnung in einer senkrechten Wand), "v" = in y-Richtung.
-// TUER_TIEFE reicht bewusst über die 35 px Wand hinaus, damit die Schwelle beide Flächen
+// TUER_TIEFE reicht bewusst über die 40 px Wand hinaus, damit die Schwelle beide Flächen
 // sicher überlappt und an der Naht keine unpassierbare Lücke entsteht.
-const TUER_BREITE = 84;
-const TUER_TIEFE = 56;
+const TUER_BREITE = 95;
+const TUER_TIEFE = 63;
 
 // Die Achse bleibt am Rechteck hängen: der Renderer muss wissen, in welche Richtung eine
 // Schwelle durch die Wand stößt, um ihre beiden Hälften unterschiedlich einzufärben.
@@ -143,41 +143,41 @@ function tuer(x, y, achse) {
 // ihre zweite Tür zum Gang Cafeteria–Lager.
 const TUEREN = [
   // oberer Flur
-  tuer(537, 245, "h"),   // Oberer Motor ↔ flur-o1
-  tuer(1012, 245, "h"),  // flur-o1 ↔ Cafeteria
-  tuer(1667, 245, "h"),  // Cafeteria ↔ flur-o2
-  tuer(2002, 245, "h"),  // flur-o2 ↔ Waffen
+  tuer(620, 271, "h"),   // Oberer Motor ↔ flur-o1
+  tuer(1168, 271, "h"),  // flur-o1 ↔ Cafeteria
+  tuer(1923, 271, "h"),  // Cafeteria ↔ flur-o2
+  tuer(2310, 271, "h"),  // flur-o2 ↔ Waffen
   // linker Längsgang
-  tuer(380, 417, "v"),   // Oberer Motor ↓ gang-l
-  tuer(380, 972, "v"),   // gang-l ↓ Unterer Motor
-  tuer(320, 620, "h"),   // Reaktor ↔ gang-l (obere Tür)
-  tuer(320, 790, "h"),   // Reaktor ↔ gang-l (untere Tür)
-  tuer(437, 695, "h"),   // gang-l ↔ Sicherheit — die EINZIGE Tür dieses Raums, und sie geht
+  tuer(438, 462, "v"),   // Oberer Motor ↓ gang-l
+  tuer(438, 1077, "v"),   // gang-l ↓ Unterer Motor
+  tuer(369, 687, "h"),   // Reaktor ↔ gang-l (obere Tür)
+  tuer(369, 875, "h"),   // Reaktor ↔ gang-l (untere Tür)
+  tuer(504, 770, "h"),   // gang-l ↔ Sicherheit — die EINZIGE Tür dieses Raums, und sie geht
                          // direkt auf den Hauptgang. Kein Stichflur davor: im Original steht
                          // die Sicherheit unmittelbar am Längsgang.
   // mittlerer Längsgang: an ihm hängen die beiden westlichen Sackgassen
-  tuer(980, 695, "h"),   // gang-m ↔ Krankenstation — die EINZIGE Tür dieses Raums
-  tuer(860, 1145, "h"),  // Elektrik ↔ gang-m — die EINZIGE Tür dieses Raums
+  tuer(1131, 770, "h"),   // gang-m ↔ Krankenstation — die EINZIGE Tür dieses Raums
+  tuer(992, 1269, "h"),  // Elektrik ↔ gang-m — die EINZIGE Tür dieses Raums
   // Cafeteria nach unten
-  tuer(1440, 417, "v"),  // Cafeteria ↓ gang-c
-  tuer(1440, 972, "v"),  // gang-c ↓ Lager
-  tuer(1600, 417, "v"),  // Cafeteria ↓ gang-a
-  tuer(1600, 522, "v"),  // gang-a ↓ Verwaltung
-  tuer(1520, 695, "h"),  // gang-c ↔ Verwaltung (zweite Tür, zum Gang Cafeteria–Lager)
+  tuer(1662, 462, "v"),  // Cafeteria ↓ gang-c
+  tuer(1662, 1077, "v"),  // gang-c ↓ Lager
+  tuer(1846, 462, "v"),  // Cafeteria ↓ gang-a
+  tuer(1846, 578, "v"),  // gang-a ↓ Verwaltung
+  tuer(1754, 770, "h"),  // gang-c ↔ Verwaltung (zweite Tür, zum Gang Cafeteria–Lager)
   // rechter Längsgang
-  tuer(2220, 417, "v"),  // Waffen ↓ gang-r
-  tuer(2160, 620, "h"),  // O2 ↔ gang-r (obere Tür)
-  tuer(2160, 790, "h"),  // O2 ↔ gang-r (untere Tür)
-  tuer(2280, 620, "h"),  // gang-r ↔ Navigation (obere Tür)
-  tuer(2280, 790, "h"),  // gang-r ↔ Navigation (untere Tür)
-  tuer(2220, 972, "v"),  // gang-r ↓ Schilde
+  tuer(2562, 462, "v"),  // Waffen ↓ gang-r
+  tuer(2492, 687, "h"),  // O2 ↔ gang-r (obere Tür)
+  tuer(2492, 875, "h"),  // O2 ↔ gang-r (untere Tür)
+  tuer(2631, 687, "h"),  // gang-r ↔ Navigation (obere Tür)
+  tuer(2631, 875, "h"),  // gang-r ↔ Navigation (untere Tür)
+  tuer(2562, 1077, "v"),  // gang-r ↓ Schilde
   // unterer Quergang
-  tuer(380, 1317, "v"),  // Unterer Motor ↓ flur-uw
-  tuer(1180, 1317, "v"), // flur-uw ↑ Lager — hier endet der Quergang aus dem Westen
+  tuer(438, 1459, "v"),  // Unterer Motor ↓ flur-uw
+  tuer(1362, 1459, "v"), // flur-uw ↑ Lager — hier endet der Quergang aus dem Westen
   // Ostgang: aus dem Lager heraus, Kommunikation darunter, Schilde am Ende
-  tuer(1517, 1130, "h"), // Lager ↔ flur-so
-  tuer(1720, 1187, "v"), // flur-so ↓ Kommunikation — die EINZIGE Tür dieses Raums
-  tuer(2042, 1130, "h")  // flur-so ↔ Schilde
+  tuer(1750, 1252, "h"), // Lager ↔ flur-so
+  tuer(1985, 1315, "v"), // flur-so ↓ Kommunikation — die EINZIGE Tür dieses Raums
+  tuer(2356, 1252, "h")  // flur-so ↔ Schilde
 ];
 
 // Lüftungsschächte. Nur Maulwürfe (und der Ingenieur) dürfen sie benutzen.
@@ -209,30 +209,30 @@ const TUEREN = [
 // gegeneinander. Der Schachttest deckt das jetzt ab; Mindestabstand 79 px.
 const TUNNEL = [
   { id: "netz-todesdreieck", name: "Elektrik ↔ Krankenstation ↔ Sicherheit", farbe: "#a855f7", enden: [
-    { x: 700,  y: 1265, ort: "Elektrik" },
-    { x: 1020, y: 830,  ort: "Krankenstation" },
-    { x: 780,  y: 830,  ort: "Sicherheit" }
+    { x: 808, y: 1402, ort: "Elektrik" },
+    { x: 1177, y: 920, ort: "Krankenstation" },
+    { x: 900, y: 920, ort: "Sicherheit" }
   ] },
   { id: "netz-reaktor-nord", name: "Reaktor ↔ Oberer Motor", farbe: "#f97316", enden: [
-    { x: 180, y: 560, ort: "Reaktor" },
-    { x: 210, y: 380, ort: "Oberer Motor" }
+    { x: 208, y: 620, ort: "Reaktor" },
+    { x: 242, y: 421, ort: "Oberer Motor" }
   ] },
   { id: "netz-reaktor-sued", name: "Reaktor ↔ Unterer Motor", farbe: "#eab308", enden: [
-    { x: 290, y: 830,  ort: "Reaktor" },
-    { x: 210, y: 1280, ort: "Unterer Motor" }
+    { x: 335, y: 920, ort: "Reaktor" },
+    { x: 242, y: 1418, ort: "Unterer Motor" }
   ] },
   { id: "netz-waffen", name: "Waffen ↔ Navigation", farbe: "#22d3ee", enden: [
-    { x: 2040, y: 380, ort: "Waffen" },
-    { x: 2365, y: 560, ort: "Navigation" }
+    { x: 2354, y: 421, ort: "Waffen" },
+    { x: 2729, y: 620, ort: "Navigation" }
   ] },
   { id: "netz-schilde", name: "Navigation ↔ Schilde", farbe: "#34d399", enden: [
-    { x: 2430, y: 830,  ort: "Navigation" },
-    { x: 2080, y: 1280, ort: "Schilde" }
+    { x: 2804, y: 920, ort: "Navigation" },
+    { x: 2400, y: 1418, ort: "Schilde" }
   ] },
   { id: "netz-zentral", name: "Cafeteria ↔ Verwaltung ↔ Ostflur", farbe: "#f472b6", enden: [
-    { x: 1050, y: 380, ort: "Cafeteria" },
-    { x: 1580, y: 830, ort: "Verwaltung" },
-    { x: 2200, y: 495, ort: "Ostflur" }
+    { x: 1212, y: 421, ort: "Cafeteria" },
+    { x: 1823, y: 920, ort: "Verwaltung" },
+    { x: 2538, y: 548, ort: "Ostflur" }
   ] }
 ];
 
@@ -303,15 +303,15 @@ STATIONS_TABELLE.forEach(([raumId, eintraege]) => {
 // es Standpunkte, von denen aus die jeweils zweite unerreichbar ist. Deshalb sitzen sie
 // bewusst in Raumecken statt in der Mitte — der Kartentest misst die verbleibende
 // Überlappungszone und lässt höchstens ein paar Pixel durch.
-const NOTFALLKNOPF = { x: 1340, y: 300, raum: "cafeteria" };
-const SICHERUNGSKASTEN = { x: 800, y: 1265, raum: "electrical" };
-const KUEHLUNG_A = { x: 100, y: 830, raum: "reactor" };
-const KUEHLUNG_B = { x: 1940, y: 830, raum: "o2" };
+const NOTFALLKNOPF = { x: 1546, y: 332, raum: "cafeteria" };
+const SICHERUNGSKASTEN = { x: 923, y: 1402, raum: "electrical" };
+const KUEHLUNG_A = { x: 115, y: 920, raum: "reactor" };
+const KUEHLUNG_B = { x: 2238, y: 920, raum: "o2" };
 // Das Kamerapult gibt der Sicherheit ihren Zweck — bis dahin war sie reines Risiko ohne
 // Gegenwert (eine Tür, drei Stationen, sonst nichts). Das Funkpult ist der Reparaturplatz der
 // vierten Sabotage und füllt die Kommunikation.
-const KAMERAPULT = { x: 630, y: 830, raum: "security" };
-const FUNKPULT = { x: 1600, y: 1240, raum: "comms" };
+const KAMERAPULT = { x: 727, y: 920, raum: "security" };
+const FUNKPULT = { x: 1846, y: 1374, raum: "comms" };
 
 // Die vier festen Kamerabereiche. Bewusst überwiegend GÄNGE statt Räume: Kameras sollen
 // verraten, wer wohin unterwegs ist, nicht was jemand in einem Raum tut — sonst wären
@@ -321,8 +321,8 @@ const FUNKPULT = { x: 1600, y: 1240, raum: "comms" };
 //
 // Alle Ausschnitte haben dieselbe Größe, damit die vier Bilder nebeneinander gleich wirken
 // und keiner unbeabsichtigt mehr Fläche abdeckt als die anderen.
-const KAMERA_BREITE = 660;
-const KAMERA_HOEHE = 340;
+const KAMERA_BREITE = 762;
+const KAMERA_HOEHE = 377;
 // x/y ist der STANDORT der Kamera — dort blinkt sie auf der Karte, und dieser Punkt muss
 // deshalb begehbar in einer Fläche liegen. Läge er in einer Wand, gäbe es nie eine Sichtlinie
 // dorthin und die Warnung wäre für niemanden zu sehen (genau so gebaut und im Test aufgefallen).
@@ -330,10 +330,10 @@ const KAMERA_HOEHE = 340;
 // Welt hineingeschoben, wo er sonst über den Rand ragen würde — der Südgang liegt so dicht am
 // unteren Rand, dass sein Bild sonst zur Hälfte aus Nichts bestünde.
 const KAMERAS = [
-  { id: "kam-cafeteria", name: "Cafeteria",    x: 1340, y: 245 },
-  { id: "kam-nord",      name: "Nordgang",     x: 775,  y: 245 },
-  { id: "kam-west",      name: "Westkreuzung", x: 480,  y: 695 },
-  { id: "kam-sued",      name: "Ostgang",       x: 1780, y: 1130 }
+  { id: "kam-cafeteria", name: "Cafeteria",    x: 1546, y: 271 },
+  { id: "kam-nord",      name: "Nordgang",     x: 894, y: 271 },
+  { id: "kam-west",      name: "Westkreuzung", x: 554, y: 770 },
+  { id: "kam-sued",      name: "Ostgang",       x: 2054, y: 1252 }
 ].map(k => ({
   ...k,
   links: Math.min(Math.max(k.x - KAMERA_BREITE / 2, 0), WELT_BREITE - KAMERA_BREITE),
@@ -350,12 +350,12 @@ function imKamerabild(kamera, x, y) {
 // Startpositionen: alle starten im Cafeteria, kreisförmig verteilt (max. 10 Plätze).
 function startPositionen(anzahl) {
   const punkte = [];
-  const mitte = { x: 1340, y: 190 };
+  const mitte = { x: 1546, y: 211 };
   for (let i = 0; i < anzahl; i++) {
     const winkel = (i / Math.max(anzahl, 1)) * Math.PI * 2;
     punkte.push({
-      x: Math.round(mitte.x + Math.cos(winkel) * 88),
-      y: Math.round(mitte.y + Math.sin(winkel) * 58)
+      x: Math.round(mitte.x + Math.cos(winkel) * 102),
+      y: Math.round(mitte.y + Math.sin(winkel) * 64)
     });
   }
   return punkte;
@@ -477,7 +477,7 @@ function stationNachId(id) {
 // Zellen durch eine Wandecke führen, die Figur bliebe hängen. Der Umweg über die Kante ist
 // billiger als die Sonderfallprüfung.
 
-const RASTER = 25;
+const RASTER = 28;
 const rasterSpalten = Math.ceil(WELT_BREITE / RASTER);
 const rasterZeilen = Math.ceil(WELT_HOEHE / RASTER);
 const rasterFrei = new Uint8Array(rasterSpalten * rasterZeilen);
@@ -602,9 +602,9 @@ const BOT_WEGPUNKTE = RAEUME.map(r => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 }))
 // Strahlen mit je dutzenden Abtastpunkten los. Jeden davon gegen alle ~90 Rechtecke zu prüfen
 // wären Millionen Vergleiche pro Bild — ein Array-Zugriff kostet dagegen nichts. Das
 // Wegfindungsraster (25 px) ist dafür zu grob: eine Türöffnung wäre darin drei Zellen breit.
-const SICHT_RASTER = 8;
-const SICHT_SCHRITT = 6;         // Abtastweite entlang eines Strahls
-const SICHT_WANDZUSCHLAG = 20;   // so weit reicht der Blick in die getroffene Wand hinein
+const SICHT_RASTER = 9;
+const SICHT_SCHRITT = 7;         // Abtastweite entlang eines Strahls
+const SICHT_WANDZUSCHLAG = 23;   // so weit reicht der Blick in die getroffene Wand hinein
 const SICHT_STRAHLEN = 240;      // Auflösung des Sichtpolygons rundum
 
 const sichtSpalten = Math.ceil(WELT_BREITE / SICHT_RASTER);
@@ -632,7 +632,7 @@ function sichtFreiAn(x, y) {
 // Wie weit trägt der Blick in diese Richtung? Der Rückgabewert reicht bewusst ein Stück in die
 // getroffene Wand hinein: endete er exakt an der Wandkante, bliebe genau die Wand unbeleuchtet,
 // an der man steht, und die Räume hätten keine sichtbaren Kanten mehr. Der Zuschlag liegt
-// unter der Wandstärke von 35 px — hindurchsehen kann man dadurch nicht.
+// unter der Wandstärke von 40 px — hindurchsehen kann man dadurch nicht.
 function sichtDistanz(x, y, dx, dy, maxDist) {
   for (let d = SICHT_SCHRITT; d <= maxDist; d += SICHT_SCHRITT) {
     if (!sichtFreiAn(x + dx * d, y + dy * d)) {

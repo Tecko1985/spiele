@@ -106,7 +106,7 @@ const STANDARD_EINSTELLUNGEN = {
   abstimmungSek: 60,
   notfallKnoepfe: 1,
   aufgabenProSpieler: 5,
-  tempo: 205,          // mit dem Original-Layout gewachsen: die Karte ist deutlich größer
+  tempo: 232,          // mit dem Original-Layout gewachsen: die Karte ist deutlich größer
   rolleNachRauswurf: 1,
   rolleIngenieur: 0,
   rolleWissenschaftler: 0,

@@ -20,7 +20,7 @@ const PHASEN_MIT_VERLASSEN_BUTTON = ["lobby", "zuteilung", "laeuft"];
 // Der Wert muss über dem größten Sichtdurchmesser liegen (2 × SICHT_MAULWURF = 840 … hier
 // bewusst knapp darunter, damit der Nebel am Rand noch sichtbar ausblendet statt abgeschnitten
 // zu wirken) und ist mit dem Umbau auf das Original-Layout von 620 mitgewachsen.
-const SICHT_KURZE_ACHSE = 790;
+const SICHT_KURZE_ACHSE = 893;
 
 // Bodenfarben der Karte. Türschwellen bekommen bewusst KEINE eigene Farbe, sondern übernehmen
 // je Hälfte die der angrenzenden Fläche – sonst stehen sie als helle Klötze in der Landschaft.
@@ -30,7 +30,7 @@ const BODEN_RAUM = "#2c3a52";
 const BODEN_GESPERRT = "#3a2230";
 const WANDLINIE = "#48597a";
 const TUERZARGE = "#63799e";   // heller als die Wand, damit Türen schon aus der Ferne auffallen
-const ZARGE = 13;              // Länge einer Zarge je Seite der Wand, in Weltkoordinaten
+const ZARGE = 15;              // Länge einer Zarge je Seite der Wand, in Weltkoordinaten
 const SCHNELL_PHRASEN = [
   "Ich war in der Kabine.",
   "Wo warst du?",
@@ -305,7 +305,7 @@ function zeichne(zustand) {
   // Raumnamen erst jetzt: bei Türen in der oberen Wand hat die Schwelle den Schriftzug sonst
   // mittendrin ausgestanzt ("Ge…raum"). Der weiche Schatten hält die Schrift auch dort lesbar,
   // wo der Nebel schon abdunkelt; die Untergrenze der Schriftgröße rettet kleine Displays.
-  ctx.font = `600 ${Math.max(Math.round(28 * skala), 13)}px -apple-system, Segoe UI, Roboto, sans-serif`;
+  ctx.font = `600 ${Math.max(Math.round(32 * skala), 13)}px -apple-system, Segoe UI, Roboto, sans-serif`;
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(226,232,240,0.6)";
   ctx.shadowColor = "rgba(3,7,15,0.85)";
@@ -379,7 +379,7 @@ function zeichne(zustand) {
     ctx.ellipse(wx(leiche.x), wy(leiche.y), 19 * skala, 12 * skala, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#fff";
-    ctx.font = `${Math.round(20 * skala)}px sans-serif`;
+    ctx.font = `${Math.round(23 * skala)}px sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText("✖", wx(leiche.x), wy(leiche.y) + 7 * skala);
   });
@@ -414,7 +414,7 @@ function zeichneMarker(x, y, skala, farbe, zeichen) {
   ctx.arc(x, y, 17 * skala, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#fff";
-  ctx.font = `${Math.round(19 * skala)}px sans-serif`;
+  ctx.font = `${Math.round(21 * skala)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText(zeichen, x, y + 7 * skala);
 }
@@ -424,7 +424,7 @@ function zeichneMarker(x, y, skala, farbe, zeichen) {
 // wurde, aber nicht von wem, und genau das ist der Punkt eines Alibis.
 function zeichneArbeitsspur(x, y, skala, spur, anteilUebrig) {
   const puls = 1 - anteilUebrig;                      // 0 → frisch, 1 → gleich vorbei
-  const radius = (26 + 30 * (puls % 0.34) / 0.34) * skala;
+  const radius = (29 + 34 * (puls % 0.34) / 0.34) * skala;
 
   ctx.save();
   ctx.globalAlpha = 0.25 + 0.55 * anteilUebrig;
@@ -442,7 +442,7 @@ function zeichneArbeitsspur(x, y, skala, spur, anteilUebrig) {
   ctx.restore();
 
   ctx.fillStyle = "#fff";
-  ctx.font = `${Math.round(21 * skala)}px sans-serif`;
+  ctx.font = `${Math.round(24 * skala)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText(spur.zeichen || "🛠️", x, y + 7 * skala);
 
@@ -450,7 +450,7 @@ function zeichneArbeitsspur(x, y, skala, spur, anteilUebrig) {
   // Station, und dessen eigener Name schwebt über der Figur. Zu dicht beieinander überlagern
   // sich beide zu einem unlesbaren Klumpen.
   if (spur.name) {
-    ctx.font = `600 ${Math.max(Math.round(19 * skala), 11)}px -apple-system, Segoe UI, Roboto, sans-serif`;
+    ctx.font = `600 ${Math.max(Math.round(21 * skala), 11)}px -apple-system, Segoe UI, Roboto, sans-serif`;
     ctx.fillStyle = "#bae6fd";
     ctx.shadowColor = "rgba(3,7,15,0.9)";
     ctx.shadowBlur = Math.max(5 * skala, 4);
@@ -492,7 +492,7 @@ function zeichneFigur(x, y, skala, spieler, zustand) {
   ctx.stroke();
 
   ctx.fillStyle = "#fff";
-  ctx.font = `bold ${Math.round(21 * skala)}px -apple-system, Segoe UI, Roboto, sans-serif`;
+  ctx.font = `bold ${Math.round(24 * skala)}px -apple-system, Segoe UI, Roboto, sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText((istFaenger ? "🥅 " : "") + spieler.name.slice(0, 12), x, y - 26 * skala);
 }
@@ -610,7 +610,7 @@ function interpolierePositionen(zustand, delta) {
       return;
     }
     // Bei einem Sprung (Abkürzung, Positions-Reset nach dem Meeting) nicht hinterherkriechen.
-    if (karte.abstand(aktuell.x, aktuell.y, ziel.x, ziel.y) > 220) {
+    if (karte.abstand(aktuell.x, aktuell.y, ziel.x, ziel.y) > 249) {
       aktuell.x = ziel.x;
       aktuell.y = ziel.y;
       return;
