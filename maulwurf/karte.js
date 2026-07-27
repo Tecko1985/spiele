@@ -68,7 +68,7 @@ const RAEUME = [
   { id: "weapons",      name: "Waffen",        x: 2020, y: 90,   w: 330, h: 310 },
   // mittlere Reihe
   { id: "reactor",      name: "Reaktor",       x: 60,   y: 540,  w: 240, h: 310 },
-  { id: "security",     name: "Sicherheit",    x: 600,  y: 540,  w: 200, h: 310 },
+  { id: "security",     name: "Sicherheit",    x: 455,  y: 540,  w: 345, h: 310 },
   { id: "medbay",       name: "Krankenstation", x: 1000, y: 540, w: 300, h: 310 },
   { id: "admin",        name: "Verwaltung",    x: 1560, y: 540,  w: 300, h: 310 },
   { id: "o2",           name: "O2",            x: 1900, y: 540,  w: 240, h: 310 },
@@ -77,7 +77,7 @@ const RAEUME = [
   { id: "lower-engine", name: "Unterer Motor", x: 190,  y: 990,  w: 330, h: 310 },
   { id: "electrical",   name: "Elektrik",      x: 560,  y: 990,  w: 280, h: 310 },
   { id: "storage",      name: "Lager",         x: 1080, y: 990,  w: 420, h: 310 },
-  { id: "comms",        name: "Kommunikation", x: 1560, y: 990,  w: 320, h: 310 },
+  { id: "comms",        name: "Kommunikation", x: 1560, y: 1205, w: 320, h: 235 },
   { id: "shields",      name: "Schilde",       x: 2060, y: 990,  w: 320, h: 310 }
 ];
 
@@ -92,7 +92,6 @@ const KORRIDORE = [
   { id: "flur-o2", x: 1685, y: 205,  w: 300,  h: 80 },
   // linker Längsgang: Oberer Motor ↔ Süd, mit Abzweig zum Reaktor
   { id: "gang-l",  x: 340,  y: 435,  w: 80,   h: 520 },
-  { id: "flur-rk", x: 455,  y: 655,  w: 110,  h: 80 },   // Abzweig zur Sicherheit
   // Mittlerer Längsgang, die Hauptschlagader der Westhälfte: vom oberen Flur durchgehend
   // bis zum unteren Quergang. Kreuzt flur-o1 und flur-u — die Flächen überlappen bewusst,
   // das ergibt T-Kreuzungen ohne eigene Tür. An ihm hängen Krankenstation und Elektrik mit
@@ -111,7 +110,9 @@ const KORRIDORE = [
   // **wer von links nach rechts will, muss durch das Lager.** Damit ist es der Knotenpunkt,
   // der es im Original ist, und der lange unbeobachtete Rückweg existiert nicht mehr.
   { id: "flur-uw", x: 300,  y: 1335, w: 880,  h: 80 },
-  { id: "flur-uo", x: 1400, y: 1335, w: 855,  h: 80 }
+  // Ostgang Lager ↔ Schilde, auf RAUMHÖHE — nicht unter allem hindurch. Die Kommunikation
+  // hängt als Sackgasse darunter und wird von hier aus betreten, genau wie im Original.
+  { id: "flur-so", x: 1535, y: 1090, w: 490,  h: 80 }
 ];
 
 // Türöffnungen. Angegeben wird der Mittelpunkt der Öffnung in der Raumwand plus die Achse:
@@ -151,8 +152,9 @@ const TUEREN = [
   tuer(380, 972, "v"),   // gang-l ↓ Unterer Motor
   tuer(320, 620, "h"),   // Reaktor ↔ gang-l (obere Tür)
   tuer(320, 790, "h"),   // Reaktor ↔ gang-l (untere Tür)
-  tuer(437, 695, "h"),   // gang-l ↔ flur-rk
-  tuer(582, 695, "h"),   // flur-rk ↔ Sicherheit — die EINZIGE Tür dieses Raums
+  tuer(437, 695, "h"),   // gang-l ↔ Sicherheit — die EINZIGE Tür dieses Raums, und sie geht
+                         // direkt auf den Hauptgang. Kein Stichflur davor: im Original steht
+                         // die Sicherheit unmittelbar am Längsgang.
   // mittlerer Längsgang: an ihm hängen die beiden westlichen Sackgassen
   tuer(980, 695, "h"),   // gang-m ↔ Krankenstation — die EINZIGE Tür dieses Raums
   tuer(860, 1145, "h"),  // Elektrik ↔ gang-m — die EINZIGE Tür dieses Raums
@@ -171,10 +173,11 @@ const TUEREN = [
   tuer(2220, 972, "v"),  // gang-r ↓ Schilde
   // unterer Quergang
   tuer(380, 1317, "v"),  // Unterer Motor ↓ flur-uw
-  tuer(1180, 1317, "v"), // flur-uw ↑ Lager — das westliche Ende des Quergangs
-  tuer(1400, 1317, "v"), // Lager ↓ flur-uo — und hier geht es weiter nach Osten
-  tuer(1720, 1317, "v"), // Kommunikation ↓ flur-uo
-  tuer(2220, 1317, "v")  // Schilde ↓ flur-uo
+  tuer(1180, 1317, "v"), // flur-uw ↑ Lager — hier endet der Quergang aus dem Westen
+  // Ostgang: aus dem Lager heraus, Kommunikation darunter, Schilde am Ende
+  tuer(1517, 1130, "h"), // Lager ↔ flur-so
+  tuer(1720, 1187, "v"), // flur-so ↓ Kommunikation — die EINZIGE Tür dieses Raums
+  tuer(2042, 1130, "h")  // flur-so ↔ Schilde
 ];
 
 // Lüftungsschächte. Nur Maulwürfe (und der Ingenieur) dürfen sie benutzen.
@@ -308,7 +311,7 @@ const KUEHLUNG_B = { x: 1940, y: 830, raum: "o2" };
 // Gegenwert (eine Tür, drei Stationen, sonst nichts). Das Funkpult ist der Reparaturplatz der
 // vierten Sabotage und füllt die Kommunikation.
 const KAMERAPULT = { x: 630, y: 830, raum: "security" };
-const FUNKPULT = { x: 1590, y: 1280, raum: "comms" };
+const FUNKPULT = { x: 1600, y: 1240, raum: "comms" };
 
 // Die vier festen Kamerabereiche. Bewusst überwiegend GÄNGE statt Räume: Kameras sollen
 // verraten, wer wohin unterwegs ist, nicht was jemand in einem Raum tut — sonst wären
@@ -330,7 +333,7 @@ const KAMERAS = [
   { id: "kam-cafeteria", name: "Cafeteria",    x: 1340, y: 245 },
   { id: "kam-nord",      name: "Nordgang",     x: 775,  y: 245 },
   { id: "kam-west",      name: "Westkreuzung", x: 480,  y: 695 },
-  { id: "kam-sued",      name: "Lagerausgang",  x: 1440, y: 1375 }
+  { id: "kam-sued",      name: "Ostgang",       x: 1780, y: 1130 }
 ].map(k => ({
   ...k,
   links: Math.min(Math.max(k.x - KAMERA_BREITE / 2, 0), WELT_BREITE - KAMERA_BREITE),
