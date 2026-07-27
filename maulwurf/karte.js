@@ -47,14 +47,14 @@ const SICHT_VERSTECKEN_FAENGER = 220;
 // TOPOLOGIE, nicht jeder Pixel: welcher Raum an welchen grenzt, wo die Flure langlaufen und
 // vor allem, wie viele Ein-/Ausgänge jeder Raum hat. Genau daran hängt das Spiel.
 //
-// **VIER Sackgassen mit je genau EINEM Eingang: Sicherheit, Krankenstation, Elektrik,
-// Kommunikation.** Das ist der wichtigste Teil der Vorlage. Wer dort hineingeht, kommt nur auf
-// demselben Weg wieder heraus — deshalb ist es dort so gefährlich und deshalb ist "wer war mit
-// dir drin?" eine harte Frage. Die Elektrik ist die berühmteste davon; genau ein Eingang ist
-// der Grund, warum dort so viele sterben. Beim Ändern des Layouts nicht versehentlich eine
-// zweite Tür spendieren — der Kartentest prüft alle vier.
+// **FÜNF Sackgassen mit je genau EINEM Eingang: Sicherheit, Krankenstation, Elektrik,
+// Kommunikation, Verwaltung.** Das ist der wichtigste Teil der Vorlage. Wer dort hineingeht,
+// kommt nur auf demselben Weg wieder heraus — deshalb ist es dort so gefährlich und deshalb ist
+// "wer war mit dir drin?" eine harte Frage. Die Elektrik ist die berühmteste davon; genau ein
+// Eingang ist der Grund, warum dort so viele sterben. Beim Ändern des Layouts nicht versehentlich
+// eine zweite Tür spendieren — der Kartentest prüft alle fünf.
 //
-// Die Cafeteria ist das Drehkreuz mit vier Ausgängen, das Lager der zweite Knoten. Wer die
+// Die Cafeteria ist das Drehkreuz mit drei Ausgängen, das Lager der zweite Knoten. Wer die
 // Cafeteria verlässt, wird gesehen — das macht sie zum sicheren Ort und zum Ausgangspunkt
 // jeder Diskussion.
 //
@@ -116,13 +116,13 @@ const KORRIDORE = [
   // NORDwand der Verwaltung. Den gibt es im Original nicht: dort öffnet Admin nach WESTEN auf
   // den Gang, der ohnehin von der Cafeteria zum Lager führt. Die Cafeteria hat dadurch drei
   // Ausgänge statt vier — ihr unterer Ausgang ist einer, der sich hinter der Tür verzweigt.
-  // Verwaltung ↓ Ostflur, der untere Ausgang. Im Original öffnet Admin unten rechts auf genau
-  // den Korridor, der Lager und Schilde verbindet — von dort kommt man in den ganzen Ostflügel,
-  // ohne über die Cafeteria zu müssen. Bis 2026-07-27 stieß diese Tür stattdessen direkt in die
-  // O2: Wand an Wand, ohne Gang dazwischen. Das ist die einzige Stelle, an der zwei RÄUME
-  // unmittelbar aneinandergrenzten, und es gab der O2 eine dritte Tür, die sie im Original nicht
-  // hat. Der Gang endet oberhalb der Kommunikation — die bleibt Sackgasse.
-  { id: "gang-v",  x: 2019, y: 982, w: 93, h: 268 },
+  //
+  // **Die Verwaltung hat sonst nichts** — kein Ausgang nach unten, nach Osten oder zur
+  // Kommunikation. Sie ist damit die FÜNFTE Sackgasse und die einzige davon, in der es etwas zu
+  // holen gibt: Kartenwische, Datenkonsole und Kabel liegen dort, und das Zentral-Dreieck der
+  // Schächte hat eines seiner drei Enden in ihr. Wer zum Arbeiten hineingeht, kann nur denselben
+  // Weg zurück — ein Maulwurf dagegen taucht dort auf und verschwindet wieder.
+  // Vorher führte `gang-v` von hier nach unten auf den Ostflur.
   // rechter Längsgang: Waffen ↕ O2 ↕ Navigation ↕ Schilde
   { id: "gang-r",  x: 2515, y: 482, w: 93, h: 576 },
   // Der untere Quergang läuft in STUFEN, nicht als gerader Balken. Er lief bis 2026-07-27
@@ -204,10 +204,6 @@ const TUEREN = [
   // Die Verwaltung wird von WESTEN betreten, aus dem Gang Cafeteria–Lager. Vorher führte ein
   // eigener Stummel aus der Cafeteria in ihre Nordwand — den gibt es im Original nicht.
   tuer(1731, 770, "h"),  // gang-c ↔ Verwaltung (WESTwand)
-  // Der zweite Ausgang der Verwaltung führt nach UNTEN auf den Ostflur (Lager ↔ Schilde), wie
-  // im Original. Er stieß vorher direkt in die O2 — die einzige Tür der Karte, die zwei Räume
-  // ohne Gang dazwischen verband, und die der O2 eine dritte Tür gab.
-  tuer(2066, 962, "v"),  // Verwaltung ↓ gang-v
   // rechter Längsgang
   tuer(2562, 462, "v"),  // Waffen ↓ gang-r
   tuer(2492, 687, "h"),  // O2 ↔ gang-r (obere Tür)

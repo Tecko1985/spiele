@@ -1892,7 +1892,7 @@ const APP_CHANGELOG = [
     groups: [
       { title: "Spielen", items: [
           "Verräterspiel für 4 bis 15 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
-          "Das Gelände ist dem Original-Grundriss von Among Us nachempfunden: 14 Räume, 10 Flure und 27 Türen, ein Drehkreuz in der Mitte, ein Rundlauf außen herum – und vier Sackgassen (Sicherheit, Krankenstation, Elektrik, Kommunikation) mit nur einer Tür. Wer dort hineingeht, kommt nur auf demselben Weg wieder heraus.",
+          "Das Gelände ist dem Original-Grundriss von Among Us nachempfunden: 14 Räume, 10 Flure und 25 Türen, ein Drehkreuz in der Mitte, ein Rundlauf außen herum – und fünf Sackgassen (Sicherheit, Krankenstation, Elektrik, Kommunikation, Verwaltung) mit nur einer Tür. Wer dort hineingeht, kommt nur auf demselben Weg wieder heraus.",
           "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen – nur durch offene Türen fällt Licht in den Nachbarraum. Die Räume selbst bleiben schwach angedeutet, damit man sich zurechtfindet; Mitspielende sieht man aber wirklich nur in direkter Sichtlinie. Auch ein Foulspiel quer durch die Wand geht nicht mehr.",
           "17 verschiedene Aufgaben-Minispiele an 35 Stationen – jede Runde ist anders zusammengesetzt.",
           "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
