@@ -1921,18 +1921,40 @@ if ("serviceWorker" in navigator) {
 const APP_VERSION = "1.0";
 const APP_CHANGELOG = [
   {
+    version: "1.1",
+    groups: [
+      { title: "Gelände nach dem Original-Grundriss", items: [
+          "Das Layout ist Raum für Raum, Flur für Flur an die Vorlage angeglichen: 14 Räume, 10 Flure, 25 Türen – und vor allem sitzt jede Tür jetzt an der richtigen Wandseite. Die Elektrik wird von unten betreten, die Krankenstation von oben, der Untere Motor nach Osten, das Lager nach Westen.",
+          "Der untere Quergang läuft in Stufen um die Elektrik herum statt als gerader Balken unter drei Räumen hindurch – vorher lief er an der Elektrik vorbei, ohne sie überhaupt zu erschließen.",
+          "Fünf Sackgassen mit nur einer Tür: Sicherheit, Krankenstation, Elektrik, Kommunikation und neu die Verwaltung. Wer dort hineingeht, kommt nur auf demselben Weg wieder heraus. Die Verwaltung ist die einzige davon mit Aufgaben darin – und mit einer Abkürzung.",
+          "Der durchgehende Mittelgang ist weg. Von der Cafeteria kommt man nicht mehr geradewegs nach unten; zur Elektrik geht es über das Lager oder den Unteren Motor."
+      ]},
+      { title: "Neu im Spiel", items: [
+          "Bis zu 15 Mitspielende statt bisher 10 – mit fünf zusätzlichen Farben, damit niemand doppelt läuft.",
+          "↧ In den Abkürzungen hält man sich jetzt auf, statt nur durchzuspringen: drinnen ist man für alle unsichtbar, kann zwischen den Enden eines Netzes wechseln und sieht bei jedem erst die Umgebung – ausgestiegen wird per Knopf, wenn die Luft rein ist. Ausschalten und Sabotieren gehen aus dem Schacht heraus nicht.",
+          "Die ersten 10 Sekunden einer Runde ist der Ausschalten-Knopf gesperrt und zählt sichtbar herunter. So kommen alle erst einmal aus der Cafeteria heraus, statt dass die Partie in der ersten Sekunde entschieden wird.",
+          "📹 Die vier Kameras hängen jetzt an den Stellen des Originals – vor Navigation, Verwaltung, Krankenstation und Reaktor, alle im Flur. Drei davon bewachen den Zugang zu einer Sackgasse.",
+          "Jede Sonderrolle nennt im Info-Tab nicht nur, was sie kann, sondern auch, was sie kostet."
+      ]},
+      { title: "Behoben", items: [
+          "Die KI blieb im Laufe einer Partie stehen. Drei Ursachen: sie sprang über ihre Wegpunkte hinweg und pendelte darum herum, sie blieb an Türpfosten kleben, weil sie beide Richtungen anteilig statt nacheinander ging, und die Wegfindung dampfte gerade Strecken so weit ein, dass sie Türöffnungen um wenige Pixel verfehlte.",
+          "Die KI bewegt sich flüssig statt ruckartig – sie rechnet jetzt viermal so oft, ohne mehr Daten zu senden.",
+          "Das Lauftempo ist um ein Fünftel gesenkt. Vorher waren Räume im Vorbeilaufen abgehakt, statt dass Wege etwas kosten.",
+          "An einer Stelle im Flur konnte man mit der Figur hängenbleiben und kam weder vor noch zurück."
+      ]}
+    ]
+  },
+  {
     version: "1.0",
     groups: [
       { title: "Spielen", items: [
-          "Verräterspiel für 4 bis 15 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
-          "Das Gelände ist dem Original-Grundriss von Among Us nachempfunden: 14 Räume, 10 Flure und 25 Türen, ein Drehkreuz in der Mitte, ein Rundlauf außen herum – und fünf Sackgassen (Sicherheit, Krankenstation, Elektrik, Kommunikation, Verwaltung) mit nur einer Tür. Wer dort hineingeht, kommt nur auf demselben Weg wieder heraus.",
+          "Verräterspiel für 4 bis 10 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
+          "Das Gelände ist dem Original-Grundriss von Among Us nachempfunden: 14 Räume, ein Drehkreuz in der Mitte, ein Rundlauf außen herum – und Sackgassen mit nur einer Tür. Wer dort hineingeht, kommt nur auf demselben Weg wieder heraus.",
           "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen – nur durch offene Türen fällt Licht in den Nachbarraum. Die Räume selbst bleiben schwach angedeutet, damit man sich zurechtfindet; Mitspielende sieht man aber wirklich nur in direkter Sichtlinie. Auch ein Foulspiel quer durch die Wand geht nicht mehr.",
           "17 verschiedene Aufgaben-Minispiele an 35 Stationen – jede Runde ist anders zusammengesetzt.",
           "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Licht kappen, den Reaktor überhitzen, den Funk stören und Räume verriegeln.",
-          "↧ In den Abkürzungen hält man sich auf, statt nur durchzuspringen: drinnen ist man für alle unsichtbar, kann zwischen den Enden eines Netzes wechseln und sieht bei jedem erst die Umgebung – ausgestiegen wird per Knopf, wenn die Luft rein ist. Ausschalten und Sabotieren gehen aus dem Schacht heraus nicht.",
-          "Die ersten 10 Sekunden einer Runde ist der Ausschalten-Knopf gesperrt – er zählt sichtbar herunter. So kommen alle erst einmal aus der Cafeteria heraus, statt dass die Partie in der ersten Sekunde entschieden wird.",
-          "📹 Am Pult in der Sicherheit laufen vier Kameras – wie im Original vor Navigation, Verwaltung, Krankenstation und Reaktor. Sie hängen alle im Flur und zeigen, wer wohin unterwegs ist, nicht was jemand im Raum tut. Namen und Spielerfarben sind zu sehen. Wer zusieht, wird verraten: die Kameras blinken dann rot für jeden, der davorsteht.",
+          "📹 Kameras am Pult in der Sicherheit zeigen vier feste Bereiche des Geländes, mit Namen und Spielerfarben. Wer zusieht, wird verraten: die Kameras blinken dann rot für jeden, der davorsteht.",
           "📻 Ist der Funk gestört, fallen Kameras und Aufgabenliste aus, bis jemand am Funkpult in der Kommunikation war.",
           "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende.",
           "Einstellbar, ob nach einem Rauswurf verraten wird, ob es wirklich ein Maulwurf war."
