@@ -47,14 +47,16 @@ const SICHT_VERSTECKEN_FAENGER = 195;
 // TOPOLOGIE, nicht jeder Pixel: welcher Raum an welchen grenzt, wo die Flure langlaufen und
 // vor allem, wie viele Ein-/Ausgänge jeder Raum hat. Genau daran hängt das Spiel.
 //
-// Die beiden Sackgassen sind Absicht und der wichtigste Teil der Vorlage:
-// **Sicherheit und Krankenstation haben je nur EINEN Eingang.** Wer dort hineingeht, kommt
-// nur auf demselben Weg wieder heraus — deshalb ist es dort so gefährlich und deshalb ist
-// "wer war mit dir drin?" eine harte Frage. Beim Ändern des Layouts nicht versehentlich eine
-// zweite Tür spendieren.
+// **VIER Sackgassen mit je genau EINEM Eingang: Sicherheit, Krankenstation, Elektrik,
+// Kommunikation.** Das ist der wichtigste Teil der Vorlage. Wer dort hineingeht, kommt nur auf
+// demselben Weg wieder heraus — deshalb ist es dort so gefährlich und deshalb ist "wer war mit
+// dir drin?" eine harte Frage. Die Elektrik ist die berühmteste davon; genau ein Eingang ist
+// der Grund, warum dort so viele sterben. Beim Ändern des Layouts nicht versehentlich eine
+// zweite Tür spendieren — der Kartentest prüft alle vier.
 //
-// Die Cafeteria ist das Drehkreuz: von dort führen vier Wege weg. Wer sie verlässt,
-// wird gesehen — das macht sie zum sicheren Ort und zum Ausgangspunkt jeder Diskussion.
+// Die Cafeteria ist das Drehkreuz mit vier Ausgängen, das Lager der zweite Knoten. Wer die
+// Cafeteria verlässt, wird gesehen — das macht sie zum sicheren Ort und zum Ausgangspunkt
+// jeder Diskussion.
 //
 // Die Namen sind die des Originals in der deutschen Fassung (Cafeteria, Reaktor, Elektrik …).
 // Die ids bleiben englisch wie im Original-Grundriss — sie stehen in Stationstabelle,
@@ -73,7 +75,7 @@ const RAEUME = [
   { id: "navigation",   name: "Navigation",    x: 2300, y: 540,  w: 260, h: 310 },
   // untere Reihe
   { id: "lower-engine", name: "Unterer Motor", x: 190,  y: 990,  w: 330, h: 310 },
-  { id: "electrical",   name: "Elektrik",      x: 640,  y: 990,  w: 320, h: 310 },
+  { id: "electrical",   name: "Elektrik",      x: 640,  y: 990,  w: 200, h: 310 },
   { id: "storage",      name: "Lager",         x: 1080, y: 990,  w: 420, h: 310 },
   { id: "comms",        name: "Kommunikation", x: 1560, y: 990,  w: 320, h: 310 },
   { id: "shields",      name: "Schilde",       x: 2060, y: 990,  w: 320, h: 310 }
@@ -90,16 +92,16 @@ const KORRIDORE = [
   // linker Längsgang: Oberer Motor ↔ Süd, mit Abzweig zum Reaktor
   { id: "gang-l",  x: 340,  y: 435,  w: 80,   h: 520 },
   { id: "flur-rk", x: 455,  y: 655,  w: 110,  h: 80 },   // Abzweig zur Sicherheit
-  // mittlerer Längsgang: oberer Flur ↔ Elektrik. Kreuzt flur-o1 — die beiden überlappen
-  // bewusst, das ergibt die T-Kreuzung ohne eigene Tür.
-  { id: "gang-m",  x: 880,  y: 205,  w: 80,   h: 750 },
-  // Zugang zum Krankenstation — der EINZIGE, siehe Kommentar oben
-  { id: "flur-md", x: 1100, y: 435,  w: 80,   h: 70 },
+  // Mittlerer Längsgang, die Hauptschlagader der Westhälfte: vom oberen Flur durchgehend
+  // bis zum unteren Quergang. Kreuzt flur-o1 und flur-u — die Flächen überlappen bewusst,
+  // das ergibt T-Kreuzungen ohne eigene Tür. An ihm hängen Krankenstation und Elektrik mit
+  // je genau EINER Tür, wie im Original.
+  { id: "gang-m",  x: 880,  y: 205,  w: 80,   h: 1210 },
   // Cafeteria nach unten in den Lager, östlich am Krankenstation vorbei
   { id: "gang-c",  x: 1400, y: 435,  w: 80,   h: 520 },
-  // Cafeteria ↔ Verwaltung ↔ Kommunikation
+  // Cafeteria ↓ Verwaltung. Die Verwaltung hat ihre zweite Tür zum Gang Cafeteria–Lager,
+  // nicht zur Kommunikation — sonst wäre die Kommunikation keine Sackgasse mehr.
   { id: "gang-a",  x: 1560, y: 435,  w: 80,   h: 70 },
-  { id: "gang-ac", x: 1660, y: 885,  w: 80,   h: 70 },
   // rechter Längsgang: Waffen ↕ O2 ↕ Navigation ↕ Schilde
   { id: "gang-r",  x: 2180, y: 435,  w: 80,   h: 520 },
   // unterer Quergang: der lange Rückweg unter allem hindurch
@@ -122,9 +124,16 @@ function tuer(x, y, achse) {
 }
 
 // Türen. Die ANZAHL je Raum ist die eigentliche Spielinformation — sie entscheidet, ob ein
-// Raum eine Falle ist. Sicherheit und Krankenstation haben je genau eine; Reaktor,
-// O2 und Navigation haben zwei zum selben Gang (wie im Original: zwei Türen, aber nur
-// ein Fluchtweg-System).
+// Raum eine Falle ist. Sicherheit, Krankenstation, Elektrik und Kommunikation haben je genau
+// eine; Reaktor, O2 und Navigation haben zwei zum selben Gang (wie im Original: zwei Türen,
+// aber nur ein Fluchtweg-System).
+//
+// Umbau 2026-07-27 nach dem Original-Grundriss: die Krankenstation wird nicht mehr direkt aus
+// der Cafeteria betreten, sondern vom mittleren Längsgang — man muss sich also erst in den
+// Gang begeben, wo einen jeder sieht. Die Elektrik hat ihre zweite Tür zum unteren Quergang
+// verloren und ist damit die Sackgasse des Originals. Die Kommunikation hängt nur noch am
+// unteren Quergang; die Abkürzung Verwaltung↓Kommunikation ist weg, dafür hat die Verwaltung
+// ihre zweite Tür zum Gang Cafeteria–Lager.
 const TUEREN = [
   // oberer Flur
   tuer(537, 245, "h"),   // Oberer Motor ↔ flur-o1
@@ -138,18 +147,15 @@ const TUEREN = [
   tuer(320, 790, "h"),   // Reaktor ↔ gang-l (untere Tür)
   tuer(437, 695, "h"),   // gang-l ↔ flur-rk
   tuer(582, 695, "h"),   // flur-rk ↔ Sicherheit — die EINZIGE Tür dieses Raums
-  // mittlerer Längsgang
-  tuer(920, 972, "v"),   // gang-m ↓ Elektrik
-  // Krankenstation: der einzige Zugang, über einen Stichflur aus dem Cafeteria
-  tuer(1140, 417, "v"),  // Cafeteria ↓ flur-md
-  tuer(1140, 522, "v"),  // flur-md ↓ Krankenstation
+  // mittlerer Längsgang: an ihm hängen die beiden westlichen Sackgassen
+  tuer(980, 695, "h"),   // gang-m ↔ Krankenstation — die EINZIGE Tür dieses Raums
+  tuer(860, 1145, "h"),  // Elektrik ↔ gang-m — die EINZIGE Tür dieses Raums
   // Cafeteria nach unten
   tuer(1440, 417, "v"),  // Cafeteria ↓ gang-c
   tuer(1440, 972, "v"),  // gang-c ↓ Lager
   tuer(1600, 417, "v"),  // Cafeteria ↓ gang-a
   tuer(1600, 522, "v"),  // gang-a ↓ Verwaltung
-  tuer(1700, 867, "v"),  // Verwaltung ↓ gang-ac
-  tuer(1700, 972, "v"),  // gang-ac ↓ Kommunikation
+  tuer(1520, 695, "h"),  // gang-c ↔ Verwaltung (zweite Tür, zum Gang Cafeteria–Lager)
   // rechter Längsgang
   tuer(2220, 417, "v"),  // Waffen ↓ gang-r
   tuer(2160, 620, "h"),  // O2 ↔ gang-r (obere Tür)
@@ -159,7 +165,6 @@ const TUEREN = [
   tuer(2220, 972, "v"),  // gang-r ↓ Schilde
   // unterer Quergang
   tuer(380, 1317, "v"),  // Unterer Motor ↓ flur-u
-  tuer(800, 1317, "v"),  // Elektrik ↓ flur-u
   tuer(1180, 1317, "v"), // Lager ↓ flur-u (linke Tür)
   tuer(1400, 1317, "v"), // Lager ↓ flur-u (rechte Tür)
   tuer(1720, 1317, "v"), // Kommunikation ↓ flur-u
@@ -195,7 +200,7 @@ const TUEREN = [
 // gegeneinander. Der Schachttest deckt das jetzt ab; Mindestabstand 79 px.
 const TUNNEL = [
   { id: "netz-todesdreieck", name: "Elektrik ↔ Krankenstation ↔ Sicherheit", farbe: "#a855f7", enden: [
-    { x: 880,  y: 1000, ort: "Elektrik" },
+    { x: 820,  y: 1280, ort: "Elektrik" },
     { x: 1020, y: 830,  ort: "Krankenstation" },
     { x: 780,  y: 830,  ort: "Sicherheit" }
   ] },
@@ -252,7 +257,10 @@ const STATIONS_TABELLE = [
   ["o2",           ["filter", "knoten", "muell", "strom"]],
   ["navigation",   ["kurs", "teleskop", "kabel", "daten", "strom"]],
   ["lower-engine", ["triebwerk", "manifold", "poempel", "marshmallow"]],
-  ["electrical",   ["kabel", "strom", "verteiler", "sicherungen", "daten"]],
+  // Nur drei Stationen: die Elektrik ist mit dem Umbau auf einen Eingang von 320 auf 200 px
+  // Breite geschrumpft. Mit fuenf Stationen rueckte der Sicherungskasten auf 73 px an eine
+  // heran -- und der ist der Reparaturplatz einer Sabotage, der muss frei erreichbar sein.
+  ["electrical",   ["kabel", "strom", "verteiler"]],
   ["storage",      ["kabel", "muell", "puppe", "gemuese"]],
   ["comms",        ["wlan", "daten", "kurs", "strom"]],
   ["shields",      ["knoten", "teleskop", "asteroiden", "strom"]]
