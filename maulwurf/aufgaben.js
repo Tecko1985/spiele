@@ -522,45 +522,6 @@ function aufgabeVerteiler(container, onFertig) {
   return stopp;
 }
 
-// --- 7. Sicherungen zurücksetzen: sieben Hebel in der Reihenfolge 1 bis 7 ---
-function aufgabeSicherungen(container, onFertig) {
-  const ANZAHL = 7;
-  const reihenfolge = mischen(Array.from({ length: ANZAHL }, (_, i) => i + 1));
-  let naechste = 1;
-
-  // Eigene Klassennamen, NICHT .af-sicherung: die trägt die Licht-Reparatur mit ganz
-  // anderem Aufbau, und zwei Layouts unter einem Namen brechen sich gegenseitig.
-  const hilf = rahmen(container, "Leg die Sicherungen in der aufgedruckten Reihenfolge um.", `
-    <div class="af-reset-block">${reihenfolge.map(nr => `
-      <button type="button" class="af-reset-hebel" data-nr="${nr}">
-        <span class="af-reset-griff"></span><span class="af-reset-nr">${nr}</span>
-      </button>`).join("")}</div>`);
-  hilf.status.textContent = "Als nächstes: Sicherung 1";
-
-  hilf.alle(".af-reset-hebel").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const nr = Number(btn.dataset.nr);
-      if (nr !== naechste) {
-        btn.classList.add("falsch");
-        setTimeout(() => btn.classList.remove("falsch"), 380);
-        hilf.status.textContent = `Nicht die ${nr} – die ${naechste} ist dran.`;
-        return;
-      }
-      btn.classList.add("gut");
-      btn.disabled = true;
-      naechste++;
-      if (naechste > ANZAHL) {
-        hilf.status.textContent = "Alle Sicherungen drin!";
-        onFertig();
-        return;
-      }
-      hilf.status.textContent = `Als nächstes: Sicherung ${naechste}`;
-    });
-  });
-
-  return () => {};
-}
-
 // ============================================================
 // Navigation & Zielgenauigkeit
 // ============================================================
@@ -762,68 +723,6 @@ function aufgabeAsteroiden(container, onFertig) {
   return () => { stopp(); };
 }
 
-// --- 11. Teleskop ausrichten: Objekt ins Fadenkreuz holen ---
-function aufgabeTeleskop(container, onFertig) {
-  const TOLERANZ = 7;                          // Prozent Abstand zur Mitte
-  const ziel = { x: zufallZahl(12, 88), y: zufallZahl(12, 88) };
-  const objekt = zufallAus(["🪐", "🌙", "⭐", "🛰️"]);
-  let blick = { x: 50, y: 50 };
-  let zieht = false;
-  let start = null;
-  let fertig = false;
-
-  const hilf = rahmen(container, `Schwenk das Teleskop, bis ${objekt} im Fadenkreuz liegt.`, `
-    <div class="af-teleskop">
-      <div class="af-himmel"><span class="af-himmelsobjekt">${objekt}</span></div>
-      <div class="af-fadenkreuz"><span></span><span></span></div>
-    </div>
-    <p class="af-teleskop-hinweis">Gesucht: <b>${objekt}</b></p>`);
-  hilf.status.textContent = "Zum Schwenken über das Bild ziehen.";
-
-  const sichtfeld = hilf.q(".af-teleskop");
-  const himmel = hilf.q(".af-himmel");
-  const marke = hilf.q(".af-himmelsobjekt");
-
-  function zeichne() {
-    // Der Himmel wandert gegenläufig zum Blick: schwenkt man nach rechts, zieht das Bild nach links.
-    himmel.style.transform = `translate(${50 - blick.x}%, ${50 - blick.y}%)`;
-    marke.style.left = `${ziel.x}%`;
-    marke.style.top = `${ziel.y}%`;
-    const abstand = Math.hypot(blick.x - ziel.x, blick.y - ziel.y);
-    sichtfeld.classList.toggle("im-ziel", abstand <= TOLERANZ);
-    if (abstand <= TOLERANZ && !fertig) {
-      fertig = true;
-      zieht = false;
-      hilf.status.textContent = "Objekt erfasst!";
-      onFertig();
-    } else if (!fertig) {
-      hilf.status.textContent = abstand < 22 ? "Fast – ganz leicht nachführen." : "Weiter suchen.";
-    }
-  }
-
-  sichtfeld.addEventListener("pointerdown", e => {
-    if (fertig) return;
-    zieht = true;
-    start = { x: e.clientX, y: e.clientY, blick: { ...blick } };
-    fangeZeiger(sichtfeld, e);
-  });
-  sichtfeld.addEventListener("pointermove", e => {
-    if (!zieht || fertig) return;
-    const rect = sichtfeld.getBoundingClientRect();
-    blick = {
-      x: Math.min(Math.max(start.blick.x - (e.clientX - start.x) / rect.width * 100, 0), 100),
-      y: Math.min(Math.max(start.blick.y - (e.clientY - start.y) / rect.height * 100, 0), 100)
-    };
-    zeichne();
-  });
-  const los = () => { zieht = false; };
-  sichtfeld.addEventListener("pointerup", los);
-  sichtfeld.addEventListener("pointercancel", los);
-
-  zeichne();
-  return () => {};
-}
-
 // ============================================================
 // Müll & Reinigung
 // ============================================================
@@ -941,55 +840,6 @@ function aufgabeFilter(container, onFertig) {
   return () => {};
 }
 
-// --- 14. Pömpel bedienen: auf und ab, bis der Druck im grünen Bereich ist ---
-function aufgabePoempel(container, onFertig) {
-  const ZUEGE = 6;
-  let zuege = 0;
-  let obenGewesen = false;
-  let zieht = false;
-  let fertig = false;
-
-  const hilf = rahmen(container, "Beweg den Pömpel auf und ab, bis der Druck im grünen Bereich ist.", `
-    <div class="af-poempel">
-      <div class="af-poempel-schacht"><div class="af-poempel-griff" style="top:20%">🪠</div></div>
-      <div class="af-druckanzeige"><div class="af-druckgrenze"></div><div class="af-druckpegel"></div></div>
-    </div>`);
-  hilf.status.textContent = `0 von ${ZUEGE} Zügen`;
-
-  const schacht = hilf.q(".af-poempel-schacht");
-  const griff = hilf.q(".af-poempel-griff");
-  const pegel = hilf.q(".af-druckpegel");
-
-  function setze(e) {
-    const anteil = anteilIn(schacht, e, "y");
-    griff.style.top = `${Math.round(anteil * 100)}%`;
-    // Ein Zug zählt erst, wenn beide Endlagen berührt wurden — sonst reichte Zappeln in der Mitte.
-    if (anteil > 0.8) obenGewesen = true;
-    if (anteil < 0.2 && obenGewesen) {
-      obenGewesen = false;
-      zuege++;
-      pegel.style.height = `${Math.round((zuege / ZUEGE) * 100)}%`;
-      if (zuege >= ZUEGE) {
-        fertig = true;
-        zieht = false;
-        pegel.classList.add("gut");
-        hilf.status.textContent = "Druck im grünen Bereich!";
-        onFertig();
-        return;
-      }
-      hilf.status.textContent = `${zuege} von ${ZUEGE} Zügen`;
-    }
-  }
-
-  schacht.addEventListener("pointerdown", e => { if (fertig) return; zieht = true; fangeZeiger(schacht, e); setze(e); });
-  schacht.addEventListener("pointermove", e => { if (zieht && !fertig) setze(e); });
-  const los = () => { zieht = false; };
-  schacht.addEventListener("pointerup", los);
-  schacht.addEventListener("pointercancel", los);
-
-  return () => {};
-}
-
 // ============================================================
 // Daten & Signale
 // ============================================================
@@ -1046,305 +896,252 @@ function aufgabeDaten(container, onFertig, optionen) {
   return stopp;
 }
 
-// --- 16. WLAN-Router neu starten: Hebel runter, 60 s warten, Hebel hoch ---
-function aufgabeWlan(container, onFertig, optionen) {
-  return warteAufgabe(container, onFertig, optionen, {
-    symbol: "📶",
-    startKnopf: "Hebel nach unten",
-    anleitungStart: "Zieh den Hebel nach unten – der Router braucht danach eine Minute.",
-    anleitungWarten: "Der Router startet neu.",
-    schluss(container, onFertig) {
-      const hilf = rahmen(container, "Der Router ist hochgefahren – Hebel wieder nach oben.", `
-        <div class="af-wlan">
-          <div class="af-wlan-symbol">📶</div>
-          <button type="button" class="af-wlan-hebel">Hebel nach oben</button>
-        </div>`);
-      hilf.status.textContent = "Letzter Schritt.";
-      hilf.q(".af-wlan-hebel").addEventListener("click", () => {
-        const knopf = hilf.q(".af-wlan-hebel");
-        if (knopf.disabled) return;
-        knopf.disabled = true;
-        hilf.q(".af-wlan-symbol").classList.add("an");
-        hilf.status.textContent = "WLAN läuft wieder!";
-        onFertig();
-      });
-      return () => {};
-    }
-  });
-}
-
-// --- 17. Knotenpunkt aktivieren: Schalter umlegen, dann Pfad durchs Labyrinth ziehen ---
-function aufgabeKnoten(container, onFertig) {
-  // Feste kleine Labyrinthe (5x5, 1 = Wand). Fest statt generiert, weil ein zufälliges
-  // Labyrinth auch unlösbar sein kann und niemand mitten im Spiel ein Rätsel ohne Ausgang will.
-  const LABYRINTHE = [
-    [[0,0,1,0,0],[1,0,1,0,1],[0,0,0,0,0],[0,1,1,1,0],[0,0,0,1,0]],
-    [[0,1,0,0,0],[0,1,0,1,0],[0,0,0,1,0],[1,1,0,1,0],[0,0,0,1,0]],
-    [[0,0,0,1,0],[1,1,0,1,0],[0,0,0,0,0],[0,1,1,1,0],[0,0,0,0,0]]
-  ];
-  const feldPlan = zufallAus(LABYRINTHE);
-  const N = 5;
-  let schalterAn = false;
-  let pfad = [];
-  let zieht = false;
-
-  const hilf = rahmen(container, "Erst den Schalter umlegen, dann den Weg zum Ausgang ziehen.", `
-    <button type="button" class="af-knotenschalter">Schalter umlegen</button>
-    <div class="af-labyrinth">${feldPlan.map((zeile, y) => zeile.map((z, x) =>
-      `<div class="af-lab-zelle${z ? " wand" : ""}" data-x="${x}" data-y="${y}"></div>`).join("")).join("")}</div>`);
-  hilf.status.textContent = "Schalter ist aus.";
-
-  const feld = hilf.q(".af-labyrinth");
-  const zellen = hilf.alle(".af-lab-zelle");
-  const zelleAn = (x, y) => zellen[y * N + x];
-  zelleAn(0, 0).classList.add("start");
-  zelleAn(N - 1, N - 1).classList.add("ziel");
-
-  hilf.q(".af-knotenschalter").addEventListener("click", () => {
-    const knopf = hilf.q(".af-knotenschalter");
-    if (schalterAn) return;
-    schalterAn = true;
-    knopf.disabled = true;
-    knopf.textContent = "Schalter ist an";
-    feld.classList.add("aktiv");
-    hilf.status.textContent = "Jetzt oben links starten und zum Ausgang ziehen.";
-  });
-
-  function zelleUnter(e) {
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    return el && el.classList.contains("af-lab-zelle") ? el : null;
-  }
-
-  function zuruecksetzen(text) {
-    zieht = false;
-    pfad.forEach(z => z.classList.remove("weg"));
-    pfad = [];
-    hilf.status.textContent = text;
-  }
-
-  feld.addEventListener("pointerdown", e => {
-    if (!schalterAn) { hilf.status.textContent = "Erst den Schalter umlegen."; return; }
-    const zelle = zelleUnter(e);
-    if (!zelle || zelle.dataset.x !== "0" || zelle.dataset.y !== "0") return;
-    zieht = true;
-    pfad = [zelle];
-    zelle.classList.add("weg");
-    fangeZeiger(feld, e);
-    hilf.status.textContent = "Weiter …";
-  });
-
-  feld.addEventListener("pointermove", e => {
-    if (!zieht) return;
-    const zelle = zelleUnter(e);
-    if (!zelle || zelle === pfad[pfad.length - 1]) return;
-    if (zelle.classList.contains("wand")) { zuruecksetzen("Gegen die Wand – noch mal von oben links."); return; }
-    const letzte = pfad[pfad.length - 1];
-    const dx = Math.abs(Number(zelle.dataset.x) - Number(letzte.dataset.x));
-    const dy = Math.abs(Number(zelle.dataset.y) - Number(letzte.dataset.y));
-    if (dx + dy !== 1) { zuruecksetzen("Zu weit gesprungen – noch mal von oben links."); return; }
-    pfad.push(zelle);
-    zelle.classList.add("weg");
-    if (zelle.classList.contains("ziel")) {
-      zieht = false;
-      hilf.status.textContent = "Knotenpunkt aktiv!";
-      onFertig();
-    }
-  });
-
-  feld.addEventListener("pointerup", () => { if (zieht) zuruecksetzen("Losgelassen – noch mal von oben links."); });
-  feld.addEventListener("pointercancel", () => { if (zieht) zuruecksetzen("Abgebrochen – noch mal von oben links."); });
-
-  return () => {};
-}
-
 // ============================================================
-// Interaktive Spezial-Aufgaben
+// Sichtbare Aufgaben und Spezialgeräte
 // ============================================================
 
-// --- 18. Schaufensterpuppe anziehen: Vorlage nachstellen ---
-function aufgabePuppe(container, onFertig) {
-  const TEILE = [
-    { id: "hut",    label: "Kopf",  auswahl: ["🎩", "🧢", "⛑️"] },
-    { id: "brille", label: "Brille", auswahl: ["🕶️", "👓", "🥽"] },
-    { id: "kleid",  label: "Kleidung", auswahl: ["🧥", "👕", "🦺"] }
-  ];
-  const vorlage = {};
-  TEILE.forEach(t => { vorlage[t.id] = zufallAus(t.auswahl); });
-  const gewaehlt = {};
+// --- Scan durchführen (MedBay): die sichtbarste Aufgabe des Originals ---
+// Wer hier steht, kann von niemandem verdächtigt werden — deshalb ist der Scan das härteste
+// Alibi im Spiel und deshalb dauert er absichtlich lange. Abbrechen zählt nicht.
+function aufgabeScan(container, onFertig) {
+  const DAUER_MS = 9000;
+  let vergangen = 0;
+  let laeuft = false;
 
-  const hilf = rahmen(container, "Zieh die Puppe genau so an wie auf der Vorlage.", `
-    <div class="af-puppe">
-      <div class="af-puppe-vorlage">
-        <span class="af-puppe-titel">Vorlage</span>
-        <div class="af-puppe-figur">${TEILE.map(t => `<span>${vorlage[t.id]}</span>`).join("")}</div>
-      </div>
-      <div class="af-puppe-eigen">
-        <span class="af-puppe-titel">Deine Puppe</span>
-        <div class="af-puppe-figur">${TEILE.map(t => `<span data-slot="${t.id}">·</span>`).join("")}</div>
+  const hilf = rahmen(container, "Stell dich auf die Plattform und halte still.", `
+    <div class="af-scanner">
+      <div class="af-scan-figur">🧍</div>
+      <div class="af-scan-strahl"></div>
+      <div class="af-scan-werte">
+        <span data-wert="groesse">Größe –</span>
+        <span data-wert="gewicht">Gewicht –</span>
+        <span data-wert="blut">Blutgruppe –</span>
       </div>
     </div>
-    <div class="af-puppe-auswahl">${TEILE.map(t => `
-      <div class="af-puppe-reihe" data-teil="${t.id}">
-        <span class="af-puppe-label">${t.label}</span>
-        ${t.auswahl.map(a => `<button type="button" class="af-puppe-knopf" data-teil="${t.id}" data-wert="${a}">${a}</button>`).join("")}
-      </div>`).join("")}</div>`);
-  hilf.status.textContent = "Noch nichts angezogen.";
+    <button type="button" class="af-scan-start">Scan starten</button>`);
+  hilf.status.textContent = "Bereit.";
 
-  function pruefe() {
-    const fehlend = TEILE.filter(t => !gewaehlt[t.id]).length;
-    if (fehlend > 0) { hilf.status.textContent = `Noch ${fehlend} Teil(e) offen.`; return; }
-    const passt = TEILE.every(t => gewaehlt[t.id] === vorlage[t.id]);
-    if (!passt) { hilf.status.textContent = "Etwas stimmt noch nicht mit der Vorlage überein."; return; }
-    hilf.alle(".af-puppe-knopf").forEach(b => { b.disabled = true; });
-    hilf.status.textContent = "Sitzt genau wie auf der Vorlage!";
-    onFertig();
+  const strahl = hilf.q(".af-scan-strahl");
+  const knopf = hilf.q(".af-scan-start");
+  const werte = hilf.alle(".af-scan-werte span");
+  const ergebnisse = [`Größe ${zufallZahl(160, 195)} cm`, `Gewicht ${zufallZahl(55, 95)} kg`,
+                      `Blutgruppe ${zufallAus(["A", "B", "AB", "0"])}${zufallAus(["+", "−"])}`];
+
+  knopf.addEventListener("click", () => {
+    if (laeuft) return;
+    laeuft = true;
+    knopf.disabled = true;
+    knopf.textContent = "Scan läuft …";
+    hilf.status.textContent = "Nicht bewegen.";
+  });
+
+  return taktgeber(delta => {
+    if (!laeuft || vergangen >= DAUER_MS) return;
+    vergangen = Math.min(vergangen + delta, DAUER_MS);
+    const anteil = vergangen / DAUER_MS;
+    strahl.style.top = `${Math.round(anteil * 100)}%`;
+    // Die drei Werte erscheinen nacheinander — das macht den Fortschritt ohne Balken sichtbar.
+    werte.forEach((el, i) => { if (anteil > (i + 1) / 4) el.textContent = ergebnisse[i]; });
+    if (anteil >= 1) {
+      knopf.textContent = "Fertig";
+      hilf.status.textContent = "Scan übermittelt!";
+      onFertig();
+    }
+  }, 80);
+}
+
+// --- Triebwerk betanken: Kanister im Lager füllen, dann im Motorraum leeren ---
+// Zweiteilig wie im Original, und beide Hälften sind Halten-Aufgaben: man steht sichtbar
+// still, erst an der Tankstation, dann am Triebwerk.
+function aufgabeBetanken(container, onFertig, optionen) {
+  optionen = optionen || {};
+  const fuellen = (optionen.teil || 1) === 1;
+  const DAUER_MS = 3000;
+  let gehalten = 0;
+  let haelt = false;
+  let fertig = false;
+
+  const zielRaum = fuellen && optionen.zielRaum ? ` Danach ab damit nach ${optionen.zielRaum}.` : "";
+  const hilf = rahmen(container, fuellen
+    ? "Halte den Zapfhahn, bis der Kanister voll ist."
+    : "Halte den Kanister über den Einfüllstutzen, bis er leer ist.", `
+    <div class="af-tank">
+      <div class="af-kanister"><div class="af-kanister-inhalt"></div><span>⛽</span></div>
+    </div>
+    <button type="button" class="af-tankhebel">${fuellen ? "Zapfhahn halten" : "Kanister kippen"}</button>`);
+  hilf.status.textContent = fuellen ? "Kanister ist leer." : "Kanister ist voll.";
+
+  const inhalt = hilf.q(".af-kanister-inhalt");
+  const hebel = hilf.q(".af-tankhebel");
+  if (!fuellen) inhalt.style.height = "100%";
+
+  const stopp = taktgeber(delta => {
+    if (fertig) return;
+    if (haelt) gehalten = Math.min(gehalten + delta, DAUER_MS);
+    else if (gehalten > 0) gehalten = Math.max(gehalten - delta * 1.4, 0);
+    const anteil = gehalten / DAUER_MS;
+    inhalt.style.height = `${Math.round((fuellen ? anteil : 1 - anteil) * 100)}%`;
+    if (anteil >= 1) {
+      fertig = true;
+      haelt = false;
+      hebel.disabled = true;
+      hebel.classList.remove("gedrueckt");
+      hilf.status.textContent = fuellen ? "Kanister ist voll." + zielRaum : "Triebwerk betankt!";
+      onFertig();
+    } else {
+      hilf.status.textContent = haelt ? `Läuft … ${Math.round(anteil * 100)} %` : "Halten." + zielRaum;
+    }
+  });
+
+  const halte = e => { if (fertig) return; haelt = true; fangeZeiger(hebel, e); hebel.classList.add("gedrueckt"); };
+  const lasse = () => { haelt = false; hebel.classList.remove("gedrueckt"); };
+  hebel.addEventListener("pointerdown", halte);
+  hebel.addEventListener("pointerup", lasse);
+  hebel.addEventListener("pointercancel", lasse);
+  hebel.addEventListener("pointerleave", lasse);
+
+  return stopp;
+}
+
+// --- Lenkung ausrichten: das Fadenkreuz driftet weg, zurückziehen und halten ---
+function aufgabeLenkung(container, onFertig) {
+  const HALTEN_MS = 1800;
+  const TOLERANZ = 12;          // Prozent Abstand zur Mitte
+  let pos = { x: zufallZahl(20, 80), y: zufallZahl(20, 80) };
+  let zieht = false;
+  let imZiel = 0;
+  let fertig = false;
+
+  const hilf = rahmen(container, "Zieh das Fadenkreuz in die Mitte und halte es dort.", `
+    <div class="af-lenkung">
+      <div class="af-lenk-mitte"></div>
+      <div class="af-lenk-kreuz">✛</div>
+      <div class="af-lenk-balken"><div class="af-lenk-fuellung"></div></div>
+    </div>`);
+  hilf.status.textContent = "Der Kurs läuft weg.";
+
+  const feld = hilf.q(".af-lenkung");
+  const kreuz = hilf.q(".af-lenk-kreuz");
+  const fuellung = hilf.q(".af-lenk-fuellung");
+
+  function zeichne() {
+    kreuz.style.left = `${pos.x}%`;
+    kreuz.style.top = `${pos.y}%`;
   }
+  zeichne();
 
-  hilf.alle(".af-puppe-knopf").forEach(btn => {
+  feld.addEventListener("pointerdown", e => { if (!fertig) { zieht = true; fangeZeiger(feld, e); } });
+  feld.addEventListener("pointermove", e => {
+    if (!zieht || fertig) return;
+    pos = { x: anteilIn(feld, e, "x") * 100, y: anteilIn(feld, e, "y") * 100 };
+    zeichne();
+  });
+  const los = () => { zieht = false; };
+  feld.addEventListener("pointerup", los);
+  feld.addEventListener("pointercancel", los);
+
+  return taktgeber(delta => {
+    if (fertig) return;
+    const ab = Math.hypot(pos.x - 50, pos.y - 50);
+    // Ohne Hand driftet der Kurs weiter weg — sonst könnte man einmal ziehen und warten.
+    if (!zieht && ab < 95) {
+      const richtung = ab < 0.5 ? { x: 1, y: 0 } : { x: (pos.x - 50) / ab, y: (pos.y - 50) / ab };
+      pos = { x: Math.min(Math.max(pos.x + richtung.x * delta * 0.012, 0), 100),
+              y: Math.min(Math.max(pos.y + richtung.y * delta * 0.012, 0), 100) };
+      zeichne();
+    }
+    if (ab <= TOLERANZ) imZiel += delta; else imZiel = Math.max(imZiel - delta, 0);
+    fuellung.style.width = `${Math.round(Math.min(imZiel / HALTEN_MS, 1) * 100)}%`;
+    kreuz.classList.toggle("gut", ab <= TOLERANZ);
+    if (imZiel >= HALTEN_MS) {
+      fertig = true;
+      hilf.status.textContent = "Lenkung stabil!";
+      onFertig();
+    } else {
+      hilf.status.textContent = ab <= TOLERANZ ? "Halten …" : "Zurück in die Mitte.";
+    }
+  });
+}
+
+// --- Schilde aktivieren: alle roten Segmente antippen ---
+function aufgabeSchilde(container, onFertig) {
+  const ANZAHL = 7;
+  const aus = mischen([0, 1, 2, 3, 4, 5, 6]).slice(0, zufallZahl(4, 6));
+  let offen = aus.length;
+
+  const hilf = rahmen(container, "Tippe alle roten Segmente an, bis der Schild steht.", `
+    <div class="af-schild">${Array.from({ length: ANZAHL }, (_, i) =>
+      `<button type="button" class="af-schild-teil${aus.indexOf(i) === -1 ? " an" : ""}" data-i="${i}"></button>`).join("")}
+      <div class="af-schild-kern">🛡️</div>
+    </div>`);
+  hilf.status.textContent = `${offen} von ${ANZAHL} Segmenten aus`;
+
+  hilf.alle(".af-schild-teil").forEach(btn => {
     btn.addEventListener("click", () => {
-      const teil = btn.dataset.teil;
-      gewaehlt[teil] = btn.dataset.wert;
-      hilf.alle(`.af-puppe-knopf[data-teil="${teil}"]`).forEach(b => b.classList.remove("aktiv"));
-      btn.classList.add("aktiv");
-      hilf.q(`[data-slot="${teil}"]`).textContent = btn.dataset.wert;
-      pruefe();
+      if (btn.classList.contains("an")) return;
+      btn.classList.add("an");
+      offen--;
+      if (offen <= 0) {
+        hilf.q(".af-schild-kern").classList.add("an");
+        hilf.status.textContent = "Schild steht!";
+        onFertig();
+        return;
+      }
+      hilf.status.textContent = `${offen} von ${ANZAHL} Segmenten aus`;
     });
   });
 
   return () => {};
 }
 
-// --- 19. Marshmallows rösten: über dem Feuer halten, bis er goldbraun ist ---
-// Loslassen im Fenster zählt; zu lange halten verbrennt ihn und man fängt von vorn an.
-function aufgabeMarshmallow(container, onFertig) {
-  const GUT_AB = 2400;
-  const VERBRANNT_AB = 3800;
-  let zeit = 0;
-  let haelt = false;
-  let fertig = false;
-
-  const hilf = rahmen(container, "Halte den Marshmallow über das Feuer – goldbraun, nicht schwarz.", `
-    <div class="af-lagerfeuer">
-      <div class="af-marshmallow">🍡</div>
-      <div class="af-feuer">🔥</div>
-      <div class="af-roestbalken">
-        <div class="af-roestzone"></div>
-        <div class="af-roestpegel"></div>
-      </div>
-    </div>
-    <button type="button" class="af-roestknopf">Über das Feuer halten</button>`);
-  hilf.status.textContent = "Roh.";
-
-  const marsh = hilf.q(".af-marshmallow");
-  const pegel = hilf.q(".af-roestpegel");
-  const knopf = hilf.q(".af-roestknopf");
-
-  const stopp = taktgeber(delta => {
-    if (fertig) return;
-    if (haelt) zeit += delta;
-    const anteil = Math.min(zeit / VERBRANNT_AB, 1);
-    pegel.style.width = `${Math.round(anteil * 100)}%`;
-    if (zeit >= VERBRANNT_AB) {
-      zeit = 0;
-      haelt = false;
-      knopf.classList.remove("gedrueckt");
-      marsh.textContent = "🌑";
-      hilf.status.textContent = "Verbrannt – nimm einen neuen.";
-      setTimeout(() => { if (!fertig) marsh.textContent = "🍡"; }, 900);
-      return;
-    }
-    if (zeit >= GUT_AB) { marsh.textContent = "🟤"; hilf.status.textContent = "Goldbraun – jetzt loslassen!"; }
-    else if (zeit > 800) { marsh.textContent = "🍡"; hilf.status.textContent = "Wird warm …"; }
-  });
-
-  const halte = e => { if (fertig) return; haelt = true; fangeZeiger(knopf, e); knopf.classList.add("gedrueckt"); };
-  const lasse = () => {
-    if (fertig || !haelt) return;
-    haelt = false;
-    knopf.classList.remove("gedrueckt");
-    if (zeit >= GUT_AB && zeit < VERBRANNT_AB) {
-      fertig = true;
-      knopf.disabled = true;
-      marsh.textContent = "🟤";
-      hilf.status.textContent = "Perfekt geröstet!";
-      onFertig();
-    } else {
-      zeit = 0;
-      pegel.style.width = "0%";
-      hilf.status.textContent = "Zu früh – noch mal.";
-    }
-  };
-  knopf.addEventListener("pointerdown", halte);
-  knopf.addEventListener("pointerup", lasse);
-  knopf.addEventListener("pointercancel", lasse);
-  knopf.addEventListener("pointerleave", lasse);
-
-  return stopp;
-}
-
-// --- 20. Gemüse hacken: mit Wischgesten quer über die Zutat ---
-function aufgabeGemuese(container, onFertig) {
-  const ZUTATEN = ["🥕", "🥒", "🌶️", "🍆"];
-  const runde = mischen(ZUTATEN).slice(0, 3);
-  let index = 0;
-  let hiebe = 0;
-  const HIEBE_PRO_ZUTAT = 3;
+// --- Karte durchziehen (Swipe Card): weder zu schnell noch zu langsam ---
+// Die berüchtigtste Aufgabe des Originals. Genau deshalb prüft sie die Geschwindigkeit und
+// nicht nur, DASS gewischt wurde.
+function aufgabeSwipe(container, onFertig) {
+  const MIN_MS = 350, MAX_MS = 1200;
   let start = null;
 
-  const hilf = rahmen(container, "Wisch quer über die Zutat, um sie zu zerkleinern.", `
-    <div class="af-brett">
-      <div class="af-zutat"></div>
-      <div class="af-stuecke"></div>
+  const hilf = rahmen(container, "Zieh die Karte gleichmäßig durch den Leser – nicht zu schnell, nicht zu langsam.", `
+    <div class="af-leser">
+      <div class="af-leser-schlitz"></div>
+      <div class="af-karte" style="left:2%">💳</div>
     </div>`);
+  hilf.status.textContent = "Karte von links nach rechts ziehen.";
 
-  const brett = hilf.q(".af-brett");
-  const zutat = hilf.q(".af-zutat");
-  const stuecke = hilf.q(".af-stuecke");
+  const leser = hilf.q(".af-leser");
+  const karte = hilf.q(".af-karte");
 
-  function zeige() {
-    zutat.textContent = runde[index];
-    stuecke.textContent = "";
-    hiebe = 0;
-    hilf.status.textContent = `Zutat ${index + 1} von ${runde.length}`;
-  }
-
-  brett.addEventListener("pointerdown", e => {
-    start = { x: e.clientX, y: e.clientY };
-    fangeZeiger(brett, e);
+  leser.addEventListener("pointerdown", e => {
+    const p = anteilIn(leser, e, "x");
+    if (p > 0.25) { hilf.status.textContent = "Ganz links anfassen."; return; }
+    start = { zeit: Date.now(), x: p };
+    fangeZeiger(leser, e);
   });
 
-  brett.addEventListener("pointerup", e => {
-    if (!start || index >= runde.length) { start = null; return; }
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
+  leser.addEventListener("pointermove", e => {
+    if (!start) return;
+    karte.style.left = `${anteilIn(leser, e, "x") * 100}%`;
+  });
+
+  function ende(e) {
+    if (!start) return;
+    const p = anteilIn(leser, e, "x");
+    const dauer = Date.now() - start.zeit;
     start = null;
-    // Ein Hieb ist ein deutlicher, überwiegend senkrechter Wisch — ein Tippen zählt nicht,
-    // sonst wäre die Aufgabe mit dreimal Antippen erledigt.
-    if (Math.abs(dy) < 40 || Math.abs(dy) < Math.abs(dx)) {
-      hilf.status.textContent = "Zu zaghaft – kräftig von oben nach unten wischen.";
+    if (p < 0.8) {
+      karte.style.left = "2%";
+      hilf.status.textContent = "Zu kurz – ganz durchziehen.";
       return;
     }
-    hiebe++;
-    stuecke.textContent += runde[index];
-    zutat.classList.add("hieb");
-    setTimeout(() => zutat.classList.remove("hieb"), 160);
-    if (hiebe < HIEBE_PRO_ZUTAT) {
-      hilf.status.textContent = `Zutat ${index + 1}: noch ${HIEBE_PRO_ZUTAT - hiebe} Schnitte`;
-      return;
-    }
-    index++;
-    if (index >= runde.length) {
-      zutat.textContent = "🥗";
-      hilf.status.textContent = "Alles klein!";
-      onFertig();
-      return;
-    }
-    zeige();
-  });
+    if (dauer < MIN_MS) { karte.style.left = "2%"; hilf.status.textContent = "Zu schnell. Noch mal."; return; }
+    if (dauer > MAX_MS) { karte.style.left = "2%"; hilf.status.textContent = "Zu langsam. Noch mal."; return; }
+    karte.style.left = "92%";
+    hilf.status.textContent = "Akzeptiert!";
+    onFertig();
+  }
+  leser.addEventListener("pointerup", ende);
+  leser.addEventListener("pointercancel", () => { start = null; });
 
-  brett.addEventListener("pointercancel", () => { start = null; });
-
-  zeige();
   return () => {};
 }
 
@@ -1449,29 +1246,24 @@ const AUFGABEN_TYPEN = {
   // Reaktoren, Zahlen & Muster
   reaktor:      { name: "Reaktor starten",       start: aufgabeReaktor },
   manifold:     { name: "Manifold entsperren",   start: aufgabeManifold },
-  proben:       { name: "Proben analysieren",    start: aufgabeProben, wartenSek: WARTEZEIT_SEK, sichtbar: "🧪" },
+  proben:       { name: "Proben analysieren",    start: aufgabeProben, wartenSek: WARTEZEIT_SEK },
+  scan:         { name: "Scan durchführen",      start: aufgabeScan, sichtbar: "🩺" },
   // Strom & Verkabelung
   kabel:        { name: "Kabel reparieren",      start: aufgabeKabel, teile: 3 },
   strom:        { name: "Strom umleiten",        start: aufgabeStrom, kette: ["electrical", "*"] },
   verteiler:    { name: "Verteiler kalibrieren", start: aufgabeVerteiler },
-  sicherungen:  { name: "Sicherungen zurücksetzen", start: aufgabeSicherungen },
-  // Navigation & Zielgenauigkeit
-  kurs:         { name: "Kurs stabilisieren",    start: aufgabeKurs },
+  // Antrieb & Navigation
   triebwerk:    { name: "Triebwerke ausrichten", start: aufgabeTriebwerk },
+  betanken:     { name: "Triebwerk betanken",    start: aufgabeBetanken, kette: ["storage", "*"], sichtbar: "⛽" },
+  kurs:         { name: "Kurs stabilisieren",    start: aufgabeKurs },
+  lenkung:      { name: "Lenkung ausrichten",    start: aufgabeLenkung },
   asteroiden:   { name: "Asteroiden zerstören",  start: aufgabeAsteroiden, sichtbar: "💥" },
-  teleskop:     { name: "Teleskop ausrichten",   start: aufgabeTeleskop },
-  // Müll & Reinigung
+  schilde:      { name: "Schilde aktivieren",    start: aufgabeSchilde, sichtbar: "🛡️" },
+  // Versorgung & Daten
   muell:        { name: "Müll entsorgen",        start: aufgabeMuell, sichtbar: "🗑️" },
-  filter:       { name: "Filter reinigen",       start: aufgabeFilter, sichtbar: "🍃" },
-  poempel:      { name: "Pömpel bedienen",       start: aufgabePoempel },
-  // Daten & Signale
+  filter:       { name: "Filter reinigen",       start: aufgabeFilter },
   daten:        { name: "Daten übertragen",      start: aufgabeDaten, kette: ["*", "admin"] },
-  wlan:         { name: "WLAN-Router neustarten", start: aufgabeWlan, wartenSek: WARTEZEIT_SEK },
-  knoten:       { name: "Knotenpunkt aktivieren", start: aufgabeKnoten },
-  // Interaktive Spezial-Aufgaben
-  puppe:        { name: "Schaufensterpuppe anziehen", start: aufgabePuppe },
-  marshmallow:  { name: "Marshmallows rösten",   start: aufgabeMarshmallow, sichtbar: "🔥" },
-  gemuese:      { name: "Gemüse hacken",         start: aufgabeGemuese }
+  swipe:        { name: "Karte durchziehen",     start: aufgabeSwipe }
 };
 
 const aufgabenModul = { AUFGABEN_TYPEN, reparaturLicht, reparaturKuehlung, mischen, WARTEZEIT_SEK };

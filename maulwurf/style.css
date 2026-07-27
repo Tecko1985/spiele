@@ -392,20 +392,21 @@ body.im-spiel .aktions-leiste {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px;
 }
 
-/* --- Warteaufgaben (Proben analysieren, WLAN neu starten) --- */
+/* --- Warteaufgabe (Proben analysieren) --- */
 .af-warte { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .af-warte-symbol { font-size: 52px; line-height: 1; }
 .af-warte-symbol.dreht { animation: af-puls 1.6s ease-in-out infinite; }
 @keyframes af-puls { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.92); } }
-.af-warte-start, .af-wlan-hebel, .af-daten-start, .af-knotenschalter, .af-stoppknopf,
-.af-muellhebel, .af-roestknopf, .af-hauptschalter {
+.af-warte-start, .af-daten-start, .af-stoppknopf, .af-muellhebel,
+.af-hauptschalter, .af-scan-start, .af-tankhebel {
   padding: 14px 22px; font-size: 16px; font-weight: 700; cursor: pointer; touch-action: none;
   border: 2px solid var(--primary); border-radius: var(--radius-sm); background: var(--primary); color: #fff;
 }
-.af-warte-start:disabled, .af-wlan-hebel:disabled, .af-daten-start:disabled,
-.af-knotenschalter:disabled, .af-muellhebel:disabled, .af-roestknopf:disabled,
-.af-hauptschalter:disabled { background: #94a3b8; border-color: #94a3b8; cursor: default; }
-.af-muellhebel.gedrueckt, .af-roestknopf.gedrueckt { background: var(--success); border-color: var(--success); }
+.af-warte-start:disabled, .af-daten-start:disabled, .af-muellhebel:disabled,
+.af-hauptschalter:disabled, .af-scan-start:disabled, .af-tankhebel:disabled {
+  background: #94a3b8; border-color: #94a3b8; cursor: default;
+}
+.af-muellhebel.gedrueckt, .af-tankhebel.gedrueckt { background: var(--success); border-color: var(--success); }
 .af-warte-balken, .af-daten-balken {
   width: 100%; max-width: 320px; height: 16px; border-radius: 999px;
   background: #e2e8f0; overflow: hidden;
@@ -491,19 +492,6 @@ body.im-spiel .aktions-leiste {
 .af-skala-zeiger.gut { background: var(--success); }
 .af-skala-zeiger.falsch { background: var(--gefahr); }
 
-/* --- 7. Sicherungen zurücksetzen (nicht .af-sicherung, das ist die Licht-Reparatur) --- */
-.af-reset-block { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; }
-.af-reset-hebel {
-  width: 42px; height: 74px; border-radius: 8px; cursor: pointer; padding: 6px 0;
-  border: 2px solid var(--border); background: #f3f4f6;
-  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-}
-.af-reset-griff { width: 16px; height: 30px; border-radius: 4px; background: #94a3b8; }
-.af-reset-hebel.gut { background: #dcfce7; border-color: var(--success); }
-.af-reset-hebel.gut .af-reset-griff { background: var(--success); transform: translateY(-6px); }
-.af-reset-hebel.falsch { background: #fee2e2; border-color: var(--gefahr); }
-.af-reset-nr { font-size: 12px; font-weight: 800; color: var(--muted); }
-
 /* --- 8. Kurs stabilisieren --- */
 .af-kursfeld {
   position: relative; width: 100%; height: 150px; border-radius: var(--radius-sm);
@@ -548,23 +536,6 @@ body.im-spiel .aktions-leiste {
 }
 .af-asteroid.treffer { transform: scale(1.7); opacity: 0; transition: transform .2s, opacity .2s; }
 
-/* --- 11. Teleskop ausrichten --- */
-.af-teleskop {
-  position: relative; width: 100%; height: 165px; border-radius: 50% / 22%;
-  background: radial-gradient(circle at 50% 50%, #0b1220 60%, #000); overflow: hidden;
-  touch-action: none; cursor: grab; border: 3px solid var(--border);
-}
-.af-teleskop.im-ziel { border-color: var(--success); }
-.af-himmel { position: absolute; inset: -50%; width: 200%; height: 200%; }
-.af-himmelsobjekt { position: absolute; font-size: 30px; margin: -15px 0 0 -15px; }
-.af-fadenkreuz span {
-  position: absolute; background: rgba(226, 232, 240, .55);
-}
-.af-fadenkreuz span:first-child { left: 50%; top: 38%; width: 1px; height: 24%; }
-.af-fadenkreuz span:last-child { top: 50%; left: 44%; height: 1px; width: 12%; }
-.af-teleskop.im-ziel .af-fadenkreuz span { background: #4ade80; }
-.af-teleskop-hinweis { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
-
 /* --- 12. Müll entsorgen --- */
 .af-muellschacht {
   position: relative; width: 100%; max-width: 220px; height: 120px; margin: 0 auto 12px;
@@ -589,109 +560,10 @@ body.im-spiel .aktions-leiste {
   display: flex; align-items: center; justify-content: center;
 }
 
-/* --- 14. Pömpel bedienen --- */
-.af-poempel { display: flex; gap: 20px; justify-content: center; align-items: stretch; }
-.af-poempel-schacht {
-  position: relative; width: 90px; height: 160px; border-radius: 12px;
-  background: #e2e8f0; border: 2px solid var(--border); touch-action: none; cursor: pointer;
-}
-.af-poempel-griff { position: absolute; left: 50%; font-size: 32px; margin: -16px 0 0 -16px; pointer-events: none; }
-.af-druckanzeige {
-  position: relative; width: 46px; border-radius: 8px;
-  background: #f1f5f9; border: 2px solid var(--border); overflow: hidden;
-}
-.af-druckgrenze { position: absolute; left: 0; right: 0; top: 0; height: 22%; background: rgba(5, 122, 85, .25); }
-.af-druckpegel { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: var(--primary); transition: height .15s; }
-.af-druckpegel.gut { background: var(--success); }
-
 /* --- 15. Daten übertragen --- */
 .af-daten { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .af-daten-symbol { font-size: 40px; font-weight: 800; color: var(--primary); }
 .af-daten-prozent { font-size: 20px; font-weight: 800; color: var(--primary); }
-
-/* --- 16. WLAN-Router --- */
-.af-wlan { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.af-wlan-symbol { font-size: 52px; filter: grayscale(1); }
-.af-wlan-symbol.an { filter: none; }
-
-/* --- 17. Knotenpunkt aktivieren --- */
-.af-labyrinth {
-  display: grid; grid-template-columns: repeat(5, 46px); gap: 3px; justify-content: center;
-  margin-top: 12px; opacity: .45; pointer-events: none; touch-action: none;
-}
-.af-labyrinth.aktiv { opacity: 1; pointer-events: auto; }
-.af-lab-zelle { width: 46px; height: 46px; border-radius: 6px; background: #e2e8f0; }
-.af-lab-zelle.wand { background: #334155; }
-.af-lab-zelle.start { background: #bfdbfe; }
-.af-lab-zelle.ziel { background: #bbf7d0; }
-.af-lab-zelle.weg { background: var(--primary); }
-.af-lab-zelle.ziel.weg { background: var(--success); }
-
-/* --- 18. Schaufensterpuppe anziehen --- */
-.af-puppe { display: flex; gap: 16px; justify-content: center; margin-bottom: 12px; }
-.af-puppe-vorlage, .af-puppe-eigen {
-  flex: 1; max-width: 150px; border-radius: var(--radius-sm);
-  border: 2px solid var(--border); background: #fff; padding: 8px;
-}
-.af-puppe-vorlage { border-color: var(--primary); }
-.af-puppe-titel { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-.af-puppe-figur { display: flex; flex-direction: column; align-items: center; font-size: 26px; line-height: 1.15; }
-.af-puppe-auswahl { display: flex; flex-direction: column; gap: 6px; }
-.af-puppe-reihe { display: flex; align-items: center; gap: 6px; justify-content: center; }
-.af-puppe-label { font-size: 12px; color: var(--muted); width: 64px; text-align: right; }
-.af-puppe-knopf {
-  width: 46px; height: 42px; border-radius: 8px; font-size: 22px; cursor: pointer;
-  border: 2px solid var(--border); background: #fff;
-}
-.af-puppe-knopf.aktiv { border-color: var(--primary); background: #dbeafe; }
-.af-puppe-knopf:disabled { cursor: default; opacity: .7; }
-
-/* --- 19. Marshmallows rösten --- */
-.af-lagerfeuer { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 12px; }
-.af-marshmallow { font-size: 40px; }
-.af-feuer { font-size: 34px; animation: af-flackern .7s ease-in-out infinite alternate; }
-@keyframes af-flackern { from { transform: scale(1) rotate(-3deg); } to { transform: scale(1.12) rotate(3deg); } }
-.af-roestbalken {
-  position: relative; width: 100%; max-width: 260px; height: 16px;
-  border-radius: 999px; background: #e2e8f0; overflow: hidden;
-}
-.af-roestzone { position: absolute; left: 63%; right: 0; top: 0; bottom: 0; background: rgba(5, 122, 85, .3); }
-.af-roestpegel { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #b45309; }
-
-/* --- 20. Gemüse hacken --- */
-.af-brett {
-  width: 100%; height: 150px; border-radius: var(--radius-sm);
-  background: #fef3c7; border: 3px solid #d6a760; touch-action: none; cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-}
-.af-zutat { font-size: 46px; }
-.af-zutat.hieb { transform: scale(.8) rotate(-8deg); }
-.af-stuecke { font-size: 18px; letter-spacing: 2px; min-height: 22px; }
-
-/* Aufgabenliste: Schrittnummer mehrteiliger Aufgaben und gesperrte Kettenteile */
-.aufgaben-liste .teilnummer {
-  font-size: 11px; font-weight: 700; color: var(--muted);
-  background: #e2e8f0; border-radius: 999px; padding: 1px 7px; margin-left: 4px;
-}
-.aufgaben-liste li.gesperrt { opacity: .6; }
-.aufgaben-liste li.gesperrt .teilnummer { background: #fde68a; color: #92400e; }
-
-.af-sicherungen { display: flex; gap: 8px; justify-content: center; }
-.af-sicherung {
-  width: 46px; height: 76px; border-radius: 8px;
-  border: 2px solid var(--border); background: #f3f4f6; color: var(--muted);
-  font-size: 20px; cursor: pointer;
-}
-.af-sicherung.oben { background: var(--success); border-color: var(--success); color: #fff; }
-
-.af-ventil {
-  width: 130px; height: 130px; border-radius: 50%;
-  border: 4px solid var(--primary); background: #fff; color: var(--primary);
-  font-size: 40px; cursor: pointer; touch-action: none;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-}
-.af-ventil span { font-size: 13px; font-weight: 600; }
-.af-ventil.aktiv { background: var(--success); border-color: var(--success); color: #fff; }
 
 /* ---------- Meeting ---------- */
 .meeting-kopf { display: flex; justify-content: space-between; align-items: center; }
@@ -813,3 +685,77 @@ nav.tabs button.active { color: var(--primary); border-bottom-color: var(--prima
   .af-zutat { font-size: 38px; }
   .af-warte-symbol, .af-wlan-symbol { font-size: 42px; }
 }
+
+/* --- Scan durchführen (MedBay) --- */
+.af-scanner {
+  position: relative; width: 100%; max-width: 300px; height: 170px; margin: 0 auto 12px;
+  border-radius: var(--radius-sm); border: 2px solid var(--border);
+  background: linear-gradient(#e0f2fe, #f8fafc); overflow: hidden;
+}
+.af-scan-figur { position: absolute; left: 50%; top: 8%; margin-left: -22px; font-size: 46px; }
+.af-scan-strahl {
+  position: absolute; left: 0; right: 0; top: 0; height: 4px;
+  background: #22d3ee; box-shadow: 0 0 14px 3px rgba(34, 211, 238, .8);
+}
+.af-scan-werte {
+  position: absolute; left: 0; right: 0; bottom: 4px;
+  display: flex; justify-content: space-around; font-size: 11px; font-weight: 700; color: var(--primary);
+}
+
+/* --- Triebwerk betanken --- */
+.af-tank { display: flex; justify-content: center; margin-bottom: 12px; }
+.af-kanister {
+  position: relative; width: 92px; height: 130px; border-radius: 10px;
+  border: 3px solid var(--border); background: #f1f5f9; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.af-kanister span { position: relative; font-size: 40px; }
+.af-kanister-inhalt {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+  background: rgba(180, 83, 9, .45); transition: height .1s linear;
+}
+
+/* --- Lenkung ausrichten --- */
+.af-lenkung {
+  position: relative; width: 100%; height: 170px; border-radius: var(--radius-sm);
+  background: radial-gradient(circle at 50% 50%, #0f172a, #020617);
+  touch-action: none; cursor: pointer; overflow: hidden;
+}
+.af-lenk-mitte {
+  position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px;
+  border: 2px dashed rgba(148, 163, 184, .7); border-radius: 50%;
+}
+.af-lenk-kreuz {
+  position: absolute; font-size: 26px; color: #fbbf24; margin: -14px 0 0 -9px; pointer-events: none;
+}
+.af-lenk-kreuz.gut { color: #4ade80; }
+.af-lenk-balken {
+  position: absolute; left: 10%; right: 10%; bottom: 8px; height: 10px;
+  border-radius: 999px; background: rgba(148, 163, 184, .3);
+}
+.af-lenk-fuellung { height: 100%; width: 0%; border-radius: 999px; background: var(--success); }
+
+/* --- Schilde aktivieren --- */
+.af-schild {
+  position: relative; width: 190px; height: 190px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 5px;
+}
+.af-schild-teil { border-radius: 8px; border: 2px solid #b91c1c; background: #fecaca; cursor: pointer; }
+.af-schild-teil.an { border-color: var(--success); background: #bbf7d0; cursor: default; }
+.af-schild-kern {
+  position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px;
+  border-radius: 50%; background: #e2e8f0; border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center; font-size: 26px; filter: grayscale(1);
+}
+.af-schild-kern.an { filter: none; background: #dcfce7; border-color: var(--success); }
+
+/* --- Karte durchziehen (Swipe Card) --- */
+.af-leser {
+  position: relative; width: 100%; height: 110px; border-radius: var(--radius-sm);
+  background: #1e293b; touch-action: none; cursor: pointer; overflow: hidden;
+}
+.af-leser-schlitz {
+  position: absolute; left: 0; right: 0; top: 50%; height: 14px; margin-top: -7px;
+  background: #0f172a; box-shadow: inset 0 2px 5px rgba(0, 0, 0, .7);
+}
+.af-karte { position: absolute; top: 22%; font-size: 34px; }

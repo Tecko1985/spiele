@@ -75,7 +75,7 @@ const RAEUME = [
   { id: "navigation",   name: "Navigation",    x: 2300, y: 540,  w: 260, h: 310 },
   // untere Reihe
   { id: "lower-engine", name: "Unterer Motor", x: 190,  y: 990,  w: 330, h: 310 },
-  { id: "electrical",   name: "Elektrik",      x: 640,  y: 990,  w: 200, h: 310 },
+  { id: "electrical",   name: "Elektrik",      x: 560,  y: 990,  w: 280, h: 310 },
   { id: "storage",      name: "Lager",         x: 1080, y: 990,  w: 420, h: 310 },
   { id: "comms",        name: "Kommunikation", x: 1560, y: 990,  w: 320, h: 310 },
   { id: "shields",      name: "Schilde",       x: 2060, y: 990,  w: 320, h: 310 }
@@ -200,7 +200,7 @@ const TUEREN = [
 // gegeneinander. Der Schachttest deckt das jetzt ab; Mindestabstand 79 px.
 const TUNNEL = [
   { id: "netz-todesdreieck", name: "Elektrik ↔ Krankenstation ↔ Sicherheit", farbe: "#a855f7", enden: [
-    { x: 820,  y: 1280, ort: "Elektrik" },
+    { x: 700,  y: 1265, ort: "Elektrik" },
     { x: 1020, y: 830,  ort: "Krankenstation" },
     { x: 780,  y: 830,  ort: "Sicherheit" }
   ] },
@@ -227,63 +227,57 @@ const TUNNEL = [
   ] }
 ];
 
-// Aufgabenstationen. 20 Typen an je 1–7 Standorten. Angegeben wird die Lage relativ zum Raum
-// (0..1), umgerechnet wird beim Laden — so bleibt die Tabelle lesbar und übersteht
+// Aufgabenstationen. Raum → Liste von [typ, xAnteil, yAnteil]; die Anteile sind relativ zum
+// Raum (0..1) und werden beim Laden umgerechnet. So bleibt die Tabelle lesbar und übersteht
 // Layoutänderungen.
 //
-// Wo das Original einen festen Ort vorgibt, steht die Aufgabe genau dort und nirgends sonst:
-// "Reaktor starten" nur im Reaktor, "Proben analysieren" nur in der Krankenstation,
-// "Verteiler kalibrieren" und "Sicherungen zurücksetzen" nur in der Elektrik. Das ist kein
-// Schönheitsfehler, sondern der Sinn der Sache — nur wenn ein Ort eindeutig ist, lässt sich
-// "ich war beim Reaktor" überhaupt anzweifeln.
+// **Zuordnung und Lage stammen aus dem Original** (Michels Aufstellung vom 2026-07-27), nicht
+// aus einem gleichmäßigen Verteilraster: der Müllhebel hängt rechts an der Wand der Cafeteria,
+// die Datenkonsole oben links, der Probentisch unten rechts in der Krankenstation. Genau das
+// macht Aussagen wie "ich stand hinten am Schaltkasten" überhaupt überprüfbar.
 //
-// Drei Typen brauchen mehrere Standorte, weil sie mehrteilig sind (siehe AUFGABEN_TYPEN):
-//   kabel  — 3 Teile in 3 verschiedenen Räumen, deshalb 6 Standorte zur Auswahl
-//   daten  — Teil 2 MUSS in der Verwaltung liegen (Hauptserver), Teil 1 überall sonst
-//   strom  — Teil 1 MUSS in der Elektrik liegen, Teil 2 im Zielraum
-// Wer hier Standorte streicht, muss diese drei Bedingungen erhalten, sonst findet
+// Räume mit nur einer Aufgabe (Sicherheit) sind Absicht — im Original ist die Sicherheit der
+// Kameraraum, nicht ein Arbeitsplatz.
+//
+// Vier Typen brauchen mehrere Standorte, weil sie mehrteilig sind (siehe AUFGABEN_TYPEN):
+//   kabel     3 Teile in 3 verschiedenen Räumen → 4 Standorte zur Auswahl
+//   daten     Teil 2 MUSS in der Verwaltung liegen (Hauptterminal), Teil 1 überall sonst
+//   strom     Teil 1 MUSS in der Elektrik liegen, Teil 2 im versorgten Raum
+//   betanken  Teil 1 MUSS im Lager liegen (Tankstation), Teil 2 in einem Motorraum
+// Wer hier Standorte streicht, muss diese Bedingungen erhalten, sonst findet
 // waehleAufgaben() keine gültige Kette mehr.
+//
+// **Die Lage ist nicht frei wählbar:** ermittleAktion() gibt nur EINE Aktion zurück. Stationen
+// dürfen deshalb nicht zu dicht an Sonderpunkten (Notfallknopf, Kamerapult, Reparaturstellen)
+// oder an Schachtenden liegen — Karten- und Schachttest prüfen die Abstände.
 const STATIONS_TABELLE = [
-  ["cafeteria",    ["kabel", "muell", "daten", "gemuese", "marshmallow"]],
-  ["upper-engine", ["triebwerk", "knoten", "poempel", "strom"]],
-  ["weapons",      ["asteroiden", "daten", "teleskop", "strom"]],
-  ["reactor",      ["reaktor", "manifold", "knoten"]],
-  // Nur drei Stationen: die Sicherheit ist Sackgasse UND Kameraraum. Mit einer vierten
-  // rückte eine Station bis auf 88 px an das Kamerapult heran, und weil ermittleAktion() nur
-  // EINE Aktion zurückgibt, wäre von manchen Standpunkten aus das Pult unerreichbar gewesen.
-  ["security",     ["kabel", "puppe", "strom"]],
-  ["medbay",       ["proben", "puppe", "filter", "gemuese"]],
-  ["admin",        ["kabel", "daten", "sicherungen", "muell"]],
-  ["o2",           ["filter", "knoten", "muell", "strom"]],
-  ["navigation",   ["kurs", "teleskop", "kabel", "daten", "strom"]],
-  ["lower-engine", ["triebwerk", "manifold", "poempel", "marshmallow"]],
-  // Nur drei Stationen: die Elektrik ist mit dem Umbau auf einen Eingang von 320 auf 200 px
-  // Breite geschrumpft. Mit fuenf Stationen rueckte der Sicherungskasten auf 73 px an eine
-  // heran -- und der ist der Reparaturplatz einer Sabotage, der muss frei erreichbar sein.
-  ["electrical",   ["kabel", "strom", "verteiler"]],
-  ["storage",      ["kabel", "muell", "puppe", "gemuese"]],
-  ["comms",        ["wlan", "daten", "kurs", "strom"]],
-  ["shields",      ["knoten", "teleskop", "asteroiden", "strom"]]
+  ["cafeteria",    [["daten", 0.12, 0.18], ["kabel", 0.28, 0.80], ["muell", 0.90, 0.50]]],
+  ["electrical",   [["strom", 0.50, 0.13], ["kabel", 0.18, 0.52], ["verteiler", 0.86, 0.52],
+                    ["daten", 0.18, 0.89]]],
+  ["reactor",      [["reaktor", 0.22, 0.40], ["manifold", 0.80, 0.40]]],
+  ["medbay",       [["scan", 0.35, 0.32], ["proben", 0.80, 0.80]]],
+  ["security",     [["daten", 0.50, 0.20]]],
+  ["upper-engine", [["triebwerk", 0.50, 0.42], ["betanken", 0.78, 0.75]]],
+  ["lower-engine", [["triebwerk", 0.50, 0.42], ["betanken", 0.78, 0.75]]],
+  ["storage",      [["muell", 0.12, 0.28], ["kabel", 0.85, 0.28], ["betanken", 0.50, 0.85]]],
+  ["admin",        [["kabel", 0.20, 0.20], ["daten", 0.50, 0.45], ["swipe", 0.80, 0.75]]],
+  ["weapons",      [["daten", 0.22, 0.30], ["asteroiden", 0.78, 0.25], ["strom", 0.50, 0.75]]],
+  ["o2",           [["filter", 0.22, 0.35], ["muell", 0.75, 0.28], ["strom", 0.62, 0.75]]],
+  ["navigation",   [["daten", 0.20, 0.55], ["lenkung", 0.58, 0.25], ["kurs", 0.80, 0.70]]],
+  ["shields",      [["schilde", 0.50, 0.25], ["strom", 0.82, 0.70]]],
+  ["comms",        [["daten", 0.30, 0.60], ["strom", 0.75, 0.32]]]
 ];
 
-// Verteilmuster innerhalb eines Raums, damit die Marker nicht übereinanderliegen.
-const STATIONS_RASTER = {
-  3: [[0.20, 0.30], [0.50, 0.72], [0.80, 0.30]],
-  4: [[0.18, 0.32], [0.40, 0.70], [0.62, 0.32], [0.84, 0.70]],
-  5: [[0.08, 0.35], [0.28, 0.70], [0.50, 0.30], [0.72, 0.70], [0.92, 0.35]]
-};
-
 const STATIONEN = [];
-STATIONS_TABELLE.forEach(([raumId, typen]) => {
+STATIONS_TABELLE.forEach(([raumId, eintraege]) => {
   const raum = RAEUME.find(r => r.id === raumId);
-  const raster = STATIONS_RASTER[typen.length];
-  typen.forEach((typ, i) => {
+  eintraege.forEach(([typ, ax, ay], i) => {
     STATIONEN.push({
       id: `st-${typ}-${raumId}-${i}`,
       typ,
       raum: raumId,
-      x: Math.round(raum.x + raster[i][0] * raum.w),
-      y: Math.round(raum.y + raster[i][1] * raum.h)
+      x: Math.round(raum.x + ax * raum.w),
+      y: Math.round(raum.y + ay * raum.h)
     });
   });
 });
@@ -301,7 +295,7 @@ STATIONS_TABELLE.forEach(([raumId, typen]) => {
 // bewusst in Raumecken statt in der Mitte — der Kartentest misst die verbleibende
 // Überlappungszone und lässt höchstens ein paar Pixel durch.
 const NOTFALLKNOPF = { x: 1340, y: 300, raum: "cafeteria" };
-const SICHERUNGSKASTEN = { x: 660, y: 1270, raum: "electrical" };
+const SICHERUNGSKASTEN = { x: 800, y: 1265, raum: "electrical" };
 const KUEHLUNG_A = { x: 100, y: 830, raum: "reactor" };
 const KUEHLUNG_B = { x: 1940, y: 830, raum: "o2" };
 // Das Kamerapult gibt der Sicherheit ihren Zweck — bis dahin war sie reines Risiko ohne
