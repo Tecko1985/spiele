@@ -79,7 +79,7 @@ const POSITION_INTERVALL_MS = 200;   // 5 Hz, siehe Schreibvolumen-Rechnung oben
 const POSITION_MINDEST_DELTA = 1.5;  // darunter wird gar nicht geschrieben
 const REVEAL_DAUER_MS = 4500;
 const MEETING_ERGEBNIS_MS = 6000;
-const SABOTAGE_HEIZUNG_MS = 45000;
+const SABOTAGE_REAKTOR_MS = 45000;
 const TUEREN_SPERRE_MS = 12000;
 const SABOTAGE_COOLDOWN_MS = 25000;
 // Wer die Kameras ansieht, verlängert seinen Eintrag alle 3 s um 8 s. Der Vorlauf ist Absicht:
@@ -441,7 +441,7 @@ function betretRaumLokal(code) {
   // Die eigene Rolle wird NICHT hier nachgeladen, sondern in verarbeiteRaumZustand — erst
   // dort ist die Rundennummer bekannt, gegen die die gespeicherte Box geprüft werden muss.
 
-  // Alle Countdowns (Diskussion, Abstimmung, Heizung, Rollen-Reveal) laufen gegen absolute
+  // Alle Countdowns (Diskussion, Abstimmung, Reaktor, Rollen-Reveal) laufen gegen absolute
   // Endzeitpunkte. Ohne eigenen Taktgeber würden sie nur bei einem Firebase-Update geprüft —
   // und genau während eines Countdowns schreibt oft niemand. Dieser Tick zieht die
   // Zustandsmaschine deshalb einmal pro Sekunde nach; alle darin aufgerufenen Prüfungen
@@ -1324,7 +1324,7 @@ async function sabotiere(typ, raumId) {
   const code = aktuellerRaumCode;
   if (!raum || !code || raum.phase !== "laeuft" || raum.meeting) return { erfolg: false };
   if (meineRolle !== "maulwurf") return { erfolg: false };
-  // Im Verstecken-Modus gibt es keine Sabotage. Die Heizung setzt darauf, dass zwei Leute
+  // Im Verstecken-Modus gibt es keine Sabotage. Der Reaktor setzt darauf, dass zwei Leute
   // gemeinsam reparieren und sich vorher absprechen — ohne Besprechung wäre sie ein reiner
   // Zeitzünder, und der Fänger gewänne, ohne jemanden gefangen zu haben.
   if (istVersteckModus(raum)) return { erfolg: false };
@@ -1341,13 +1341,13 @@ async function sabotiere(typ, raumId) {
   }
 
   if (raum.sabotage) return { erfolg: false, fehler: "Läuft schon eine Sabotage." };
-  // Funk und Flutlicht laufen beide ohne Countdown und werden von einer einzelnen Person
+  // Funk und Licht laufen beide ohne Countdown und werden von einer einzelnen Person
   // repariert — nur an unterschiedlichen Pulten und mit unterschiedlicher Wirkung.
-  const neu = typ === "heizung"
-    ? { typ: "heizung", endeAt: serverJetzt() + SABOTAGE_HEIZUNG_MS, ventile: null, reparaturClaim: null, aufloesungClaim: null }
+  const neu = typ === "reaktor"
+    ? { typ: "reaktor", endeAt: serverJetzt() + SABOTAGE_REAKTOR_MS, ventile: null, reparaturClaim: null, aufloesungClaim: null }
     : typ === "funk"
     ? { typ: "funk", endeAt: 0, reparaturClaim: null, aufloesungClaim: null }
-    : { typ: "flutlicht", endeAt: 0, reparaturClaim: null, aufloesungClaim: null };
+    : { typ: "licht", endeAt: 0, reparaturClaim: null, aufloesungClaim: null };
 
   const gesetzt = await new Promise(resolve => {
     db.ref(`${RAEUME_PFAD}/${code}/sabotage`).transaction(
@@ -1360,9 +1360,9 @@ async function sabotiere(typ, raumId) {
   return { erfolg: true };
 }
 
-async function repariereFlutlicht() {
+async function repariereLicht() {
   const raum = letzterRaum;
-  if (!raum || !raum.sabotage || raum.sabotage.typ !== "flutlicht") return { erfolg: false };
+  if (!raum || !raum.sabotage || raum.sabotage.typ !== "licht") return { erfolg: false };
   await db.ref(`${RAEUME_PFAD}/${aktuellerRaumCode}/sabotage`).set(null).catch(() => {});
   return { erfolg: true };
 }
@@ -1399,12 +1399,12 @@ function kameraBeobachtet(raum) {
   return Object.keys(eintraege).some(uid => eintraege[uid] > jetzt);
 }
 
-// Heizung: beide Ventile müssen GLEICHZEITIG gehalten werden. Jedes Gerät schreibt nur sein
+// Reaktor: beide Kühlventile müssen GLEICHZEITIG gehalten werden. Jedes Gerät schreibt nur sein
 // eigenes Ventil; die Prüfung "beide offen" macht dann der erste Client, der es sieht.
-async function setzeHeizungsventil(seite, gehalten) {
+async function setzeKuehlventil(seite, gehalten) {
   const raum = letzterRaum;
   const code = aktuellerRaumCode;
-  if (!raum || !code || !raum.sabotage || raum.sabotage.typ !== "heizung") return { erfolg: false };
+  if (!raum || !code || !raum.sabotage || raum.sabotage.typ !== "reaktor") return { erfolg: false };
   await db.ref(`${RAEUME_PFAD}/${code}/sabotage/ventile/${seite}`).set(gehalten ? eigeneUid : null).catch(() => {});
   return { erfolg: true };
 }
@@ -1414,7 +1414,7 @@ function pruefeSabotageAblauf(raum) {
   const sab = raum.sabotage;
   if (!sab) return;
 
-  if (sab.typ === "heizung") {
+  if (sab.typ === "reaktor") {
     const ventile = sab.ventile || {};
     if (ventile.a && ventile.b) {
       db.ref(`${RAEUME_PFAD}/${code}/sabotage/reparaturClaim`).transaction(
@@ -1428,7 +1428,7 @@ function pruefeSabotageAblauf(raum) {
       return;
     }
     if (sab.endeAt && serverJetzt() >= sab.endeAt) {
-      beanspracheSieg(raum, "maulwuerfe", "Die Heizung ist geplatzt – niemand hat rechtzeitig repariert.");
+      beanspracheSieg(raum, "maulwuerfe", "Der Reaktor ist durchgegangen – niemand hat rechtzeitig gekühlt.");
     }
   }
 }
@@ -1854,7 +1854,7 @@ const gameService = {
   bewege, setzeStartposition, springeZu, startePositionsSchleife, schreibePosition,
   erledigeAufgabe, starteWartezeit, schalteAus, meldeLeiche, drueckeNotfallknopf,
   sendeChat, stimmeAb, deckeAusgeschlosseneRolleAuf,
-  sabotiere, repariereFlutlicht, repariereFunk, setzeHeizungsventil,
+  sabotiere, repariereLicht, repariereFunk, setzeKuehlventil,
   kameraZusehen, kameraWegsehen, KAMERA_TAKT_MS,
   schuetze, verkleideDich,
   verlasseSpiel, neueRunde, raeumeRaumAuf,

@@ -22,7 +22,7 @@ const INTERAKTIONS_RADIUS = 58;
 const KILL_REICHWEITE = 74;
 const TUNNEL_RADIUS = 46;
 
-// Sichtweiten in Weltkoordinaten. Maulwürfe sehen etwas weiter, bei ausgefallenem Flutlicht
+// Sichtweiten in Weltkoordinaten. Maulwürfe sehen etwas weiter, bei ausgefallenem Licht
 // schrumpft der Radius fürs Team drastisch (Maulwürfe behalten ihre volle Sicht — das ist
 // der eigentliche Sinn dieser Sabotage).
 //
@@ -84,23 +84,23 @@ const RAEUME = [
 // im Kreis laufen, ohne je umzudrehen. Ohne diesen Rundlauf wäre jede Verfolgung eine
 // Sackgasse und "ich bin ihm ausgewichen" keine glaubhafte Aussage mehr.
 const KORRIDORE = [
-  // oben: Maschinenraum Nord — Aufenthaltsraum — Torschusswand
+  // oben: Oberer Motor — Cafeteria — Waffen
   { id: "flur-o1", x: 555,  y: 205,  w: 440,  h: 80 },
   { id: "flur-o2", x: 1685, y: 205,  w: 300,  h: 80 },
-  // linker Längsgang: Maschinenraum Nord ↔ Süd, mit Abzweig zum Heizungskeller
+  // linker Längsgang: Oberer Motor ↔ Süd, mit Abzweig zum Reaktor
   { id: "gang-l",  x: 340,  y: 435,  w: 80,   h: 520 },
-  { id: "flur-rk", x: 455,  y: 655,  w: 110,  h: 80 },   // Abzweig zur Hausmeisterloge
-  // mittlerer Längsgang: oberer Flur ↔ Technikraum. Kreuzt flur-o1 — die beiden überlappen
+  { id: "flur-rk", x: 455,  y: 655,  w: 110,  h: 80 },   // Abzweig zur Sicherheit
+  // mittlerer Längsgang: oberer Flur ↔ Elektrik. Kreuzt flur-o1 — die beiden überlappen
   // bewusst, das ergibt die T-Kreuzung ohne eigene Tür.
   { id: "gang-m",  x: 880,  y: 205,  w: 80,   h: 750 },
-  // Zugang zum Sanitätsraum — der EINZIGE, siehe Kommentar oben
+  // Zugang zum Krankenstation — der EINZIGE, siehe Kommentar oben
   { id: "flur-md", x: 1100, y: 435,  w: 80,   h: 70 },
-  // Aufenthaltsraum nach unten in den Lagerraum, östlich am Sanitätsraum vorbei
+  // Cafeteria nach unten in den Lager, östlich am Krankenstation vorbei
   { id: "gang-c",  x: 1400, y: 435,  w: 80,   h: 520 },
-  // Aufenthaltsraum ↔ Geschäftsstelle ↔ Sprecherkabine
+  // Cafeteria ↔ Verwaltung ↔ Kommunikation
   { id: "gang-a",  x: 1560, y: 435,  w: 80,   h: 70 },
   { id: "gang-ac", x: 1660, y: 885,  w: 80,   h: 70 },
-  // rechter Längsgang: Torschusswand ↕ Grünpflege ↕ Trainerbüro ↕ Flutlichtwarte
+  // rechter Längsgang: Waffen ↕ O2 ↕ Navigation ↕ Schilde
   { id: "gang-r",  x: 2180, y: 435,  w: 80,   h: 520 },
   // unterer Quergang: der lange Rückweg unter allem hindurch
   { id: "flur-u",  x: 300,  y: 1335, w: 1955, h: 80 }
@@ -122,48 +122,48 @@ function tuer(x, y, achse) {
 }
 
 // Türen. Die ANZAHL je Raum ist die eigentliche Spielinformation — sie entscheidet, ob ein
-// Raum eine Falle ist. Hausmeisterloge und Sanitätsraum haben je genau eine; Heizungskeller,
-// Grünpflege und Trainerbüro haben zwei zum selben Gang (wie im Original: zwei Türen, aber nur
+// Raum eine Falle ist. Sicherheit und Krankenstation haben je genau eine; Reaktor,
+// O2 und Navigation haben zwei zum selben Gang (wie im Original: zwei Türen, aber nur
 // ein Fluchtweg-System).
 const TUEREN = [
   // oberer Flur
-  tuer(537, 245, "h"),   // Maschinenraum Nord ↔ flur-o1
-  tuer(1012, 245, "h"),  // flur-o1 ↔ Aufenthaltsraum
-  tuer(1667, 245, "h"),  // Aufenthaltsraum ↔ flur-o2
-  tuer(2002, 245, "h"),  // flur-o2 ↔ Torschusswand
+  tuer(537, 245, "h"),   // Oberer Motor ↔ flur-o1
+  tuer(1012, 245, "h"),  // flur-o1 ↔ Cafeteria
+  tuer(1667, 245, "h"),  // Cafeteria ↔ flur-o2
+  tuer(2002, 245, "h"),  // flur-o2 ↔ Waffen
   // linker Längsgang
-  tuer(380, 417, "v"),   // Maschinenraum Nord ↓ gang-l
-  tuer(380, 972, "v"),   // gang-l ↓ Maschinenraum Süd
-  tuer(320, 620, "h"),   // Heizungskeller ↔ gang-l (obere Tür)
-  tuer(320, 790, "h"),   // Heizungskeller ↔ gang-l (untere Tür)
+  tuer(380, 417, "v"),   // Oberer Motor ↓ gang-l
+  tuer(380, 972, "v"),   // gang-l ↓ Unterer Motor
+  tuer(320, 620, "h"),   // Reaktor ↔ gang-l (obere Tür)
+  tuer(320, 790, "h"),   // Reaktor ↔ gang-l (untere Tür)
   tuer(437, 695, "h"),   // gang-l ↔ flur-rk
-  tuer(582, 695, "h"),   // flur-rk ↔ Hausmeisterloge — die EINZIGE Tür dieses Raums
+  tuer(582, 695, "h"),   // flur-rk ↔ Sicherheit — die EINZIGE Tür dieses Raums
   // mittlerer Längsgang
-  tuer(920, 972, "v"),   // gang-m ↓ Technikraum
-  // Sanitätsraum: der einzige Zugang, über einen Stichflur aus dem Aufenthaltsraum
-  tuer(1140, 417, "v"),  // Aufenthaltsraum ↓ flur-md
-  tuer(1140, 522, "v"),  // flur-md ↓ Sanitätsraum
-  // Aufenthaltsraum nach unten
-  tuer(1440, 417, "v"),  // Aufenthaltsraum ↓ gang-c
-  tuer(1440, 972, "v"),  // gang-c ↓ Lagerraum
-  tuer(1600, 417, "v"),  // Aufenthaltsraum ↓ gang-a
-  tuer(1600, 522, "v"),  // gang-a ↓ Geschäftsstelle
-  tuer(1700, 867, "v"),  // Geschäftsstelle ↓ gang-ac
-  tuer(1700, 972, "v"),  // gang-ac ↓ Sprecherkabine
+  tuer(920, 972, "v"),   // gang-m ↓ Elektrik
+  // Krankenstation: der einzige Zugang, über einen Stichflur aus dem Cafeteria
+  tuer(1140, 417, "v"),  // Cafeteria ↓ flur-md
+  tuer(1140, 522, "v"),  // flur-md ↓ Krankenstation
+  // Cafeteria nach unten
+  tuer(1440, 417, "v"),  // Cafeteria ↓ gang-c
+  tuer(1440, 972, "v"),  // gang-c ↓ Lager
+  tuer(1600, 417, "v"),  // Cafeteria ↓ gang-a
+  tuer(1600, 522, "v"),  // gang-a ↓ Verwaltung
+  tuer(1700, 867, "v"),  // Verwaltung ↓ gang-ac
+  tuer(1700, 972, "v"),  // gang-ac ↓ Kommunikation
   // rechter Längsgang
-  tuer(2220, 417, "v"),  // Torschusswand ↓ gang-r
-  tuer(2160, 620, "h"),  // Grünpflege ↔ gang-r (obere Tür)
-  tuer(2160, 790, "h"),  // Grünpflege ↔ gang-r (untere Tür)
-  tuer(2280, 620, "h"),  // gang-r ↔ Trainerbüro (obere Tür)
-  tuer(2280, 790, "h"),  // gang-r ↔ Trainerbüro (untere Tür)
-  tuer(2220, 972, "v"),  // gang-r ↓ Flutlichtwarte
+  tuer(2220, 417, "v"),  // Waffen ↓ gang-r
+  tuer(2160, 620, "h"),  // O2 ↔ gang-r (obere Tür)
+  tuer(2160, 790, "h"),  // O2 ↔ gang-r (untere Tür)
+  tuer(2280, 620, "h"),  // gang-r ↔ Navigation (obere Tür)
+  tuer(2280, 790, "h"),  // gang-r ↔ Navigation (untere Tür)
+  tuer(2220, 972, "v"),  // gang-r ↓ Schilde
   // unterer Quergang
-  tuer(380, 1317, "v"),  // Maschinenraum Süd ↓ flur-u
-  tuer(800, 1317, "v"),  // Technikraum ↓ flur-u
-  tuer(1180, 1317, "v"), // Lagerraum ↓ flur-u (linke Tür)
-  tuer(1400, 1317, "v"), // Lagerraum ↓ flur-u (rechte Tür)
-  tuer(1720, 1317, "v"), // Sprecherkabine ↓ flur-u
-  tuer(2220, 1317, "v")  // Flutlichtwarte ↓ flur-u
+  tuer(380, 1317, "v"),  // Unterer Motor ↓ flur-u
+  tuer(800, 1317, "v"),  // Elektrik ↓ flur-u
+  tuer(1180, 1317, "v"), // Lager ↓ flur-u (linke Tür)
+  tuer(1400, 1317, "v"), // Lager ↓ flur-u (rechte Tür)
+  tuer(1720, 1317, "v"), // Kommunikation ↓ flur-u
+  tuer(2220, 1317, "v")  // Schilde ↓ flur-u
 ];
 
 // Abkürzungen: nur Maulwürfe dürfen sie benutzen. Jeder Eintrag verbindet genau zwei Punkte;
@@ -247,10 +247,10 @@ STATIONS_TABELLE.forEach(([raumId, typen]) => {
 });
 
 // Feste Sonderpunkte: Notfallknopf und die Reparaturstellen der Sabotagen. Die beiden
-// Heizungsventile liegen bewusst in gegenüberliegenden Ecken des Geländes — sie müssen
+// Kühlventile liegen bewusst in gegenüberliegenden Ecken des Geländes — sie müssen
 // gleichzeitig gehalten werden, das soll zwei Leute kosten.
 // Wie im Original: der Notfallknopf steht mitten in der Cafeteria, der Sicherungskasten in
-// der Elektrik. Die beiden Heizungsventile liegen in Reaktor und O2 — die
+// der Elektrik. Die beiden Kühlventile liegen in Reaktor und O2 — die
 // gegenüberliegenden Enden der Karte, was genau der Punkt dieser Sabotage ist.
 //
 // **Alle Sonderpunkte müssen deutlich mehr als INTERAKTIONS_RADIUS von jeder Aufgabenstation
@@ -260,8 +260,8 @@ STATIONS_TABELLE.forEach(([raumId, typen]) => {
 // Überlappungszone und lässt höchstens ein paar Pixel durch.
 const NOTFALLKNOPF = { x: 1340, y: 300, raum: "cafeteria" };
 const SICHERUNGSKASTEN = { x: 660, y: 1270, raum: "electrical" };
-const HEIZUNG_A = { x: 100, y: 830, raum: "reactor" };
-const HEIZUNG_B = { x: 1940, y: 830, raum: "o2" };
+const KUEHLUNG_A = { x: 100, y: 830, raum: "reactor" };
+const KUEHLUNG_B = { x: 1940, y: 830, raum: "o2" };
 // Das Kamerapult gibt der Sicherheit ihren Zweck — bis dahin war sie reines Risiko ohne
 // Gegenwert (eine Tür, drei Stationen, sonst nichts). Das Funkpult ist der Reparaturplatz der
 // vierten Sabotage und füllt die Kommunikation.
@@ -302,7 +302,7 @@ function imKamerabild(kamera, x, y) {
          y >= kamera.oben && y <= kamera.oben + kamera.hoehe;
 }
 
-// Startpositionen: alle starten im Aufenthaltsraum, kreisförmig verteilt (max. 10 Plätze).
+// Startpositionen: alle starten im Cafeteria, kreisförmig verteilt (max. 10 Plätze).
 function startPositionen(anzahl) {
   const punkte = [];
   const mitte = { x: 1340, y: 190 };
@@ -636,7 +636,7 @@ const karte = {
   SICHT_TEAM, SICHT_MAULWURF, SICHT_TEAM_DUNKEL, SICHT_GEIST, SICHT_STRAHLEN,
   SICHT_VERSTECKEN_TEAM, SICHT_VERSTECKEN_FAENGER,
   RAEUME, KORRIDORE, TUEREN, TUNNEL, STATIONEN, GEBAEUDE,
-  NOTFALLKNOPF, SICHERUNGSKASTEN, HEIZUNG_A, HEIZUNG_B, KAMERAPULT, FUNKPULT,
+  NOTFALLKNOPF, SICHERUNGSKASTEN, KUEHLUNG_A, KUEHLUNG_B, KAMERAPULT, FUNKPULT,
   KAMERAS, imKamerabild,
   BOT_WEGPUNKTE,
   startPositionen, istBegehbar, bewegeMitKollision, raumAn, raumName,

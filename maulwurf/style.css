@@ -486,7 +486,7 @@ body.im-spiel .aktions-leiste {
 .af-skala-zeiger.gut { background: var(--success); }
 .af-skala-zeiger.falsch { background: var(--gefahr); }
 
-/* --- 7. Sicherungen zurücksetzen (nicht .af-sicherung, das ist die Flutlicht-Reparatur) --- */
+/* --- 7. Sicherungen zurücksetzen (nicht .af-sicherung, das ist die Licht-Reparatur) --- */
 .af-reset-block { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; }
 .af-reset-hebel {
   width: 42px; height: 74px; border-radius: 8px; cursor: pointer; padding: 6px 0;

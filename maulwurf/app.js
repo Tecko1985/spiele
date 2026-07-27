@@ -211,7 +211,7 @@ function sichtweiteFuer(zustand) {
   }
   if (zustand.meineRolle === "maulwurf") return karte.SICHT_MAULWURF;
   const sab = zustand.sabotage;
-  if (sab && sab.typ === "flutlicht") return karte.SICHT_TEAM_DUNKEL;
+  if (sab && sab.typ === "licht") return karte.SICHT_TEAM_DUNKEL;
   return karte.SICHT_TEAM;
 }
 
@@ -318,11 +318,11 @@ function zeichne(zustand) {
 
   // Reparaturstellen nur, solange die passende Sabotage läuft
   const sab = zustand.sabotage;
-  if (sab && sab.typ === "flutlicht") zeichneMarker(wx(karte.SICHERUNGSKASTEN.x), wy(karte.SICHERUNGSKASTEN.y), skala, "#fbbf24", "💡");
+  if (sab && sab.typ === "licht") zeichneMarker(wx(karte.SICHERUNGSKASTEN.x), wy(karte.SICHERUNGSKASTEN.y), skala, "#fbbf24", "💡");
   if (sab && sab.typ === "funk") zeichneMarker(wx(karte.FUNKPULT.x), wy(karte.FUNKPULT.y), skala, "#fbbf24", "📻");
-  if (sab && sab.typ === "heizung") {
-    zeichneMarker(wx(karte.HEIZUNG_A.x), wy(karte.HEIZUNG_A.y), skala, "#fbbf24", "🔧");
-    zeichneMarker(wx(karte.HEIZUNG_B.x), wy(karte.HEIZUNG_B.y), skala, "#fbbf24", "🔧");
+  if (sab && sab.typ === "reaktor") {
+    zeichneMarker(wx(karte.KUEHLUNG_A.x), wy(karte.KUEHLUNG_A.y), skala, "#fbbf24", "🔧");
+    zeichneMarker(wx(karte.KUEHLUNG_B.x), wy(karte.KUEHLUNG_B.y), skala, "#fbbf24", "🔧");
   }
 
   // Kamerapult
@@ -679,16 +679,16 @@ function ermittleAktion(zustand) {
 
   const sab = zustand.sabotage;
 
-  if (sab && sab.typ === "flutlicht" &&
+  if (sab && sab.typ === "licht" &&
       karte.abstand(pos.x, pos.y, karte.SICHERUNGSKASTEN.x, karte.SICHERUNGSKASTEN.y) <= karte.INTERAKTIONS_RADIUS) {
-    return { typ: "reparatur-flutlicht", zeichen: "💡", label: "Sicherungskasten" };
+    return { typ: "reparatur-licht", zeichen: "💡", label: "Sicherungskasten" };
   }
-  if (sab && sab.typ === "heizung") {
-    if (karte.abstand(pos.x, pos.y, karte.HEIZUNG_A.x, karte.HEIZUNG_A.y) <= karte.INTERAKTIONS_RADIUS) {
-      return { typ: "reparatur-heizung", seite: "a", zeichen: "🔧", label: "Ventil Reaktor" };
+  if (sab && sab.typ === "reaktor") {
+    if (karte.abstand(pos.x, pos.y, karte.KUEHLUNG_A.x, karte.KUEHLUNG_A.y) <= karte.INTERAKTIONS_RADIUS) {
+      return { typ: "reparatur-reaktor", seite: "a", zeichen: "🔧", label: "Kühlventil Reaktor" };
     }
-    if (karte.abstand(pos.x, pos.y, karte.HEIZUNG_B.x, karte.HEIZUNG_B.y) <= karte.INTERAKTIONS_RADIUS) {
-      return { typ: "reparatur-heizung", seite: "b", zeichen: "🔧", label: "Ventil O2" };
+    if (karte.abstand(pos.x, pos.y, karte.KUEHLUNG_B.x, karte.KUEHLUNG_B.y) <= karte.INTERAKTIONS_RADIUS) {
+      return { typ: "reparatur-reaktor", seite: "b", zeichen: "🔧", label: "Kühlventil O2" };
     }
   }
   if (sab && sab.typ === "funk" &&
@@ -837,13 +837,13 @@ function aktualisiereHud(zustand) {
 
   const warnung = el("hud-warnung");
   const sab = zustand.sabotage;
-  if (sab && sab.typ === "heizung") {
+  if (sab && sab.typ === "reaktor") {
     const rest = Math.max(Math.ceil((sab.endeAt - zustand.jetzt) / 1000), 0);
     warnung.style.display = "block";
-    warnung.textContent = `🔥 Heizung überdreht – ${rest} s bis zum Knall. Beide Ventile gleichzeitig halten!`;
-  } else if (sab && sab.typ === "flutlicht") {
+    warnung.textContent = `☢️ Reaktor überhitzt – ${rest} s bis zur Kernschmelze. Beide Kühlventile gleichzeitig halten!`;
+  } else if (sab && sab.typ === "licht") {
     warnung.style.display = "block";
-    warnung.textContent = "💡 Flutlicht aus – Sicherungskasten in der Elektrik.";
+    warnung.textContent = "💡 Licht aus – Sicherungskasten in der Elektrik.";
   } else if (sab && sab.typ === "funk") {
     warnung.style.display = "block";
     warnung.textContent = "📻 Funk gestört – keine Kameras, keine Aufgabenliste. Funkpult in der Kommunikation.";
@@ -919,12 +919,12 @@ async function fuehreAktionAus() {
     oeffneAufgabe(aktion.station);
     return;
   }
-  if (aktion.typ === "reparatur-flutlicht") {
-    oeffneReparaturFlutlicht();
+  if (aktion.typ === "reparatur-licht") {
+    oeffneReparaturLicht();
     return;
   }
-  if (aktion.typ === "reparatur-heizung") {
-    oeffneReparaturHeizung(aktion.seite);
+  if (aktion.typ === "reparatur-reaktor") {
+    oeffneReparaturKuehlung(aktion.seite);
     return;
   }
   if (aktion.typ === "reparatur-funk") {
@@ -997,29 +997,29 @@ function oeffneAufgabe(station) {
   el("overlay-aufgabe").classList.add("aktiv");
 }
 
-function oeffneReparaturFlutlicht() {
+function oeffneReparaturLicht() {
   schliesseOverlay();
   overlayOffen = "aufgabe";
   el("aufgabe-titel").textContent = "Sicherungskasten";
   const inhalt = el("aufgabe-inhalt");
   inhalt.innerHTML = "";
-  aktiveAufgabeAufraeumen = aufgabenModul.reparaturFlutlicht(inhalt, async () => {
-    await gameService.repariereFlutlicht();
+  aktiveAufgabeAufraeumen = aufgabenModul.reparaturLicht(inhalt, async () => {
+    await gameService.repariereLicht();
     setTimeout(schliesseOverlay, 600);
   });
   el("overlay-aufgabe").classList.add("aktiv");
 }
 
-function oeffneReparaturHeizung(seite) {
+function oeffneReparaturKuehlung(seite) {
   schliesseOverlay();
   overlayOffen = "aufgabe";
   el("aufgabe-titel").textContent = seite === "a" ? "Ventil Materialkeller" : "Ventil Küche";
   const inhalt = el("aufgabe-inhalt");
   inhalt.innerHTML = "";
-  aktiveAufgabeAufraeumen = aufgabenModul.reparaturHeizung(
+  aktiveAufgabeAufraeumen = aufgabenModul.reparaturKuehlung(
     inhalt,
-    () => gameService.setzeHeizungsventil(seite, true),
-    () => gameService.setzeHeizungsventil(seite, false)
+    () => gameService.setzeKuehlventil(seite, true),
+    () => gameService.setzeKuehlventil(seite, false)
   );
   el("overlay-aufgabe").classList.add("aktiv");
 }
@@ -1289,8 +1289,8 @@ function oeffneSabotageMenue() {
     });
     gitter.appendChild(btn);
   });
-  el("btn-sab-heizung").disabled = !!zustand.sabotage;
-  el("btn-sab-flutlicht").disabled = !!zustand.sabotage;
+  el("btn-sab-reaktor").disabled = !!zustand.sabotage;
+  el("btn-sab-licht").disabled = !!zustand.sabotage;
   el("btn-sab-funk").disabled = !!zustand.sabotage;
   el("sabotage-hinweis").textContent = zustand.sabotage ? "Es läuft schon eine Sabotage." : "";
   el("overlay-sabotage").classList.add("aktiv");
@@ -1714,9 +1714,9 @@ el("btn-aufgabe-schliessen").addEventListener("click", schliesseOverlay);
 
 el("btn-kameras-schliessen").addEventListener("click", schliesseOverlay);
 
-el("btn-sab-flutlicht").addEventListener("click", async () => {
-  const ergebnis = await gameService.sabotiere("flutlicht");
-  el("sabotage-hinweis").textContent = ergebnis.erfolg ? "Flutlicht ist aus." : (ergebnis.fehler || "Geht gerade nicht.");
+el("btn-sab-licht").addEventListener("click", async () => {
+  const ergebnis = await gameService.sabotiere("licht");
+  el("sabotage-hinweis").textContent = ergebnis.erfolg ? "Licht ist aus." : (ergebnis.fehler || "Geht gerade nicht.");
   if (ergebnis.erfolg) setTimeout(schliesseOverlay, 500);
 });
 
@@ -1726,9 +1726,9 @@ el("btn-sab-funk").addEventListener("click", async () => {
   if (ergebnis.erfolg) setTimeout(schliesseOverlay, 500);
 });
 
-el("btn-sab-heizung").addEventListener("click", async () => {
-  const ergebnis = await gameService.sabotiere("heizung");
-  el("sabotage-hinweis").textContent = ergebnis.erfolg ? "Heizung überdreht." : (ergebnis.fehler || "Geht gerade nicht.");
+el("btn-sab-reaktor").addEventListener("click", async () => {
+  const ergebnis = await gameService.sabotiere("reaktor");
+  el("sabotage-hinweis").textContent = ergebnis.erfolg ? "Reaktor überhitzt." : (ergebnis.fehler || "Geht gerade nicht.");
   if (ergebnis.erfolg) setTimeout(schliesseOverlay, 500);
 });
 
@@ -1805,7 +1805,7 @@ const APP_CHANGELOG = [
           "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen – nur durch offene Türen fällt Licht in den Nachbarraum. Die Räume selbst bleiben schwach angedeutet, damit man sich zurechtfindet; Mitspielende sieht man aber wirklich nur in direkter Sichtlinie. Auch ein Foulspiel quer durch die Wand geht nicht mehr.",
           "25 verschiedene Aufgaben-Minispiele an 50 Stationen – jede Runde ist anders zusammengesetzt.",
           "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
-          "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen, den Funk stören und Räume verriegeln.",
+          "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Licht kappen, den Reaktor überhitzen, den Funk stören und Räume verriegeln.",
           "📹 Kameras in der Sicherheit zeigen vier feste Bereiche des Geländes – ohne Namen, nur Punkte in Bewegung. Wer zusieht, wird verraten: die Kameras blinken dann rot für jeden, der davorsteht.",
           "📻 Ist der Funk gestört, fallen Kameras und Aufgabenliste aus, bis jemand am Funkpult in der Kommunikation war.",
           "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende.",

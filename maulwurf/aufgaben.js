@@ -528,7 +528,7 @@ function aufgabeSicherungen(container, onFertig) {
   const reihenfolge = mischen(Array.from({ length: ANZAHL }, (_, i) => i + 1));
   let naechste = 1;
 
-  // Eigene Klassennamen, NICHT .af-sicherung: die trägt die Flutlicht-Reparatur mit ganz
+  // Eigene Klassennamen, NICHT .af-sicherung: die trägt die Licht-Reparatur mit ganz
   // anderem Aufbau, und zwei Layouts unter einem Namen brechen sich gegenseitig.
   const hilf = rahmen(container, "Leg die Sicherungen in der aufgedruckten Reihenfolge um.", `
     <div class="af-reset-block">${reihenfolge.map(nr => `
@@ -1354,7 +1354,7 @@ function aufgabeGemuese(container, onFertig) {
 
 // Unverändert aus der Vorfassung: die beiden Reparaturen sind keine Aufgaben aus Michels
 // Liste und werden vom Umbau nicht berührt.
-function reparaturFlutlicht(container, onFertig) {
+function reparaturLicht(container, onFertig) {
   const ANZAHL = 5;
   const oben = new Array(ANZAHL).fill(false);
   const timer = [];
@@ -1367,7 +1367,7 @@ function reparaturFlutlicht(container, onFertig) {
     const anzahl = oben.filter(Boolean).length;
     hilf.status.textContent = `${anzahl} von ${ANZAHL} oben`;
     if (anzahl >= ANZAHL) {
-      hilf.status.textContent = "Flutlicht ist wieder an!";
+      hilf.status.textContent = "Licht ist wieder an!";
       onFertig();
     }
   }
@@ -1397,9 +1397,9 @@ function reparaturFlutlicht(container, onFertig) {
   return () => timer.forEach(t => clearTimeout(t));
 }
 
-// Das Heizungsventil braucht zwei Personen an entgegengesetzten Enden der Karte: gehalten
+// Das Kühlventil braucht zwei Personen an entgegengesetzten Enden der Karte: gehalten
 // wird hier nur die eigene Seite, die Gleichzeitigkeit prüft das Spiel.
-function reparaturHeizung(container, onHalten, onLoslassen) {
+function reparaturKuehlung(container, onHalten, onLoslassen) {
   const hilf = rahmen(container, "Ventil gedrückt halten – beide Ventile müssen gleichzeitig offen sein.", `
     <button class="af-ventil" type="button">🔧<span>halten</span></button>`);
   const ventil = hilf.q(".af-ventil");
@@ -1474,6 +1474,6 @@ const AUFGABEN_TYPEN = {
   gemuese:      { name: "Gemüse hacken",         start: aufgabeGemuese }
 };
 
-const aufgabenModul = { AUFGABEN_TYPEN, reparaturFlutlicht, reparaturHeizung, mischen, WARTEZEIT_SEK };
+const aufgabenModul = { AUFGABEN_TYPEN, reparaturLicht, reparaturKuehlung, mischen, WARTEZEIT_SEK };
 
 if (typeof module !== "undefined" && module.exports) module.exports = aufgabenModul;
