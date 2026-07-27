@@ -361,11 +361,12 @@ function zeichne(zustand) {
     zeichneArbeitsspur(wx(station.x), wy(station.y), skala, spur, (spur.bis - jetzt) / gameService.SICHTBARE_WIRKUNG_MS);
   });
 
-  // Abkürzungen sehen nur, wer sie auch benutzen darf
+  // Abkürzungen sehen nur, wer sie auch benutzen darf. Jedes Netz hat seine eigene Farbe —
+  // die Netze sind voneinander getrennt, und ohne Farbe wüsste man nie, welche Enden
+  // zusammengehören. Auf einer Karte mit sechs Netzen wäre das reines Auswendiglernen.
   if (darfTunnelSehen(zustand)) {
     karte.TUNNEL.forEach(t => {
-      zeichneMarker(wx(t.a.x), wy(t.a.y), skala, "#a855f7", "↧");
-      zeichneMarker(wx(t.b.x), wy(t.b.y), skala, "#a855f7", "↥");
+      t.enden.forEach(e => zeichneMarker(wx(e.x), wy(e.y), skala, t.farbe, "↧"));
     });
   }
 
@@ -712,7 +713,14 @@ function ermittleAktion(zustand) {
   // Reiz der Rolle: nützlich, aber wer ihn dabei sieht, hält ihn für einen Maulwurf.
   if (zustand.meineRolle === "maulwurf" || zustand.meineSonderrolle === "ingenieur") {
     const tunnel = karte.tunnelAn(pos.x, pos.y);
-    if (tunnel) return { typ: "tunnel", ziel: tunnel.ziel, zeichen: "↧", label: tunnel.tunnel.name };
+    if (tunnel) {
+      // Bei zwei Enden steht das Ziel schon im Knopf, bei dreien muss man wählen — dann sagt
+      // der Knopf, worauf man sich einlässt, statt einen Namen zu versprechen.
+      const label = tunnel.ziele.length === 1
+        ? "→ " + tunnel.ziele[0].ort
+        : tunnel.ziele.map(z => z.ort).join(" / ");
+      return { typ: "tunnel", tunnel: tunnel.tunnel, ziele: tunnel.ziele, zeichen: "↧", label };
+    }
   }
   return null;
 }
@@ -907,7 +915,10 @@ async function fuehreAktionAus() {
   if (!aktion) return;
 
   if (aktion.typ === "tunnel") {
-    gameService.springeZu(aktion.ziel.x, aktion.ziel.y);
+    // Zweiernetz: sofort springen, wie bisher. Dreiernetz: fragen — die Wahl ist der ganze
+    // Vorteil eines Dreiecks und darf nicht per Zufall oder Reihenfolge fallen.
+    if (aktion.ziele.length === 1) gameService.springeZu(aktion.ziele[0].x, aktion.ziele[0].y);
+    else oeffneSchachtwahl(aktion.tunnel, aktion.ziele);
     return;
   }
   if (aktion.typ === "notfall") {
@@ -995,6 +1006,29 @@ function oeffneAufgabe(station) {
     setTimeout(schliesseOverlay, 700);
   }, optionen);
   el("overlay-aufgabe").classList.add("aktiv");
+}
+
+// Zielauswahl der Dreiernetze. Bewusst ein Overlay und kein Durchtippen: wer im Schacht
+// sitzt, will sehen, wohin er kommt, bevor er auftaucht.
+function oeffneSchachtwahl(tunnel, ziele) {
+  schliesseOverlay();
+  overlayOffen = "schacht";
+  el("schacht-titel").textContent = tunnel.name;
+  const box = el("schacht-ziele");
+  box.innerHTML = "";
+  ziele.forEach(ziel => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-secondary btn-grow";
+    btn.textContent = "↥ " + ziel.ort;
+    btn.style.borderColor = tunnel.farbe;
+    btn.addEventListener("click", () => {
+      gameService.springeZu(ziel.x, ziel.y);
+      schliesseOverlay();
+    });
+    box.appendChild(btn);
+  });
+  el("overlay-schacht").classList.add("aktiv");
 }
 
 function oeffneReparaturLicht() {
@@ -1710,6 +1744,7 @@ el("btn-rolle-schliessen").addEventListener("click", schliesseOverlay);
 el("btn-sabotage").addEventListener("click", oeffneSabotageMenue);
 el("btn-liste-schliessen").addEventListener("click", schliesseOverlay);
 el("btn-sabotage-schliessen").addEventListener("click", schliesseOverlay);
+el("btn-schacht-schliessen").addEventListener("click", schliesseOverlay);
 el("btn-aufgabe-schliessen").addEventListener("click", schliesseOverlay);
 
 el("btn-kameras-schliessen").addEventListener("click", schliesseOverlay);

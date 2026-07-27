@@ -166,26 +166,60 @@ const TUEREN = [
   tuer(2220, 1317, "v")  // Schilde ↓ flur-u
 ];
 
-// Abkürzungen: nur Maulwürfe dürfen sie benutzen. Jeder Eintrag verbindet genau zwei Punkte;
-// wer auf dem einen steht, landet per Tap auf dem anderen. Alle Enden liegen in Räumen, nie
-// in einem Gang — sonst könnte man mitten im Flur vor jemandem auftauchen.
+// Lüftungsschächte. Nur Maulwürfe (und der Ingenieur) dürfen sie benutzen.
 //
-// Nachgebaut nach den Lüftungsschächten des Originals. Wo dort drei Räume an einem Netz
-// hängen (Krankenstation – Elektrik – Sicherheit), sind es hier zwei Paare über die
-// Elektrik: unsere Schächte verbinden immer genau zwei Enden. Räume mit zwei Enden
-// (Reaktor, Elektrik, Navigation) haben sie weit genug auseinander, damit
-// tunnelAn() eindeutig bleibt.
+// **Ein Eintrag ist ein NETZ, keine Verbindung.** Bis 2026-07-27 verband jeder Schacht genau
+// zwei Punkte; das Original hat aber zwei Dreiernetze, und die sind spielentscheidend: aus
+// einem Dreieck kommt man an drei Stellen wieder heraus, was jede Zeugenaussage entwertet.
+// Deshalb `enden: [...]` mit zwei ODER drei Enden.
 //
-// Die Namen benennen die beiden Enden — im Original tragen Schächte keine Namen, aber hier
-// steht der Name im Antippen-Knopf und muss sagen, wo man gleich herauskommt.
+// Die sechs Netze des Originals — bewusst voneinander getrennt, man kommt nicht von einer
+// Schiffsseite zur anderen:
+//   1. Todes-Dreieck   Elektrik ↔ Krankenstation ↔ Sicherheit
+//   2./3. Reaktor      je ein Ende nach oben zum Oberen, nach unten zum Unteren Motor
+//   4. rechts oben     Waffen ↔ Navigation
+//   5. rechts unten    Navigation ↔ Schilde
+//   6. Zentral-Dreieck Cafeteria ↔ Verwaltung ↔ Ostflur
+//
+// **Das Ende im Ostflur ist die einzige Abweichung von unserer bisherigen Regel**, dass alle
+// Enden in Räumen liegen. Im Original liegt dieser Vent im Flur, und genau das macht ihn
+// gefährlich: man taucht mitten im Gang vor jemandem auf, statt aus einem Raum zu kommen.
+//
+// Jedes Ende trägt seinen Ortsnamen mit. Bei Dreiernetzen steht er zur Auswahl im
+// Wohin-Dialog, und für den Ostflur gäbe raumAn() ohnehin nichts zurück.
+//
+// **Die Standorte sind nicht frei wählbar.** ermittleAktion() gibt nur EINE Aktion zurück und
+// prüft Kamerapult und Aufgabenstation VOR dem Schacht. Liegt ein Ende zu dicht an einem
+// dieser Punkte, ist der Schacht von dort aus unbenutzbar. Bis zum Umbau war das bei 12 von
+// 14 Enden der Fall, ohne dass es jemandem auffiel — der Kartentest prüfte Schächte nur
+// gegeneinander. Der Schachttest deckt das jetzt ab; Mindestabstand 79 px.
 const TUNNEL = [
-  { id: "schacht-motor-nord", name: "Oberer Motor ↔ Reaktor",     a: { x: 280,  y: 180 },  b: { x: 130,  y: 620 } },
-  { id: "schacht-motor-sued", name: "Unterer Motor ↔ Reaktor",    a: { x: 280,  y: 1210 }, b: { x: 130,  y: 790 } },
-  { id: "schacht-medbay",     name: "Krankenstation ↔ Elektrik",  a: { x: 1060, y: 800 },  b: { x: 700,  y: 1060 } },
-  { id: "schacht-security",   name: "Sicherheit ↔ Elektrik",      a: { x: 660,  y: 800 },  b: { x: 900,  y: 1060 } },
-  { id: "schacht-admin",      name: "Cafeteria ↔ Verwaltung",     a: { x: 1090, y: 150 },  b: { x: 1620, y: 800 } },
-  { id: "schacht-weapons",    name: "Waffen ↔ Navigation",        a: { x: 2300, y: 150 },  b: { x: 2510, y: 600 } },
-  { id: "schacht-shields",    name: "Navigation ↔ Schilde",       a: { x: 2350, y: 800 },  b: { x: 2340, y: 1060 } }
+  { id: "netz-todesdreieck", name: "Elektrik ↔ Krankenstation ↔ Sicherheit", farbe: "#a855f7", enden: [
+    { x: 880,  y: 1000, ort: "Elektrik" },
+    { x: 1020, y: 830,  ort: "Krankenstation" },
+    { x: 780,  y: 830,  ort: "Sicherheit" }
+  ] },
+  { id: "netz-reaktor-nord", name: "Reaktor ↔ Oberer Motor", farbe: "#f97316", enden: [
+    { x: 180, y: 560, ort: "Reaktor" },
+    { x: 210, y: 380, ort: "Oberer Motor" }
+  ] },
+  { id: "netz-reaktor-sued", name: "Reaktor ↔ Unterer Motor", farbe: "#eab308", enden: [
+    { x: 290, y: 830,  ort: "Reaktor" },
+    { x: 210, y: 1280, ort: "Unterer Motor" }
+  ] },
+  { id: "netz-waffen", name: "Waffen ↔ Navigation", farbe: "#22d3ee", enden: [
+    { x: 2040, y: 380, ort: "Waffen" },
+    { x: 2365, y: 560, ort: "Navigation" }
+  ] },
+  { id: "netz-schilde", name: "Navigation ↔ Schilde", farbe: "#34d399", enden: [
+    { x: 2430, y: 830,  ort: "Navigation" },
+    { x: 2080, y: 1280, ort: "Schilde" }
+  ] },
+  { id: "netz-zentral", name: "Cafeteria ↔ Verwaltung ↔ Ostflur", farbe: "#f472b6", enden: [
+    { x: 1050, y: 380, ort: "Cafeteria" },
+    { x: 1580, y: 830, ort: "Verwaltung" },
+    { x: 2200, y: 495, ort: "Ostflur" }
+  ] }
 ];
 
 // Aufgabenstationen. 20 Typen an je 1–7 Standorten. Angegeben wird die Lage relativ zum Raum
@@ -387,11 +421,17 @@ function abstand(ax, ay, bx, by) {
 }
 
 // Liefert das Tunnelende, auf dem die Position steht, plus das Gegenstück zum Hinreisen.
+// Auf welchem Schachtende steht man, und wohin führt es? `ziele` sind alle ANDEREN Enden
+// desselben Netzes — bei einem Zweiernetz genau eines, bei einem Dreiernetz zwei, zwischen
+// denen der Aufrufer wählen lässt.
 function tunnelAn(x, y) {
   for (let i = 0; i < TUNNEL.length; i++) {
     const t = TUNNEL[i];
-    if (abstand(x, y, t.a.x, t.a.y) <= TUNNEL_RADIUS) return { tunnel: t, ziel: t.b };
-    if (abstand(x, y, t.b.x, t.b.y) <= TUNNEL_RADIUS) return { tunnel: t, ziel: t.a };
+    for (let k = 0; k < t.enden.length; k++) {
+      if (abstand(x, y, t.enden[k].x, t.enden[k].y) <= TUNNEL_RADIUS) {
+        return { tunnel: t, index: k, ziele: t.enden.filter((_, j) => j !== k) };
+      }
+    }
   }
   return null;
 }

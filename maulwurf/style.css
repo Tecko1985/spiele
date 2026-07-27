@@ -368,6 +368,11 @@ body.im-spiel .aktions-leiste {
   border-radius: 6px; background: #fff; color: var(--text); cursor: pointer;
 }
 
+/* Zielauswahl der Dreiernetze. Der linke Rand trägt die Netzfarbe, damit die Auswahl zu den
+   Markern auf der Karte passt — sonst müsste man sich merken, welches Netz welches war. */
+.schacht-ziele { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.schacht-ziele button { border-left-width: 5px; }
+
 /* ---------- Aufgaben-Minispiele ---------- */
 /* 20 Minispiele nach der Vorlage. Gemeinsame Bausteine oben (Anleitung, Status, Ziffernblock,
    Kabelstecker), danach je Aufgabe nur das Nötige. Alle Bedienflächen sind mindestens
