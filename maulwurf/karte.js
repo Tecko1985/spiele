@@ -48,31 +48,35 @@ const SICHT_VERSTECKEN_FAENGER = 195;
 // vor allem, wie viele Ein-/Ausgänge jeder Raum hat. Genau daran hängt das Spiel.
 //
 // Die beiden Sackgassen sind Absicht und der wichtigste Teil der Vorlage:
-// **Sicherheitsraum und Sanitätsraum haben je nur EINEN Eingang.** Wer dort hineingeht, kommt
+// **Sicherheit und Krankenstation haben je nur EINEN Eingang.** Wer dort hineingeht, kommt
 // nur auf demselben Weg wieder heraus — deshalb ist es dort so gefährlich und deshalb ist
 // "wer war mit dir drin?" eine harte Frage. Beim Ändern des Layouts nicht versehentlich eine
 // zweite Tür spendieren.
 //
-// Der Aufenthaltsraum ist das Drehkreuz: von dort führen vier Wege weg. Wer ihn verlässt,
-// wird gesehen — das macht ihn zum sicheren Ort und zum Ausgangspunkt jeder Diskussion.
+// Die Cafeteria ist das Drehkreuz: von dort führen vier Wege weg. Wer sie verlässt,
+// wird gesehen — das macht sie zum sicheren Ort und zum Ausgangspunkt jeder Diskussion.
+//
+// Die Namen sind die des Originals in der deutschen Fassung (Cafeteria, Reaktor, Elektrik …).
+// Die ids bleiben englisch wie im Original-Grundriss — sie stehen in Stationstabelle,
+// Türliste und Schächten und sind nicht für Spieleraugen bestimmt.
 const RAEUME = [
   // obere Reihe
-  { id: "upper-engine", name: "Maschinenraum Nord", x: 190,  y: 90,   w: 330, h: 310 },
-  { id: "cafeteria",    name: "Aufenthaltsraum",    x: 1030, y: 90,   w: 620, h: 310 },
-  { id: "weapons",      name: "Torschusswand",      x: 2020, y: 90,   w: 330, h: 310 },
+  { id: "upper-engine", name: "Oberer Motor",  x: 190,  y: 90,   w: 330, h: 310 },
+  { id: "cafeteria",    name: "Cafeteria",     x: 1030, y: 90,   w: 620, h: 310 },
+  { id: "weapons",      name: "Waffen",        x: 2020, y: 90,   w: 330, h: 310 },
   // mittlere Reihe
-  { id: "reactor",      name: "Heizungskeller",     x: 60,   y: 540,  w: 240, h: 310 },
-  { id: "security",     name: "Hausmeisterloge",    x: 600,  y: 540,  w: 200, h: 310 },
-  { id: "medbay",       name: "Sanitätsraum",       x: 1000, y: 540,  w: 300, h: 310 },
-  { id: "admin",        name: "Geschäftsstelle",    x: 1560, y: 540,  w: 300, h: 310 },
-  { id: "o2",           name: "Grünpflege",         x: 1900, y: 540,  w: 240, h: 310 },
-  { id: "navigation",   name: "Trainerbüro",        x: 2300, y: 540,  w: 260, h: 310 },
+  { id: "reactor",      name: "Reaktor",       x: 60,   y: 540,  w: 240, h: 310 },
+  { id: "security",     name: "Sicherheit",    x: 600,  y: 540,  w: 200, h: 310 },
+  { id: "medbay",       name: "Krankenstation", x: 1000, y: 540, w: 300, h: 310 },
+  { id: "admin",        name: "Verwaltung",    x: 1560, y: 540,  w: 300, h: 310 },
+  { id: "o2",           name: "O2",            x: 1900, y: 540,  w: 240, h: 310 },
+  { id: "navigation",   name: "Navigation",    x: 2300, y: 540,  w: 260, h: 310 },
   // untere Reihe
-  { id: "lower-engine", name: "Maschinenraum Süd",  x: 190,  y: 990,  w: 330, h: 310 },
-  { id: "electrical",   name: "Technikraum",        x: 640,  y: 990,  w: 320, h: 310 },
-  { id: "storage",      name: "Lagerraum",          x: 1080, y: 990,  w: 420, h: 310 },
-  { id: "comms",        name: "Sprecherkabine",     x: 1560, y: 990,  w: 320, h: 310 },
-  { id: "shields",      name: "Flutlichtwarte",     x: 2060, y: 990,  w: 320, h: 310 }
+  { id: "lower-engine", name: "Unterer Motor", x: 190,  y: 990,  w: 330, h: 310 },
+  { id: "electrical",   name: "Elektrik",      x: 640,  y: 990,  w: 320, h: 310 },
+  { id: "storage",      name: "Lager",         x: 1080, y: 990,  w: 420, h: 310 },
+  { id: "comms",        name: "Kommunikation", x: 1560, y: 990,  w: 320, h: 310 },
+  { id: "shields",      name: "Schilde",       x: 2060, y: 990,  w: 320, h: 310 }
 ];
 
 // Das Flurnetz. Waagerechte Verbindungsstücke oben und rechts, drei durchgehende Längsgänge
@@ -167,38 +171,57 @@ const TUEREN = [
 // in einem Gang — sonst könnte man mitten im Flur vor jemandem auftauchen.
 //
 // Nachgebaut nach den Lüftungsschächten des Originals. Wo dort drei Räume an einem Netz
-// hängen (Sanitätsraum – Technikraum – Hausmeisterloge), sind es hier zwei Paare über den
-// Technikraum: unsere Schächte verbinden immer genau zwei Enden. Räume mit zwei Enden
-// (Heizungskeller, Technikraum, Trainerbüro) haben sie weit genug auseinander, damit
+// hängen (Krankenstation – Elektrik – Sicherheit), sind es hier zwei Paare über die
+// Elektrik: unsere Schächte verbinden immer genau zwei Enden. Räume mit zwei Enden
+// (Reaktor, Elektrik, Navigation) haben sie weit genug auseinander, damit
 // tunnelAn() eindeutig bleibt.
+//
+// Die Namen benennen die beiden Enden — im Original tragen Schächte keine Namen, aber hier
+// steht der Name im Antippen-Knopf und muss sagen, wo man gleich herauskommt.
 const TUNNEL = [
-  { id: "heizrohr-nord", name: "Heizrohr Nord",   a: { x: 280,  y: 180 },  b: { x: 130,  y: 620 } },
-  { id: "heizrohr-sued", name: "Heizrohr Süd",    a: { x: 280,  y: 1210 }, b: { x: 130,  y: 790 } },
-  { id: "waescheschacht", name: "Wäscheschacht",  a: { x: 1060, y: 800 },  b: { x: 700,  y: 1060 } },
-  { id: "kabelkanal",    name: "Kabelkanal",      a: { x: 660,  y: 800 },  b: { x: 900,  y: 1060 } },
-  { id: "aktenaufzug",   name: "Aktenaufzug",     a: { x: 1090, y: 150 },  b: { x: 1620, y: 800 } },
-  { id: "ballnetz",      name: "Ballnetz",        a: { x: 2300, y: 150 },  b: { x: 2510, y: 600 } },
-  { id: "kabelrinne",    name: "Kabelrinne",      a: { x: 2350, y: 800 },  b: { x: 2340, y: 1060 } }
+  { id: "schacht-motor-nord", name: "Oberer Motor ↔ Reaktor",     a: { x: 280,  y: 180 },  b: { x: 130,  y: 620 } },
+  { id: "schacht-motor-sued", name: "Unterer Motor ↔ Reaktor",    a: { x: 280,  y: 1210 }, b: { x: 130,  y: 790 } },
+  { id: "schacht-medbay",     name: "Krankenstation ↔ Elektrik",  a: { x: 1060, y: 800 },  b: { x: 700,  y: 1060 } },
+  { id: "schacht-security",   name: "Sicherheit ↔ Elektrik",      a: { x: 660,  y: 800 },  b: { x: 900,  y: 1060 } },
+  { id: "schacht-admin",      name: "Cafeteria ↔ Verwaltung",     a: { x: 1090, y: 150 },  b: { x: 1620, y: 800 } },
+  { id: "schacht-weapons",    name: "Waffen ↔ Navigation",        a: { x: 2300, y: 150 },  b: { x: 2510, y: 600 } },
+  { id: "schacht-shields",    name: "Navigation ↔ Schilde",       a: { x: 2350, y: 800 },  b: { x: 2340, y: 1060 } }
 ];
 
-// Aufgabenstationen. 25 Typen à zwei Standorte in unterschiedlichen Räumen, damit sich nicht
-// alle am selben Ort drängeln. Angegeben wird die Lage relativ zum Raum (0..1), umgerechnet
-// wird beim Laden — so bleibt die Tabelle lesbar und übersteht Layoutänderungen.
+// Aufgabenstationen. 20 Typen an je 1–7 Standorten. Angegeben wird die Lage relativ zum Raum
+// (0..1), umgerechnet wird beim Laden — so bleibt die Tabelle lesbar und übersteht
+// Layoutänderungen.
+//
+// Wo das Original einen festen Ort vorgibt, steht die Aufgabe genau dort und nirgends sonst:
+// "Reaktor starten" nur im Reaktor, "Proben analysieren" nur in der Krankenstation,
+// "Verteiler kalibrieren" und "Sicherungen zurücksetzen" nur in der Elektrik. Das ist kein
+// Schönheitsfehler, sondern der Sinn der Sache — nur wenn ein Ort eindeutig ist, lässt sich
+// "ich war beim Reaktor" überhaupt anzweifeln.
+//
+// Drei Typen brauchen mehrere Standorte, weil sie mehrteilig sind (siehe AUFGABEN_TYPEN):
+//   kabel  — 3 Teile in 3 verschiedenen Räumen, deshalb 6 Standorte zur Auswahl
+//   daten  — Teil 2 MUSS in der Verwaltung liegen (Hauptserver), Teil 1 überall sonst
+//   strom  — Teil 1 MUSS in der Elektrik liegen, Teil 2 im Zielraum
+// Wer hier Standorte streicht, muss diese drei Bedingungen erhalten, sonst findet
+// waehleAufgaben() keine gültige Kette mehr.
 const STATIONS_TABELLE = [
-  ["cafeteria",    ["getraenke", "kaffee", "anpfiff", "muell", "tabelle"]],
-  ["upper-engine", ["kabel", "inventur", "zaehler", "kisten"]],
-  ["weapons",      ["baelle", "elfmeterpunkt", "netz", "fahne"]],
-  ["reactor",      ["kabel", "zaehler", "spind"]],
-  ["security",     ["schluessel", "wappen", "pfeife"]],
-  ["medbay",       ["verbandskasten", "waesche", "trikots", "stollen"]],
-  ["admin",        ["tabelle", "wappen", "schluessel"]],
-  ["o2",           ["maehen", "linien", "eckfahnen"]],
-  ["navigation",   ["anpfiff", "pfeife", "elfmeterpunkt"]],
-  ["lower-engine", ["inventur", "kisten", "stollen", "waschgang"]],
-  ["electrical",   ["linien", "fahne", "netz", "muell"]],
-  ["storage",      ["baelle", "trikots", "waschgang", "eckfahnen"]],
-  ["comms",        ["verbandskasten", "kaffee", "getraenke"]],
-  ["shields",      ["maehen", "waesche", "spind"]]
+  ["cafeteria",    ["kabel", "muell", "daten", "gemuese", "marshmallow"]],
+  ["upper-engine", ["triebwerk", "knoten", "poempel", "strom"]],
+  ["weapons",      ["asteroiden", "daten", "teleskop", "strom"]],
+  ["reactor",      ["reaktor", "manifold", "knoten"]],
+  // Nur drei Stationen: die Sicherheit ist Sackgasse UND Kameraraum. Mit einer vierten
+  // rückte eine Station bis auf 88 px an das Kamerapult heran, und weil ermittleAktion() nur
+  // EINE Aktion zurückgibt, wäre von manchen Standpunkten aus das Pult unerreichbar gewesen.
+  ["security",     ["kabel", "puppe", "strom"]],
+  ["medbay",       ["proben", "puppe", "filter", "gemuese"]],
+  ["admin",        ["kabel", "daten", "sicherungen", "muell"]],
+  ["o2",           ["filter", "knoten", "muell", "strom"]],
+  ["navigation",   ["kurs", "teleskop", "kabel", "daten", "strom"]],
+  ["lower-engine", ["triebwerk", "manifold", "poempel", "marshmallow"]],
+  ["electrical",   ["kabel", "strom", "verteiler", "sicherungen", "daten"]],
+  ["storage",      ["kabel", "muell", "puppe", "gemuese"]],
+  ["comms",        ["wlan", "daten", "kurs", "strom"]],
+  ["shields",      ["knoten", "teleskop", "asteroiden", "strom"]]
 ];
 
 // Verteilmuster innerhalb eines Raums, damit die Marker nicht übereinanderliegen.
@@ -226,8 +249,8 @@ STATIONS_TABELLE.forEach(([raumId, typen]) => {
 // Feste Sonderpunkte: Notfallknopf und die Reparaturstellen der Sabotagen. Die beiden
 // Heizungsventile liegen bewusst in gegenüberliegenden Ecken des Geländes — sie müssen
 // gleichzeitig gehalten werden, das soll zwei Leute kosten.
-// Wie im Original: der Notfallknopf steht mitten im Aufenthaltsraum, der Sicherungskasten im
-// Technikraum. Die beiden Heizungsventile liegen in Heizungskeller und Grünpflege — die
+// Wie im Original: der Notfallknopf steht mitten in der Cafeteria, der Sicherungskasten in
+// der Elektrik. Die beiden Heizungsventile liegen in Reaktor und O2 — die
 // gegenüberliegenden Enden der Karte, was genau der Punkt dieser Sabotage ist.
 //
 // **Alle Sonderpunkte müssen deutlich mehr als INTERAKTIONS_RADIUS von jeder Aufgabenstation
@@ -239,16 +262,17 @@ const NOTFALLKNOPF = { x: 1340, y: 300, raum: "cafeteria" };
 const SICHERUNGSKASTEN = { x: 660, y: 1270, raum: "electrical" };
 const HEIZUNG_A = { x: 100, y: 830, raum: "reactor" };
 const HEIZUNG_B = { x: 1940, y: 830, raum: "o2" };
-// Das Kamerapult gibt der Hausmeisterloge ihren Zweck — bis dahin war sie reines Risiko ohne
+// Das Kamerapult gibt der Sicherheit ihren Zweck — bis dahin war sie reines Risiko ohne
 // Gegenwert (eine Tür, drei Stationen, sonst nichts). Das Funkpult ist der Reparaturplatz der
-// vierten Sabotage und füllt die Sprecherkabine.
+// vierten Sabotage und füllt die Kommunikation.
 const KAMERAPULT = { x: 630, y: 830, raum: "security" };
 const FUNKPULT = { x: 1590, y: 1280, raum: "comms" };
 
 // Die vier festen Kamerabereiche. Bewusst überwiegend GÄNGE statt Räume: Kameras sollen
 // verraten, wer wohin unterwegs ist, nicht was jemand in einem Raum tut — sonst wären
-// Aufgaben und Alibis wertlos. Der Aufenthaltsraum ist die Ausnahme, weil dort ohnehin
-// ständig alle durchlaufen.
+// Aufgaben und Alibis wertlos.
+//
+// Die Cafeteria ist die Ausnahme, weil dort ohnehin ständig alle durchlaufen.
 //
 // Alle Ausschnitte haben dieselbe Größe, damit die vier Bilder nebeneinander gleich wirken
 // und keiner unbeabsichtigt mehr Fläche abdeckt als die anderen.
@@ -261,10 +285,10 @@ const KAMERA_HOEHE = 340;
 // Welt hineingeschoben, wo er sonst über den Rand ragen würde — der Südgang liegt so dicht am
 // unteren Rand, dass sein Bild sonst zur Hälfte aus Nichts bestünde.
 const KAMERAS = [
-  { id: "kam-cafeteria", name: "Aufenthaltsraum", x: 1340, y: 245 },
-  { id: "kam-nord",      name: "Nordflur",        x: 775,  y: 245 },
-  { id: "kam-west",      name: "Westkreuzung",    x: 480,  y: 695 },
-  { id: "kam-sued",      name: "Südgang",         x: 1280, y: 1375 }
+  { id: "kam-cafeteria", name: "Cafeteria",    x: 1340, y: 245 },
+  { id: "kam-nord",      name: "Nordgang",     x: 775,  y: 245 },
+  { id: "kam-west",      name: "Westkreuzung", x: 480,  y: 695 },
+  { id: "kam-sued",      name: "Südgang",      x: 1280, y: 1375 }
 ].map(k => ({
   ...k,
   links: Math.min(Math.max(k.x - KAMERA_BREITE / 2, 0), WELT_BREITE - KAMERA_BREITE),

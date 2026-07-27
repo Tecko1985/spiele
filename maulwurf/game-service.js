@@ -207,6 +207,7 @@ let meineRolle = null;         // "team" | "maulwurf" | null
 let meineSonderrolle = null;   // "ingenieur" | "wissenschaftler" | "schutzengel" | "gestaltwandler" | null
 let meineAufgaben = [];        // Stations-Ids
 let meineErledigten = [];      // Stations-Ids
+let meineWartezeiten = {};     // Stations-Id -> Startzeitpunkt der Wartezeit
 let maulwurfTeamRoh = {};      // uid -> {name, runde}, nur wenn ich Maulwurf bin
 let positionen = {};           // uid -> {x,y}
 let chatVerlauf = [];
@@ -311,11 +312,26 @@ function getZustand() {
     binGeist,
     binDabei: !!eigener,
     meineRolle,
-    meineAufgaben: meineAufgaben.map(id => ({
-      id,
-      station: karte.stationNachId(id),
-      erledigt: meineErledigten.indexOf(id) !== -1
-    })),
+    meineAufgaben: meineAufgaben.map(id => {
+      const station = karte.stationNachId(id);
+      const def = (station && aufgabenModul.AUFGABEN_TYPEN[station.typ]) || {};
+      const teile = teileDerAufgabe(id);
+      const nachfolger = teile[teile.indexOf(id) + 1];
+      const nachfolgerStation = nachfolger && karte.stationNachId(nachfolger);
+      const zielRaum = nachfolgerStation && karte.RAEUME.find(r => r.id === nachfolgerStation.raum);
+      return {
+        id,
+        station,
+        erledigt: meineErledigten.indexOf(id) !== -1,
+        // teil/teile sind 1-basiert und stehen so auch in der Aufgabenliste ("Ort 2 von 3")
+        teil: teile.indexOf(id) + 1,
+        teile: teile.length,
+        gesperrt: ketteBlockiert(id),
+        zielRaum: zielRaum ? zielRaum.name : null,
+        wartenSek: def.wartenSek || 0,
+        wartenSeit: meineWartezeiten[id] || 0
+      };
+    }),
     meineSonderrolle,
     schutz: raum.schutz || {},
     schutzCooldownBis: raum.schutzCooldownBis || 0,
@@ -370,6 +386,7 @@ function loeseListenerAb() {
   meineSonderrolle = null;
   meineAufgaben = [];
   meineErledigten = [];
+  meineWartezeiten = {};
   maulwurfTeamRoh = {};
   positionen = {};
   chatVerlauf = [];
@@ -443,6 +460,7 @@ function uebernehmeEigeneRolle(daten) {
   meineSonderrolle = daten.sonder || null;
   meineAufgaben = daten.aufgaben || [];
   meineErledigten = daten.erledigt || [];
+  meineWartezeiten = daten.warten || {};
   if (meineRolle === "maulwurf" && !teamRef && aktuellerRaumCode) {
     teamRef = db.ref(`${TEAM_PFAD}/${aktuellerRaumCode}`);
     teamRef.on("value", snap => {
@@ -623,21 +641,63 @@ function ziehIndex(code) {
   });
 }
 
+function zufaelligesElement(liste) {
+  return liste[Math.floor(Math.random() * liste.length)];
+}
+
+// Wählt die Stationen für EINE Aufgabe. Mehrteilige Typen liefern mehrere Stationen, und zwar
+// in genau der Reihenfolge, in der sie abgearbeitet werden müssen.
+function waehleTeile(def, stationen) {
+  if (def.kette) {
+    // Feste Reihenfolge mit Raumbedingung: "*" heißt "irgendein Raum, der in der Kette nicht
+    // ausdrücklich genannt ist" — sonst könnte der Hinweg im selben Raum enden wie der Rückweg.
+    const teile = [];
+    def.kette.forEach(bedingung => {
+      const passend = stationen.filter(st => teile.indexOf(st) === -1 &&
+        (bedingung === "*" ? def.kette.indexOf(st.raum) === -1 : st.raum === bedingung));
+      if (passend.length) teile.push(zufaelligesElement(passend));
+    });
+    return teile.length === def.kette.length ? teile : [];
+  }
+  if (def.teile) {
+    // Jeder Teil in einem ANDEREN Raum — sonst stünde man dreimal am selben Fleck und die
+    // Aufgabe wäre kein Laufweg mehr, sondern dreimal derselbe Knopfdruck.
+    const raeume = mischeListe(stationen.map(st => st.raum).filter((r, i, a) => a.indexOf(r) === i));
+    const teile = raeume.slice(0, def.teile).map(raum => zufaelligesElement(stationen.filter(st => st.raum === raum)));
+    return teile.length === def.teile ? teile : [];
+  }
+  return [zufaelligesElement(stationen)];
+}
+
 function waehleAufgaben(anzahl) {
   // Pro Aufgabentyp höchstens einmal, damit die Runde abwechslungsreich bleibt.
   const nachTyp = {};
   karte.STATIONEN.forEach(st => {
     if (!nachTyp[st.typ]) nachTyp[st.typ] = [];
-    nachTyp[st.typ].push(st.id);
+    nachTyp[st.typ].push(st);
   });
-  const typen = mischeListe(Object.keys(nachTyp));
+
   const gewaehlt = [];
-  typen.forEach(typ => {
-    if (gewaehlt.length >= anzahl) return;
-    const stationen = nachTyp[typ];
-    gewaehlt.push(stationen[Math.floor(Math.random() * stationen.length)]);
+  const schonVergeben = {};
+
+  // Zwei Durchgänge: erst die mehrteiligen Aufgaben, dann die einteiligen.
+  //
+  // Eine mehrteilige Aufgabe wird nur GANZ vergeben. Passte nur ihr erster Teil ins
+  // Restkontingent, stünde eine halbe Kette in der Liste, die sich nie abschließen lässt —
+  // der gemeinsame Fortschrittsbalken käme dann nie auf 100 % und die Aufgaben-Siegbedingung
+  // wäre unerreichbar. Deshalb füllen die einteiligen Typen im zweiten Durchgang exakt auf.
+  [true, false].forEach(mehrteiligeRunde => {
+    mischeListe(Object.keys(nachTyp)).forEach(typ => {
+      if (gewaehlt.length >= anzahl || schonVergeben[typ]) return;
+      const def = aufgabenModul.AUFGABEN_TYPEN[typ] || {};
+      if (!!(def.teile || def.kette) !== mehrteiligeRunde) return;
+      const teile = waehleTeile(def, nachTyp[typ]);
+      if (!teile.length || gewaehlt.length + teile.length > anzahl) return;
+      schonVergeben[typ] = true;
+      teile.forEach(st => gewaehlt.push(st.id));
+    });
   });
-  return gewaehlt.slice(0, anzahl);
+  return gewaehlt;
 }
 
 // Die Rollenbox trägt die Rundennummer mit. Ohne sie würde eine Box, die eine neueRunde()
@@ -889,11 +949,45 @@ function startePositionsSchleife() {
 
 // --- Aufgaben ---
 
+// Die Teile EINER mehrteiligen Aufgabe: alle eigenen Stationen desselben Typs, in der
+// Reihenfolge, in der waehleAufgaben sie vergeben hat.
+function teileDerAufgabe(stationId) {
+  const station = karte.stationNachId(stationId);
+  if (!station) return [];
+  return meineAufgaben.filter(id => {
+    const s = karte.stationNachId(id);
+    return s && s.typ === station.typ;
+  });
+}
+
+// Bei einer Kette (Strom umleiten, Daten übertragen) müssen die Teile in der vorgegebenen
+// Reihenfolge kommen: erst der Regler in der Elektrik, dann der Schalter im Zielraum.
+function ketteBlockiert(stationId) {
+  const station = karte.stationNachId(stationId);
+  const def = station && aufgabenModul.AUFGABEN_TYPEN[station.typ];
+  if (!def || !def.kette) return false;
+  const teile = teileDerAufgabe(stationId);
+  return teile.slice(0, teile.indexOf(stationId)).some(id => meineErledigten.indexOf(id) === -1);
+}
+
+// Warteaufgaben (Proben analysieren, WLAN neu starten) merken sich ihren Startzeitpunkt in der
+// eigenen Rollenbox. Das MUSS überdauern, dass die Aufgabe geschlossen wird — der ganze Sinn
+// ist ja, in der Zwischenzeit wegzugehen.
+async function starteWartezeit(stationId) {
+  if (!aktuellerRaumCode || !eigeneUid) return;
+  if (meineAufgaben.indexOf(stationId) === -1 || meineWartezeiten[stationId]) return;
+  meineWartezeiten = { ...meineWartezeiten, [stationId]: serverJetzt() };
+  benachrichtige();
+  await db.ref(`${ROLLEN_PFAD}/${aktuellerRaumCode}/${eigeneUid}/warten`)
+    .set(meineWartezeiten).catch(() => {});
+}
+
 async function erledigeAufgabe(stationId) {
   const raum = letzterRaum;
   if (!raum || raum.phase !== "laeuft") return { erfolg: false };
   if (meineAufgaben.indexOf(stationId) === -1) return { erfolg: false };
   if (meineErledigten.indexOf(stationId) !== -1) return { erfolg: false };
+  if (ketteBlockiert(stationId)) return { erfolg: false, fehler: "Der vorherige Schritt fehlt noch." };
 
   meineErledigten = meineErledigten.concat([stationId]);
   await db.ref(`${ROLLEN_PFAD}/${aktuellerRaumCode}/${eigeneUid}/erledigt`).set(meineErledigten).catch(() => {});
@@ -1683,6 +1777,7 @@ async function neueRunde() {
   meineSonderrolle = null;
   meineAufgaben = [];
   meineErledigten = [];
+  meineWartezeiten = {};
   maulwurfTeamRoh = {};
   if (teamRef) { teamRef.off(); teamRef = null; }
   ausgangGemeldetFuerRunde = null;
@@ -1757,7 +1852,7 @@ const gameService = {
   erstelleRaum, tritRaumBei, fuegeKiMitspielerHinzu, entferneKiMitspieler,
   speichereEinstellungen, starteSpiel,
   bewege, setzeStartposition, springeZu, startePositionsSchleife, schreibePosition,
-  erledigeAufgabe, schalteAus, meldeLeiche, drueckeNotfallknopf,
+  erledigeAufgabe, starteWartezeit, schalteAus, meldeLeiche, drueckeNotfallknopf,
   sendeChat, stimmeAb, deckeAusgeschlosseneRolleAuf,
   sabotiere, repariereFlutlicht, repariereFunk, setzeHeizungsventil,
   kameraZusehen, kameraWegsehen, KAMERA_TAKT_MS,

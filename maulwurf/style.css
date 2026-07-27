@@ -369,191 +369,307 @@ body.im-spiel .aktions-leiste {
 }
 
 /* ---------- Aufgaben-Minispiele ---------- */
-/* 25 Minispiele teilen sich wenige Bausteine (Gitter, Kachel, Zeile, Regler, Ziffernblock),
-   statt für jedes eigene Klassen mitzuschleppen. Neue Aufgaben brauchen dadurch meist gar
-   kein neues CSS mehr. Alle Bedienflächen sind mindestens fingergroß. */
+/* 20 Minispiele nach der Vorlage. Gemeinsame Bausteine oben (Anleitung, Status, Ziffernblock,
+   Kabelstecker), danach je Aufgabe nur das Nötige. Alle Bedienflächen sind mindestens
+   fingergroß, alle Ziehflächen tragen touch-action:none — sonst scrollt das Handy beim
+   Wischen die Seite statt das Spielfeld zu bedienen. */
 .af-anleitung { font-size: 14px; color: var(--muted); margin: 0 0 14px; }
 .af-status { font-size: 13px; color: var(--primary); font-weight: 600; margin: 12px 0 0; min-height: 18px; }
 
-.af-gitter { display: grid; grid-template-columns: repeat(var(--spalten, 4), 1fr); gap: 6px; }
-.af-kachel {
-  position: relative; overflow: hidden; padding: 0;
-  aspect-ratio: 1; min-height: 40px; border-radius: 10px;
-  border: 2px solid var(--border); background: #fff; color: var(--text);
-  font-size: 22px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-}
-.af-kachel.zu { background: var(--primary); border-color: var(--primary); color: #fff; }
-.af-kachel.offen { background: #fff; color: var(--text); }
-.af-kachel.gut { background: var(--success); border-color: var(--success); color: #fff; }
-.af-kachel.aktiv { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26, 86, 160, 0.25); }
-.af-kachel.falsch { background: #fee2e2; border-color: var(--gefahr); }
-.af-kachel:disabled { cursor: default; }
-.af-netz .af-kachel.heil { background: #e8edf5; border-color: #cbd5e1; }
-.af-netz .af-kachel.loch { background: #1f2937; border-color: #111827; }
-.af-rasen { touch-action: none; }
-.af-rasen .af-halm { background: #86efac; border-color: #4ade80; }
-.af-rasen .af-halm.gut { background: #166534; border-color: #14532d; }
-.af-stollen .af-fuellung { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: rgba(5, 122, 85, 0.4); }
-
-.af-zeilen { display: flex; flex-direction: column; gap: 6px; }
-.af-zeile {
-  display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  padding: 11px 12px; border-radius: 8px; border: 1px solid var(--border);
-  background: #fff; color: var(--text); font-size: 14px; cursor: pointer; text-align: left;
-}
-.af-zeile.gut { background: var(--success); border-color: var(--success); color: #fff; }
-
-.af-regler-liste { display: flex; flex-direction: column; gap: 12px; }
-.af-regler { display: block; text-align: left; }
-.af-regler-kopf { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
-.af-regler-kopf b { color: var(--primary); }
-.af-regler input[type="range"] { width: 100%; margin: 4px 0 0; }
-.af-regler-wert { font-size: 13px; font-weight: 700; color: var(--muted); }
-.af-regler-wert.gut { color: var(--success); }
-
 .af-ziffernblock { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
 .af-ziffernblock button {
-  padding: 12px 0; font-size: 18px; font-weight: 700; border-radius: 8px;
-  border: 1px solid var(--border); background: #fff; color: var(--text); cursor: pointer;
+  padding: 12px 0; font-size: 18px; font-weight: 700; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; color: var(--text);
 }
 .af-ziffernblock .af-ok { background: var(--primary); color: #fff; border-color: var(--primary); }
 .af-eingabefeld {
-  margin-top: 10px; padding: 10px; border-radius: 8px;
-  background: #111827; color: #4ade80; letter-spacing: 3px;
-  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px;
-}
-.af-zaehlwerk { display: flex; gap: 4px; justify-content: center; }
-.af-zaehlwerk span {
-  background: #111827; color: #fff; border-radius: 4px; padding: 8px 10px;
-  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px;
-}
-.af-streufeld { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; font-size: 22px; }
-.af-merkzettel, .af-vorlage {
-  display: flex; gap: 8px; justify-content: center; font-size: 24px;
-  background: #f3f4f6; border-radius: 8px; padding: 8px; margin-bottom: 10px;
+  font-size: 26px; font-weight: 800; letter-spacing: 2px; color: var(--primary);
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px;
 }
 
-.af-trikots { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-.af-trikot {
-  width: 56px; height: 66px; border-radius: 8px 8px 14px 14px;
-  border: 2px solid var(--primary); background: #fff; color: var(--primary);
-  font-size: 20px; font-weight: 800; cursor: pointer;
+/* --- Warteaufgaben (Proben analysieren, WLAN neu starten) --- */
+.af-warte { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.af-warte-symbol { font-size: 52px; line-height: 1; }
+.af-warte-symbol.dreht { animation: af-puls 1.6s ease-in-out infinite; }
+@keyframes af-puls { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.92); } }
+.af-warte-start, .af-wlan-hebel, .af-daten-start, .af-knotenschalter, .af-stoppknopf,
+.af-muellhebel, .af-roestknopf, .af-hauptschalter {
+  padding: 14px 22px; font-size: 16px; font-weight: 700; cursor: pointer; touch-action: none;
+  border: 2px solid var(--primary); border-radius: var(--radius-sm); background: var(--primary); color: #fff;
 }
-.af-trikot.erledigt { background: var(--success); border-color: var(--success); color: #fff; }
+.af-warte-start:disabled, .af-wlan-hebel:disabled, .af-daten-start:disabled,
+.af-knotenschalter:disabled, .af-muellhebel:disabled, .af-roestknopf:disabled,
+.af-hauptschalter:disabled { background: #94a3b8; border-color: #94a3b8; cursor: default; }
+.af-muellhebel.gedrueckt, .af-roestknopf.gedrueckt { background: var(--success); border-color: var(--success); }
+.af-warte-balken, .af-daten-balken {
+  width: 100%; max-width: 320px; height: 16px; border-radius: 999px;
+  background: #e2e8f0; overflow: hidden;
+}
+.af-warte-fuellung, .af-daten-fuellung { height: 100%; width: 0%; background: var(--primary); transition: width .2s linear; }
+.af-warte-rest { font-size: 20px; font-weight: 800; color: var(--primary); }
 
-.af-manometer {
-  position: relative; height: 34px; border-radius: 999px;
-  background: #e5e7eb; border: 1px solid var(--border); overflow: hidden;
+/* --- 1. Reaktor starten (Simon Says) --- */
+.af-reaktor { display: flex; gap: 18px; justify-content: center; }
+.af-reaktor-halb { flex: 0 0 auto; }
+.af-reaktor-titel { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.af-reaktor-feld { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.af-reaktor-zelle {
+  width: 42px; height: 42px; border-radius: 8px; cursor: pointer;
+  border: 2px solid var(--border); background: #f3f4f6;
 }
-.af-zielzone { position: absolute; top: 0; bottom: 0; background: rgba(5, 122, 85, 0.28); }
-.af-nadel {
-  position: absolute; top: 3px; bottom: 3px; width: 8px; margin-left: -4px;
-  border-radius: 4px; background: var(--primary); transition: left 40ms linear;
-}
-.af-nadel.im-ziel { background: var(--success); }
-.af-pumpe, .af-pusten { margin-top: 14px; touch-action: none; }
+.af-reaktor-zelle:disabled { cursor: default; }
+.af-reaktor-zelle.an { background: var(--primary); border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26, 86, 160, .25); }
+.af-reaktor-zelle.falsch { background: #fee2e2; border-color: var(--gefahr); }
 
-.af-saeule {
-  position: relative; height: 130px; width: 64px; margin: 0 auto; overflow: hidden;
-  background: #e5e7eb; border: 1px solid var(--border); border-radius: 8px;
+/* --- 2. Manifold entsperren --- */
+.af-manifold { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; max-width: 300px; margin: 0 auto; }
+.af-manifold-taste {
+  height: 48px; border-radius: 8px; font-size: 18px; font-weight: 800; cursor: pointer;
+  border: 2px solid var(--border); background: #fff; color: var(--text);
 }
-.af-zielband { position: absolute; left: 0; right: 0; background: rgba(5, 122, 85, 0.28); }
-.af-pegel {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
-  background: var(--primary); transition: height 60ms linear;
-}
-.af-pegel.gut { background: var(--success); }
+.af-manifold-taste.gut { background: var(--success); border-color: var(--success); color: #fff; }
+.af-manifold-taste.falsch { background: #fee2e2; border-color: var(--gefahr); }
 
-.af-ecken { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 220px; margin: 0 auto; }
-.af-ecke {
-  height: 74px; border-radius: 12px; border: 2px solid var(--primary);
-  background: #fff; color: var(--primary); font-size: 28px; cursor: pointer;
+/* --- 3. Proben analysieren (Schlussschritt) --- */
+.af-proben { display: flex; gap: 10px; justify-content: center; }
+.af-probe {
+  width: 46px; padding: 6px 0; border-radius: 8px; cursor: pointer;
+  border: 2px solid var(--border); background: #fff;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
 }
-.af-ecke.aktiv { background: var(--primary); color: #fff; }
+.af-probe-glas { width: 16px; height: 40px; border-radius: 0 0 8px 8px; background: #bfdbfe; border: 1px solid #93c5fd; }
+.af-probe.auffaellig .af-probe-glas { background: #fca5a5; border-color: #ef4444; }
+.af-probe-nr { font-size: 12px; font-weight: 700; color: var(--muted); }
+.af-probe.gut { border-color: var(--success); background: #dcfce7; }
+.af-probe.falsch { border-color: var(--gefahr); background: #fee2e2; }
 
-.af-bahn {
-  position: relative; height: 42px; border-radius: 8px;
-  background: #e5e7eb; border: 1px solid var(--border); margin-bottom: 14px; overflow: hidden;
-}
-.af-zone { position: absolute; top: 0; bottom: 0; background: rgba(5, 122, 85, 0.3); }
-.af-greifer { position: absolute; top: 6px; font-size: 22px; margin-left: -11px; }
-
-.af-linienfeld {
-  position: relative; width: 100%; aspect-ratio: 3 / 2;
-  background: #1f2937; border-radius: 12px; overflow: hidden; touch-action: none;
-}
-.af-segment { position: absolute; background: #93c5fd; }
-.af-linienfeld.aktiv .af-segment { background: #4ade80; }
-.af-linienstart, .af-linienziel {
-  position: absolute; font-size: 11px; font-weight: 700; color: #fff;
-  background: rgba(0, 0, 0, 0.45); padding: 2px 6px; border-radius: 4px;
-}
-.af-linienstart { left: 4%; top: 80%; }
-.af-linienziel { right: 4%; top: 80%; }
-
-.af-tonnen { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
-.af-tonnen button {
-  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 10px 6px; border-radius: 10px; border: 2px solid var(--border);
-  background: #fff; color: var(--text); font-size: 26px; cursor: pointer;
-}
-.af-tonnen button span { font-size: 11px; font-weight: 600; color: var(--muted); }
-.af-tonnen button.falsch { border-color: var(--gefahr); background: #fee2e2; }
-.af-muellstueck { font-size: 46px; height: 58px; line-height: 58px; }
-
-.af-schloss { display: flex; gap: 12px; justify-content: center; }
-.af-rad { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.af-rad button {
-  width: 52px; padding: 8px 0; border-radius: 6px; border: 1px solid var(--border);
-  background: #fff; color: var(--primary); font-size: 14px; cursor: pointer;
-}
-.af-radwert {
-  width: 52px; padding: 8px 0; border-radius: 6px; background: #111827; color: #fff;
-  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px; font-weight: 700;
-}
-.af-radwert.gut { background: var(--success); }
-
-.af-kabel { display: flex; justify-content: space-between; gap: 36px; padding: 0 8px; }
+/* --- 4. Kabel reparieren --- */
+.af-kabel { display: flex; justify-content: space-between; gap: 40px; padding: 0 8px; }
 .af-kabel-spalte { display: flex; flex-direction: column; gap: 10px; flex: 0 0 auto; }
 .af-stecker {
-  width: 52px; height: 36px; border-radius: 6px; padding: 0;
-  border: 2px solid rgba(0, 0, 0, 0.25); cursor: pointer;
+  width: 58px; height: 40px; border-radius: 6px; border: 2px solid rgba(0, 0, 0, .25);
+  cursor: pointer; color: #fff; font-size: 18px; font-weight: 800; text-shadow: 0 1px 2px rgba(0, 0, 0, .4);
 }
-.af-stecker.aktiv { box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.4); }
-.af-stecker.gut { border-color: #111827; opacity: 0.45; cursor: default; }
-.af-stecker.falsch { border-color: var(--gefahr); }
+.af-stecker.aktiv { box-shadow: 0 0 0 4px rgba(26, 86, 160, .35); }
+.af-stecker.gut { opacity: .45; }
+.af-stecker.falsch { box-shadow: 0 0 0 4px rgba(220, 38, 38, .45); }
+.af-stecker:disabled { cursor: default; }
 
-.af-massband { padding: 0 6px; }
-.af-massband-wert {
-  font-size: 26px; font-weight: 800; color: var(--primary); margin-bottom: 10px;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
+/* --- 5. Strom umleiten --- */
+.af-stromregler { display: flex; justify-content: center; }
+.af-regler-schacht {
+  position: relative; width: 74px; height: 170px; border-radius: 12px;
+  background: #e2e8f0; border: 2px solid var(--border); touch-action: none; cursor: pointer;
 }
-.af-massband-wert.gut { color: var(--success); }
-.af-massband input[type="range"] { width: 100%; }
+.af-regler-ziel { position: absolute; left: 0; right: 0; top: 0; height: 16%; background: rgba(5, 122, 85, .28); border-radius: 10px 10px 0 0; }
+.af-regler-griff {
+  position: absolute; left: 6px; right: 6px; height: 34px; margin-bottom: -17px;
+  border-radius: 8px; background: var(--primary); box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
+}
+.af-regler-griff.gut { background: var(--success); }
+.af-stromschalter { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.af-lampe { width: 52px; height: 52px; border-radius: 50%; background: #cbd5e1; border: 3px solid var(--border); }
+.af-lampe.an { background: #fde047; border-color: #facc15; box-shadow: 0 0 22px rgba(250, 204, 21, .8); }
 
-.af-mast { position: relative; height: 150px; width: 150px; margin: 0 auto; }
-.af-mast::before {
-  content: ""; position: absolute; left: 14px; top: 0; bottom: 0;
-  width: 6px; background: #9ca3af; border-radius: 3px;
+/* --- 6. Verteiler kalibrieren --- */
+.af-verteiler { display: flex; gap: 14px; justify-content: center; margin-bottom: 12px; }
+.af-skala {
+  position: relative; width: 78px; height: 78px; border-radius: 50%;
+  border: 3px solid var(--border); background: #fff;
 }
-.af-fahne { position: absolute; left: 22px; bottom: 0%; font-size: 34px; transition: bottom 0.2s ease; }
-.af-seil {
-  position: absolute; right: 0; top: 0; bottom: 0; width: 86px;
-  border: 2px dashed var(--primary); border-radius: 10px; color: var(--primary);
-  font-size: 12px; font-weight: 600; touch-action: none; cursor: grab;
+.af-skala-marke { position: absolute; left: 50%; top: 2px; width: 5px; height: 15px; margin-left: -2.5px; background: var(--success); border-radius: 2px; }
+.af-skala-zeiger {
+  position: absolute; left: 50%; top: 50%; width: 4px; height: 34px; margin-left: -2px;
+  background: var(--primary); border-radius: 2px; transform-origin: 50% 100%;
+  transform: rotate(0deg); margin-top: -34px;
+}
+.af-skala-zeiger.gut { background: var(--success); }
+.af-skala-zeiger.falsch { background: var(--gefahr); }
+
+/* --- 7. Sicherungen zurücksetzen (nicht .af-sicherung, das ist die Flutlicht-Reparatur) --- */
+.af-reset-block { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; }
+.af-reset-hebel {
+  width: 42px; height: 74px; border-radius: 8px; cursor: pointer; padding: 6px 0;
+  border: 2px solid var(--border); background: #f3f4f6;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+}
+.af-reset-griff { width: 16px; height: 30px; border-radius: 4px; background: #94a3b8; }
+.af-reset-hebel.gut { background: #dcfce7; border-color: var(--success); }
+.af-reset-hebel.gut .af-reset-griff { background: var(--success); transform: translateY(-6px); }
+.af-reset-hebel.falsch { background: #fee2e2; border-color: var(--gefahr); }
+.af-reset-nr { font-size: 12px; font-weight: 800; color: var(--muted); }
+
+/* --- 8. Kurs stabilisieren --- */
+.af-kursfeld {
+  position: relative; width: 100%; height: 150px; border-radius: var(--radius-sm);
+  background: #0f172a; overflow: hidden; touch-action: none; cursor: pointer;
+}
+.af-kursbahn { position: absolute; background: rgba(147, 197, 253, .35); border: 1px dashed #93c5fd; }
+.af-kursfeld.aktiv .af-kursbahn { background: rgba(74, 222, 128, .35); border-color: #4ade80; }
+.af-kursstart, .af-kursziel {
+  position: absolute; top: 82%; font-size: 11px; font-weight: 700; color: #e2e8f0;
+}
+.af-kursstart { left: 4%; }
+.af-kursziel { right: 4%; }
+.af-kursschiff { position: absolute; font-size: 22px; margin: -11px 0 0 -11px; pointer-events: none; }
+
+/* --- 9. Triebwerke ausrichten --- */
+.af-triebwerk {
+  position: relative; width: 100%; height: 130px; border-radius: var(--radius-sm);
+  background: #1e293b; overflow: hidden; margin-bottom: 10px;
+}
+.af-triebwerk-soll { position: absolute; left: 0; right: 0; height: 3px; background: var(--success); margin-top: -1.5px; }
+.af-triebwerk-duese { position: absolute; right: 8px; font-size: 22px; color: #fbbf24; margin-top: -13px; }
+.af-triebwerk-duese.gut { color: #4ade80; }
+.af-triebwerk-schacht {
+  position: relative; width: 100%; height: 40px; border-radius: 999px;
+  background: #e2e8f0; border: 2px solid var(--border); touch-action: none; cursor: pointer;
+}
+.af-triebwerk-griff {
+  position: absolute; left: 4px; right: 4px; height: 14px; margin-top: -7px;
+  border-radius: 999px; background: var(--primary);
+}
+.af-triebwerk-griff.gut { background: var(--success); }
+
+/* --- 10. Asteroiden zerstören --- */
+.af-asteroiden {
+  position: relative; width: 100%; height: 165px; border-radius: var(--radius-sm);
+  background: radial-gradient(circle at 30% 20%, #1e293b, #020617); overflow: hidden;
+}
+.af-fadenkreuz-mitte { position: absolute; left: 50%; top: 50%; margin: -12px 0 0 -8px; font-size: 22px; color: rgba(148, 163, 184, .5); }
+.af-asteroid {
+  position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px;
+  border: none; background: transparent; font-size: 26px; cursor: pointer; padding: 0;
+}
+.af-asteroid.treffer { transform: scale(1.7); opacity: 0; transition: transform .2s, opacity .2s; }
+
+/* --- 11. Teleskop ausrichten --- */
+.af-teleskop {
+  position: relative; width: 100%; height: 165px; border-radius: 50% / 22%;
+  background: radial-gradient(circle at 50% 50%, #0b1220 60%, #000); overflow: hidden;
+  touch-action: none; cursor: grab; border: 3px solid var(--border);
+}
+.af-teleskop.im-ziel { border-color: var(--success); }
+.af-himmel { position: absolute; inset: -50%; width: 200%; height: 200%; }
+.af-himmelsobjekt { position: absolute; font-size: 30px; margin: -15px 0 0 -15px; }
+.af-fadenkreuz span {
+  position: absolute; background: rgba(226, 232, 240, .55);
+}
+.af-fadenkreuz span:first-child { left: 50%; top: 38%; width: 1px; height: 24%; }
+.af-fadenkreuz span:last-child { top: 50%; left: 44%; height: 1px; width: 12%; }
+.af-teleskop.im-ziel .af-fadenkreuz span { background: #4ade80; }
+.af-teleskop-hinweis { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+
+/* --- 12. Müll entsorgen --- */
+.af-muellschacht {
+  position: relative; width: 100%; max-width: 220px; height: 120px; margin: 0 auto 12px;
+  border-radius: var(--radius-sm); border: 2px solid var(--border); background: #f8fafc; overflow: hidden;
+}
+.af-muellhaufen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.af-muellfuellung { position: absolute; left: 0; right: 0; bottom: 0; height: 100%; background: rgba(100, 116, 139, .22); transition: height .1s linear; }
+
+/* --- 13. Filter reinigen --- */
+.af-filter { display: flex; gap: 10px; touch-action: none; }
+.af-filtergitter {
+  position: relative; flex: 1; height: 145px; border-radius: var(--radius-sm);
+  background: repeating-linear-gradient(90deg, #e2e8f0 0 10px, #f8fafc 10px 20px);
+  border: 2px solid var(--border);
+}
+.af-blatt { position: absolute; font-size: 26px; margin: -13px 0 0 -13px; cursor: grab; }
+.af-blatt.gezogen { transform: scale(1.2); }
+.af-blatt.weg { display: none; }
+.af-filterschacht {
+  flex: 0 0 66px; border-radius: var(--radius-sm); border: 2px dashed var(--primary);
+  background: rgba(26, 86, 160, .08); color: var(--primary); font-size: 24px;
   display: flex; align-items: center; justify-content: center;
 }
 
-.af-ampel {
-  width: 100%; max-width: 220px; height: 92px; margin: 0 auto; gap: 4px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  border-radius: 12px; border: 2px solid var(--border); background: #f3f4f6;
-  color: var(--muted); font-size: 30px; cursor: pointer;
+/* --- 14. Pömpel bedienen --- */
+.af-poempel { display: flex; gap: 20px; justify-content: center; align-items: stretch; }
+.af-poempel-schacht {
+  position: relative; width: 90px; height: 160px; border-radius: 12px;
+  background: #e2e8f0; border: 2px solid var(--border); touch-action: none; cursor: pointer;
 }
-.af-ampel span { font-size: 13px; font-weight: 600; }
-.af-ampel.los { background: var(--success); border-color: var(--success); color: #fff; }
-.af-ampel.gut { background: var(--primary); border-color: var(--primary); color: #fff; }
+.af-poempel-griff { position: absolute; left: 50%; font-size: 32px; margin: -16px 0 0 -16px; pointer-events: none; }
+.af-druckanzeige {
+  position: relative; width: 46px; border-radius: 8px;
+  background: #f1f5f9; border: 2px solid var(--border); overflow: hidden;
+}
+.af-druckgrenze { position: absolute; left: 0; right: 0; top: 0; height: 22%; background: rgba(5, 122, 85, .25); }
+.af-druckpegel { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: var(--primary); transition: height .15s; }
+.af-druckpegel.gut { background: var(--success); }
+
+/* --- 15. Daten übertragen --- */
+.af-daten { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.af-daten-symbol { font-size: 40px; font-weight: 800; color: var(--primary); }
+.af-daten-prozent { font-size: 20px; font-weight: 800; color: var(--primary); }
+
+/* --- 16. WLAN-Router --- */
+.af-wlan { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.af-wlan-symbol { font-size: 52px; filter: grayscale(1); }
+.af-wlan-symbol.an { filter: none; }
+
+/* --- 17. Knotenpunkt aktivieren --- */
+.af-labyrinth {
+  display: grid; grid-template-columns: repeat(5, 46px); gap: 3px; justify-content: center;
+  margin-top: 12px; opacity: .45; pointer-events: none; touch-action: none;
+}
+.af-labyrinth.aktiv { opacity: 1; pointer-events: auto; }
+.af-lab-zelle { width: 46px; height: 46px; border-radius: 6px; background: #e2e8f0; }
+.af-lab-zelle.wand { background: #334155; }
+.af-lab-zelle.start { background: #bfdbfe; }
+.af-lab-zelle.ziel { background: #bbf7d0; }
+.af-lab-zelle.weg { background: var(--primary); }
+.af-lab-zelle.ziel.weg { background: var(--success); }
+
+/* --- 18. Schaufensterpuppe anziehen --- */
+.af-puppe { display: flex; gap: 16px; justify-content: center; margin-bottom: 12px; }
+.af-puppe-vorlage, .af-puppe-eigen {
+  flex: 1; max-width: 150px; border-radius: var(--radius-sm);
+  border: 2px solid var(--border); background: #fff; padding: 8px;
+}
+.af-puppe-vorlage { border-color: var(--primary); }
+.af-puppe-titel { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.af-puppe-figur { display: flex; flex-direction: column; align-items: center; font-size: 26px; line-height: 1.15; }
+.af-puppe-auswahl { display: flex; flex-direction: column; gap: 6px; }
+.af-puppe-reihe { display: flex; align-items: center; gap: 6px; justify-content: center; }
+.af-puppe-label { font-size: 12px; color: var(--muted); width: 64px; text-align: right; }
+.af-puppe-knopf {
+  width: 46px; height: 42px; border-radius: 8px; font-size: 22px; cursor: pointer;
+  border: 2px solid var(--border); background: #fff;
+}
+.af-puppe-knopf.aktiv { border-color: var(--primary); background: #dbeafe; }
+.af-puppe-knopf:disabled { cursor: default; opacity: .7; }
+
+/* --- 19. Marshmallows rösten --- */
+.af-lagerfeuer { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 12px; }
+.af-marshmallow { font-size: 40px; }
+.af-feuer { font-size: 34px; animation: af-flackern .7s ease-in-out infinite alternate; }
+@keyframes af-flackern { from { transform: scale(1) rotate(-3deg); } to { transform: scale(1.12) rotate(3deg); } }
+.af-roestbalken {
+  position: relative; width: 100%; max-width: 260px; height: 16px;
+  border-radius: 999px; background: #e2e8f0; overflow: hidden;
+}
+.af-roestzone { position: absolute; left: 63%; right: 0; top: 0; bottom: 0; background: rgba(5, 122, 85, .3); }
+.af-roestpegel { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #b45309; }
+
+/* --- 20. Gemüse hacken --- */
+.af-brett {
+  width: 100%; height: 150px; border-radius: var(--radius-sm);
+  background: #fef3c7; border: 3px solid #d6a760; touch-action: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+}
+.af-zutat { font-size: 46px; }
+.af-zutat.hieb { transform: scale(.8) rotate(-8deg); }
+.af-stuecke { font-size: 18px; letter-spacing: 2px; min-height: 22px; }
+
+/* Aufgabenliste: Schrittnummer mehrteiliger Aufgaben und gesperrte Kettenteile */
+.aufgaben-liste .teilnummer {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  background: #e2e8f0; border-radius: 999px; padding: 1px 7px; margin-left: 4px;
+}
+.aufgaben-liste li.gesperrt { opacity: .6; }
+.aufgaben-liste li.gesperrt .teilnummer { background: #fde68a; color: #92400e; }
 
 .af-sicherungen { display: flex; gap: 8px; justify-content: center; }
 .af-sicherung {
@@ -671,15 +787,24 @@ nav.tabs button.active { color: var(--primary); border-bottom-color: var(--prima
   .overlay-karte h3 { margin-bottom: 6px; font-size: 15px; }
   .af-anleitung { margin-bottom: 8px; font-size: 13px; }
   .af-status { margin-top: 8px; }
-  .af-kachel { min-height: 34px; font-size: 18px; }
   .af-ziffernblock button { padding: 8px 0; font-size: 16px; }
-  .af-zeile { padding: 8px 12px; }
-  .af-saeule { height: 92px; }
-  .af-mast { height: 108px; }
-  .af-ampel { height: 68px; }
   .af-ventil { width: 96px; height: 96px; font-size: 30px; }
-  .af-muellstueck { font-size: 34px; height: 42px; line-height: 42px; }
-  .af-trikot { width: 48px; height: 56px; }
-  .af-ecke { height: 56px; }
   .af-sicherung { height: 62px; }
+  /* Im flachen Querformat sind Hoehe und Fingergroesse gegenlaeufig: die Spielfelder
+     schrumpfen, die Bedienelemente bleiben mindestens 40 px hoch. */
+  .af-reaktor-zelle { width: 36px; height: 36px; }
+  .af-manifold-taste { height: 42px; }
+  .af-regler-schacht { height: 132px; }
+  .af-skala { width: 66px; height: 66px; }
+  .af-skala-zeiger { height: 28px; margin-top: -28px; }
+  .af-reset-hebel { height: 62px; }
+  .af-kursfeld, .af-asteroiden, .af-teleskop { height: 124px; }
+  .af-triebwerk { height: 100px; }
+  .af-filtergitter { height: 118px; }
+  .af-poempel-schacht { height: 128px; }
+  .af-labyrinth { grid-template-columns: repeat(5, 40px); }
+  .af-lab-zelle { width: 40px; height: 40px; }
+  .af-brett { height: 122px; }
+  .af-zutat { font-size: 38px; }
+  .af-warte-symbol, .af-wlan-symbol { font-size: 42px; }
 }

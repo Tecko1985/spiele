@@ -343,7 +343,11 @@ function zeichne(zustand) {
   // Eigene Aufgabenstationen (nur die eigenen — fremde Aufgaben sieht niemand)
   zustand.meineAufgaben.forEach(a => {
     if (!a.station) return;
-    zeichneMarker(wx(a.station.x), wy(a.station.y), skala, a.erledigt ? "#4b5563" : "#22c55e", a.erledigt ? "✓" : "★");
+    // Gesperrte Kettenteile bekommen ein eigenes Zeichen: sonst liefe man zu einem grünen
+    // Stern, der sich nicht öffnen lässt, und hielte das für einen Fehler.
+    const farbe = a.erledigt ? "#4b5563" : (a.gesperrt ? "#94a3b8" : "#22c55e");
+    const zeichen = a.erledigt ? "✓" : (a.gesperrt ? "🔒" : "★");
+    zeichneMarker(wx(a.station.x), wy(a.station.y), skala, farbe, zeichen);
   });
 
   // Sichtbare Aufgaben: die Spur, die jemand beim Arbeiten hinterlässt. Anders als die eigenen
@@ -681,10 +685,10 @@ function ermittleAktion(zustand) {
   }
   if (sab && sab.typ === "heizung") {
     if (karte.abstand(pos.x, pos.y, karte.HEIZUNG_A.x, karte.HEIZUNG_A.y) <= karte.INTERAKTIONS_RADIUS) {
-      return { typ: "reparatur-heizung", seite: "a", zeichen: "🔧", label: "Ventil Heizungskeller" };
+      return { typ: "reparatur-heizung", seite: "a", zeichen: "🔧", label: "Ventil Reaktor" };
     }
     if (karte.abstand(pos.x, pos.y, karte.HEIZUNG_B.x, karte.HEIZUNG_B.y) <= karte.INTERAKTIONS_RADIUS) {
-      return { typ: "reparatur-heizung", seite: "b", zeichen: "🔧", label: "Ventil Grünpflege" };
+      return { typ: "reparatur-heizung", seite: "b", zeichen: "🔧", label: "Ventil O2" };
     }
   }
   if (sab && sab.typ === "funk" &&
@@ -839,10 +843,10 @@ function aktualisiereHud(zustand) {
     warnung.textContent = `🔥 Heizung überdreht – ${rest} s bis zum Knall. Beide Ventile gleichzeitig halten!`;
   } else if (sab && sab.typ === "flutlicht") {
     warnung.style.display = "block";
-    warnung.textContent = "💡 Flutlicht aus – Sicherungskasten im Technikraum.";
+    warnung.textContent = "💡 Flutlicht aus – Sicherungskasten in der Elektrik.";
   } else if (sab && sab.typ === "funk") {
     warnung.style.display = "block";
-    warnung.textContent = "📻 Funk gestört – keine Kameras, keine Aufgabenliste. Funkpult in der Sprecherkabine.";
+    warnung.textContent = "📻 Funk gestört – keine Kameras, keine Aufgabenliste. Funkpult in der Kommunikation.";
   } else {
     warnung.style.display = "none";
   }
@@ -953,16 +957,43 @@ function schliesseOverlay() {
 function oeffneAufgabe(station) {
   const typ = aufgabenModul.AUFGABEN_TYPEN[station.typ];
   if (!typ) return;
+  const zustand = gameService.getZustand();
+  const eintrag = zustand.meineAufgaben.find(a => a.id === station.id);
+
   schliesseOverlay();
   overlayOffen = "aufgabe";
   aktiveStationId = station.id;
   el("aufgabe-titel").textContent = stationName(station);
   const inhalt = el("aufgabe-inhalt");
   inhalt.innerHTML = "";
+
+  // Ein gesperrter Kettenteil wird gar nicht erst geöffnet: das Minispiel ließe sich sonst
+  // durchspielen und erledigeAufgabe würde es hinterher stillschweigend ablehnen — der
+  // Eindruck wäre "die Aufgabe hakt", nicht "ich war in der falschen Reihenfolge dran".
+  if (eintrag && eintrag.gesperrt) {
+    inhalt.innerHTML = `<p class="af-anleitung">Diese Aufgabe hat mehrere Schritte.</p>
+      <p class="af-status">Erst der vorherige Schritt – dann geht es hier weiter.</p>`;
+    aktiveAufgabeAufraeumen = null;
+    el("overlay-aufgabe").classList.add("aktiv");
+    return;
+  }
+
+  // Die Optionen tragen alles, was das Minispiel über seinen Platz in einer mehrteiligen
+  // Aufgabe wissen muss. jetzt() kommt bewusst aus dem Spiel (Serverzeit), damit eine
+  // Wartezeit auf allen Geräten gleich läuft.
+  const optionen = {
+    teil: eintrag ? eintrag.teil : 1,
+    teile: eintrag ? eintrag.teile : 1,
+    zielRaum: eintrag ? eintrag.zielRaum : null,
+    wartenSeit: eintrag ? eintrag.wartenSeit : 0,
+    jetzt: gameService.serverJetzt,
+    starteWarten: () => gameService.starteWartezeit(station.id)
+  };
+
   aktiveAufgabeAufraeumen = typ.start(inhalt, async () => {
     await gameService.erledigeAufgabe(station.id);
     setTimeout(schliesseOverlay, 700);
-  });
+  }, optionen);
   el("overlay-aufgabe").classList.add("aktiv");
 }
 
@@ -1003,9 +1034,17 @@ function oeffneAufgabenliste() {
     if (!a.station) return;
     const typ = aufgabenModul.AUFGABEN_TYPEN[a.station.typ];
     const li = document.createElement("li");
-    li.className = a.erledigt ? "erledigt" : "";
-    li.innerHTML = `<span>${a.erledigt ? "✅" : "⬜"}</span>
-      <span>${escapeHtml(stationName(a.station))}${typ && typ.sichtbar ? ' <b class="sichtbar-marke" title="Wer zusieht, sieht dass du wirklich arbeitest">👁</b>' : ""}</span>
+    li.className = a.erledigt ? "erledigt" : (a.gesperrt ? "gesperrt" : "");
+    // Mehrteilige Aufgaben stehen mit ihrer Schrittnummer da, sonst läse sich dieselbe
+    // Aufgabe dreimal identisch und man wüsste nicht, welcher Ort noch offen ist.
+    const schritt = a.teile > 1 ? ` <span class="teilnummer">${a.teil}/${a.teile}</span>` : "";
+    const zeichen = a.erledigt ? "✅" : (a.gesperrt ? "🔒" : "⬜");
+    const wartetNoch = a.wartenSeit && gameService.serverJetzt() < a.wartenSeit + a.wartenSek * 1000;
+    const hinweis = wartetNoch
+      ? ` <span class="teilnummer">läuft …</span>`
+      : (a.wartenSeit && !a.erledigt ? ` <span class="teilnummer">fertig – hingehen</span>` : "");
+    li.innerHTML = `<span>${zeichen}</span>
+      <span>${escapeHtml(stationName(a.station))}${schritt}${hinweis}${typ && typ.sichtbar ? ' <b class="sichtbar-marke" title="Wer zusieht, sieht dass du wirklich arbeitest">👁</b>' : ""}</span>
       <span class="ort">${escapeHtml(raumNameZu(a.station.raum))}</span>`;
     liste.appendChild(li);
   });
@@ -1762,13 +1801,13 @@ const APP_CHANGELOG = [
     groups: [
       { title: "Spielen", items: [
           "Verräterspiel für 4 bis 10 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
-          "Das Gelände ist dem Original-Grundriss von Among Us nachempfunden: 14 Räume, ein Drehkreuz in der Mitte, ein Rundlauf außen herum – und zwei Sackgassen (Hausmeisterloge, Sanitätsraum) mit nur einer Tür.",
+          "Das Gelände ist dem Original-Grundriss von Among Us nachempfunden: 14 Räume, ein Drehkreuz in der Mitte, ein Rundlauf außen herum – und zwei Sackgassen (Sicherheit, Krankenstation) mit nur einer Tür.",
           "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen – nur durch offene Türen fällt Licht in den Nachbarraum. Die Räume selbst bleiben schwach angedeutet, damit man sich zurechtfindet; Mitspielende sieht man aber wirklich nur in direkter Sichtlinie. Auch ein Foulspiel quer durch die Wand geht nicht mehr.",
           "25 verschiedene Aufgaben-Minispiele an 50 Stationen – jede Runde ist anders zusammengesetzt.",
           "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Flutlicht kappen, die Heizung überdrehen, den Funk stören und Räume verriegeln.",
-          "📹 Kameras in der Hausmeisterloge zeigen vier feste Bereiche des Geländes – ohne Namen, nur Punkte in Bewegung. Wer zusieht, wird verraten: die Kameras blinken dann rot für jeden, der davorsteht.",
-          "📻 Ist der Funk gestört, fallen Kameras und Aufgabenliste aus, bis jemand am Funkpult in der Sprecherkabine war.",
+          "📹 Kameras in der Sicherheit zeigen vier feste Bereiche des Geländes – ohne Namen, nur Punkte in Bewegung. Wer zusieht, wird verraten: die Kameras blinken dann rot für jeden, der davorsteht.",
+          "📻 Ist der Funk gestört, fallen Kameras und Aufgabenliste aus, bis jemand am Funkpult in der Kommunikation war.",
           "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende.",
           "Einstellbar, ob nach einem Rauswurf verraten wird, ob es wirklich ein Maulwurf war."
       ]},
