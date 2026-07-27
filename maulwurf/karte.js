@@ -81,10 +81,11 @@ const RAEUME = [
   { id: "shields",      name: "Schilde",       x: 2060, y: 990,  w: 320, h: 310 }
 ];
 
-// Das Flurnetz. Waagerechte Verbindungsstücke oben und rechts, drei durchgehende Längsgänge
-// und ein breiter unterer Quergang — zusammen ergibt das den Rundlauf des Originals: man kann
+// Das Flurnetz. Waagerechte Verbindungsstücke oben und rechts, drei Längsgänge und ein
+// unterer Quergang in ZWEI Hälften — zusammen ergibt das den Rundlauf des Originals: man kann
 // im Kreis laufen, ohne je umzudrehen. Ohne diesen Rundlauf wäre jede Verfolgung eine
-// Sackgasse und "ich bin ihm ausgewichen" keine glaubhafte Aussage mehr.
+// Sackgasse und "ich bin ihm ausgewichen" keine glaubhafte Aussage mehr. Der Rundlauf führt
+// aber bewusst DURCH das Lager und nicht daran vorbei — siehe unten.
 const KORRIDORE = [
   // oben: Oberer Motor — Cafeteria — Waffen
   { id: "flur-o1", x: 555,  y: 205,  w: 440,  h: 80 },
@@ -104,8 +105,13 @@ const KORRIDORE = [
   { id: "gang-a",  x: 1560, y: 435,  w: 80,   h: 70 },
   // rechter Längsgang: Waffen ↕ O2 ↕ Navigation ↕ Schilde
   { id: "gang-r",  x: 2180, y: 435,  w: 80,   h: 520 },
-  // unterer Quergang: der lange Rückweg unter allem hindurch
-  { id: "flur-u",  x: 300,  y: 1335, w: 1955, h: 80 }
+  // Unterer Quergang, ZWEIGETEILT. Er lief bis 2026-07-27 in einem Stück über 1955 px unter
+  // der ganzen Karte durch — ein Gang, den das Original nicht hat und der das Lager
+  // umgehbar machte. Jetzt endet die Westhälfte am Lager und die Osthälfte beginnt dahinter:
+  // **wer von links nach rechts will, muss durch das Lager.** Damit ist es der Knotenpunkt,
+  // der es im Original ist, und der lange unbeobachtete Rückweg existiert nicht mehr.
+  { id: "flur-uw", x: 300,  y: 1335, w: 880,  h: 80 },
+  { id: "flur-uo", x: 1400, y: 1335, w: 855,  h: 80 }
 ];
 
 // Türöffnungen. Angegeben wird der Mittelpunkt der Öffnung in der Raumwand plus die Achse:
@@ -164,11 +170,11 @@ const TUEREN = [
   tuer(2280, 790, "h"),  // gang-r ↔ Navigation (untere Tür)
   tuer(2220, 972, "v"),  // gang-r ↓ Schilde
   // unterer Quergang
-  tuer(380, 1317, "v"),  // Unterer Motor ↓ flur-u
-  tuer(1180, 1317, "v"), // Lager ↓ flur-u (linke Tür)
-  tuer(1400, 1317, "v"), // Lager ↓ flur-u (rechte Tür)
-  tuer(1720, 1317, "v"), // Kommunikation ↓ flur-u
-  tuer(2220, 1317, "v")  // Schilde ↓ flur-u
+  tuer(380, 1317, "v"),  // Unterer Motor ↓ flur-uw
+  tuer(1180, 1317, "v"), // flur-uw ↑ Lager — das westliche Ende des Quergangs
+  tuer(1400, 1317, "v"), // Lager ↓ flur-uo — und hier geht es weiter nach Osten
+  tuer(1720, 1317, "v"), // Kommunikation ↓ flur-uo
+  tuer(2220, 1317, "v")  // Schilde ↓ flur-uo
 ];
 
 // Lüftungsschächte. Nur Maulwürfe (und der Ingenieur) dürfen sie benutzen.
@@ -324,7 +330,7 @@ const KAMERAS = [
   { id: "kam-cafeteria", name: "Cafeteria",    x: 1340, y: 245 },
   { id: "kam-nord",      name: "Nordgang",     x: 775,  y: 245 },
   { id: "kam-west",      name: "Westkreuzung", x: 480,  y: 695 },
-  { id: "kam-sued",      name: "Südgang",      x: 1280, y: 1375 }
+  { id: "kam-sued",      name: "Lagerausgang",  x: 1440, y: 1375 }
 ].map(k => ({
   ...k,
   links: Math.min(Math.max(k.x - KAMERA_BREITE / 2, 0), WELT_BREITE - KAMERA_BREITE),
