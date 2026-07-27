@@ -353,11 +353,22 @@ const KUEHLUNG_B = { x: 2238, y: 920, raum: "o2" };
 const KAMERAPULT = { x: 727, y: 920, raum: "security" };
 const FUNKPULT = { x: 1846, y: 1374, raum: "comms" };
 
-// Die vier festen Kamerabereiche. Bewusst überwiegend GÄNGE statt Räume: Kameras sollen
-// verraten, wer wohin unterwegs ist, nicht was jemand in einem Raum tut — sonst wären
-// Aufgaben und Alibis wertlos.
+// Die vier festen Kamerabereiche — seit 2026-07-27 an den Standorten des Originals:
 //
-// Die Cafeteria ist die Ausnahme, weil dort ohnehin ständig alle durchlaufen.
+//   oben links    links von der Navigation      oben rechts   links von der Verwaltung
+//   unten links   direkt vor der Krankenstation unten rechts  rechts vom Reaktor
+//
+// Alle vier hängen damit in GÄNGEN, keine in einem Raum. Das ist genau der Punkt: Kameras
+// sollen verraten, wer wohin unterwegs ist, nicht was jemand in einem Raum tut — sonst wären
+// Aufgaben und Alibis wertlos. Vorher standen sie frei gewählt (Cafeteria, Nordgang,
+// Westkreuzung, Ostgang); die Cafeteria als Kameraort war der größte Unterschied zur Vorlage,
+// weil dort ohnehin ständig alle durchlaufen und das Band deshalb wenig verrät.
+//
+// Drei der vier bewachen jetzt den Zugang zu einer Sackgasse (Krankenstation, Verwaltung,
+// Reaktor über den linken Längsgang) — wer dort hineingeht, ist auf Band, und genau das macht
+// "wer war mit dir drin?" überprüfbar.
+//
+// Das Pult zum Ansehen steht in der Sicherheit (KAMERAPULT, siehe oben) — wie im Original.
 //
 // Alle Ausschnitte haben dieselbe Größe, damit die vier Bilder nebeneinander gleich wirken
 // und keiner unbeabsichtigt mehr Fläche abdeckt als die anderen.
@@ -369,11 +380,13 @@ const KAMERA_HOEHE = 377;
 // links/oben ist davon getrennt der BILDAUSSCHNITT: um den Standort zentriert, aber in die
 // Welt hineingeschoben, wo er sonst über den Rand ragen würde — der Südgang liegt so dicht am
 // unteren Rand, dass sein Bild sonst zur Hälfte aus Nichts bestünde.
+// Die Reihenfolge ist die des Originals: oben links, oben rechts, unten links, unten rechts —
+// so liegen die vier Bilder im Pult genauso wie die Standorte auf der Karte.
 const KAMERAS = [
-  { id: "kam-cafeteria", name: "Cafeteria",    x: 1546, y: 271 },
-  { id: "kam-nord",      name: "Nordgang",     x: 894, y: 271 },
-  { id: "kam-west",      name: "Westkreuzung", x: 554, y: 770 },
-  { id: "kam-sued",      name: "Ostgang",       x: 2054, y: 1252 }
+  { id: "kam-navigation", name: "vor Navigation",     x: 2562, y: 770 },
+  { id: "kam-admin",      name: "vor der Verwaltung", x: 1662, y: 770 },
+  { id: "kam-medbay",     name: "vor der Krankenstation", x: 1062, y: 500 },
+  { id: "kam-reaktor",    name: "vor dem Reaktor",    x: 438, y: 770 }
 ].map(k => ({
   ...k,
   links: Math.min(Math.max(k.x - KAMERA_BREITE / 2, 0), WELT_BREITE - KAMERA_BREITE),
