@@ -48,14 +48,6 @@
       "kategorienUebersteuerungen": { ".write": "auth != null" }
     },
 
-    "elfmeterschiessen": {
-      ".read": true,
-      "raeume": {
-        "$code": { ".write": "auth != null" }
-      },
-      "bestenliste": { ".write": "auth != null" }
-    },
-
     "maulwurf": {
       "raeume": {
         ".read": true,
