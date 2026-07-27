@@ -69,13 +69,19 @@ const RAEUME = [
   // mittlere Reihe
   { id: "reactor",      name: "Reaktor",       x: 69, y: 598, w: 277, h: 344 },
   { id: "security",     name: "Sicherheit",    x: 525, y: 598, w: 398, h: 344 },
-  { id: "medbay",       name: "Krankenstation", x: 1154, y: 598, w: 346, h: 344 },
+  // Die Krankenstation ist am 2026-07-27 um 184 px nach links gerückt, damit der Stichflur aus
+  // dem Oberflur in ihre NORDwand münden kann. Vorher lag sie rechts vom Längsgang und wurde
+  // von Westen betreten — im Original kommt man von oben herein.
+  { id: "medbay",       name: "Krankenstation", x: 970, y: 598, w: 346, h: 344 },
   { id: "admin",        name: "Verwaltung",    x: 1800, y: 598, w: 346, h: 344 },
   { id: "o2",           name: "O2",            x: 2192, y: 598, w: 277, h: 344 },
   { id: "navigation",   name: "Navigation",    x: 2654, y: 598, w: 300, h: 344 },
   // untere Reihe
   { id: "lower-engine", name: "Unterer Motor", x: 219, y: 1097, w: 381, h: 343 },
-  { id: "electrical",   name: "Elektrik",      x: 646, y: 1097, w: 323, h: 343 },
+  // Die Elektrik ist am 2026-07-27 um 133 px nach rechts gerückt und 40 px schmaler geworden:
+  // links von ihr braucht der Motorgang Platz, rechts der Lagergang. Ihre Tür liegt seitdem in
+  // der SÜDwand, der Quergang läuft darunter durch — wie im Original.
+  { id: "electrical",   name: "Elektrik",      x: 779, y: 1097, w: 283, h: 343 },
   { id: "storage",      name: "Lager",         x: 1246, y: 1097, w: 485, h: 343 },
   { id: "comms",        name: "Kommunikation", x: 1800, y: 1335, w: 369, h: 261 },
   { id: "shields",      name: "Schilde",       x: 2377, y: 1097, w: 369, h: 343 }
@@ -92,11 +98,16 @@ const KORRIDORE = [
   { id: "flur-o2", x: 1944, y: 227, w: 346, h: 89 },
   // linker Längsgang: Oberer Motor ↔ Süd, mit Abzweig zum Reaktor
   { id: "gang-l",  x: 392, y: 482, w: 93, h: 576 },
-  // Mittlerer Längsgang, die Hauptschlagader der Westhälfte: vom oberen Flur durchgehend
-  // bis zum unteren Quergang. Kreuzt flur-o1 und flur-u — die Flächen überlappen bewusst,
-  // das ergibt T-Kreuzungen ohne eigene Tür. An ihm hängen Krankenstation und Elektrik mit
-  // je genau EINER Tür, wie im Original.
-  { id: "gang-m",  x: 1015, y: 227, w: 93, h: 1341 },
+  // Stichflur vom Oberflur hinunter zur Krankenstation. Er ersetzt den früheren mittleren
+  // Längsgang, der durchgehend 1341 px von ganz oben bis zum unteren Quergang lief — **ein
+  // Durchgang, den das Original nicht hat**. Er entstand, weil Krankenstation und Elektrik
+  // ihre Türen an der falschen Wandseite hatten (West bzw. Ost) und beide etwas brauchten,
+  // woran sie hängen konnten. Mit den Türen an der richtigen Seite hing an ihm gar nichts mehr.
+  //
+  // Folge fürs Spiel: von der Cafeteria kommt man nicht mehr auf geradem Weg nach unten. Wer
+  // zur Elektrik will, muss über das Lager oder über den Unteren Motor — beides lange, sichtbare
+  // Wege. Genau das macht die Elektrik im Original so gefährlich.
+  { id: "gang-med", x: 1015, y: 227, w: 93, h: 331 },
   // Cafeteria nach unten in den Lager, östlich am Krankenstation vorbei
   { id: "gang-c",  x: 1615, y: 482, w: 93, h: 576 },
   // Cafeteria ↓ Verwaltung, der obere der beiden Verwaltungs-Ausgänge.
@@ -110,12 +121,18 @@ const KORRIDORE = [
   { id: "gang-v",  x: 2019, y: 982, w: 93, h: 268 },
   // rechter Längsgang: Waffen ↕ O2 ↕ Navigation ↕ Schilde
   { id: "gang-r",  x: 2515, y: 482, w: 93, h: 576 },
-  // Unterer Quergang, ZWEIGETEILT. Er lief bis 2026-07-27 in einem Stück über 1955 px unter
-  // der ganzen Karte durch — ein Gang, den das Original nicht hat und der das Lager
-  // umgehbar machte. Jetzt endet die Westhälfte am Lager und die Osthälfte beginnt dahinter:
-  // **wer von links nach rechts will, muss durch das Lager.** Damit ist es der Knotenpunkt,
-  // der es im Original ist, und der lange unbeobachtete Rückweg existiert nicht mehr.
-  { id: "flur-uw", x: 346, y: 1479, w: 1016, h: 89 },
+  // Der untere Quergang läuft in STUFEN, nicht als gerader Balken. Er lief bis 2026-07-27
+  // unter Unterem Motor, Elektrik UND Lager hindurch und erschloss dabei die Elektrik nicht
+  // einmal — sie lag 39 px daneben und wurde von der anderen Seite betreten. Merkregel: ein
+  // Gang darf nicht an Räumen vorbeiführen, die er im Original erschließt.
+  //
+  // Jetzt drei Stücke: senkrecht aus der OSTwand des Unteren Motors herunter (gang-u), waagerecht
+  // unter der Elektrik entlang, die von SÜDEN hereinkommt (flur-uw), und senkrecht wieder hoch
+  // in die WESTwand des Lagers (gang-lg). Der Quergang endet an beiden Stufen und läuft nicht
+  // mehr weiter — es gibt keinen unbeobachteten Rückweg unter der Karte hindurch.
+  { id: "gang-u",  x: 646, y: 1220, w: 93, h: 300 },
+  { id: "flur-uw", x: 646, y: 1479, w: 549, h: 89 },
+  { id: "gang-lg", x: 1102, y: 1220, w: 93, h: 300 },
   // Ostgang Lager ↔ Schilde, auf RAUMHÖHE — nicht unter allem hindurch. Die Kommunikation
   // hängt als Sackgasse darunter und wird von hier aus betreten, genau wie im Original.
   { id: "flur-so", x: 1771, y: 1208, w: 566, h: 88 }
@@ -169,9 +186,11 @@ const TUEREN = [
   tuer(504, 770, "h"),   // gang-l ↔ Sicherheit — die EINZIGE Tür dieses Raums, und sie geht
                          // direkt auf den Hauptgang. Kein Stichflur davor: im Original steht
                          // die Sicherheit unmittelbar am Längsgang.
-  // mittlerer Längsgang: an ihm hängen die beiden westlichen Sackgassen
-  tuer(1131, 770, "h"),   // gang-m ↔ Krankenstation — die EINZIGE Tür dieses Raums
-  tuer(992, 1269, "h"),  // Elektrik ↔ gang-m — die EINZIGE Tür dieses Raums
+  // Die beiden westlichen Sackgassen. Ihre Türen lagen bis 2026-07-27 beide am mittleren
+  // Längsgang und damit an der falschen Wandseite: die Krankenstation wurde von Westen betreten
+  // statt von oben, die Elektrik von Osten statt von unten.
+  tuer(1062, 578, "v"),  // gang-med ↓ Krankenstation (NORDwand) — die EINZIGE Tür dieses Raums
+  tuer(920, 1459, "v"),  // Elektrik ↓ flur-uw (SÜDwand) — die EINZIGE Tür dieses Raums
   // Cafeteria nach unten
   tuer(1662, 462, "v"),  // Cafeteria ↓ gang-c
   tuer(1662, 1077, "v"),  // gang-c ↓ Lager
@@ -188,9 +207,9 @@ const TUEREN = [
   tuer(2631, 687, "h"),  // gang-r ↔ Navigation (obere Tür)
   tuer(2631, 875, "h"),  // gang-r ↔ Navigation (untere Tür)
   tuer(2562, 1077, "v"),  // gang-r ↓ Schilde
-  // unterer Quergang
-  tuer(438, 1459, "v"),  // Unterer Motor ↓ flur-uw
-  tuer(1362, 1459, "v"), // flur-uw ↑ Lager — hier endet der Quergang aus dem Westen
+  // Unterer Quergang, beide Enden auf RAUMHÖHE statt unter den Räumen hindurch
+  tuer(623, 1300, "h"),  // Unterer Motor ↔ gang-u (OSTwand)
+  tuer(1221, 1300, "h"), // gang-lg ↔ Lager (WESTwand)
   // Ostgang: aus dem Lager heraus, Kommunikation darunter, Schilde am Ende
   tuer(1750, 1252, "h"), // Lager ↔ flur-so
   tuer(1985, 1315, "v"), // flur-so ↓ Kommunikation — die EINZIGE Tür dieses Raums
@@ -226,8 +245,8 @@ const TUEREN = [
 // gegeneinander. Der Schachttest deckt das jetzt ab; Mindestabstand 79 px.
 const TUNNEL = [
   { id: "netz-todesdreieck", name: "Elektrik ↔ Krankenstation ↔ Sicherheit", farbe: "#a855f7", enden: [
-    { x: 808, y: 1402, ort: "Elektrik" },
-    { x: 1177, y: 920, ort: "Krankenstation" },
+    { x: 1044, y: 1152, ort: "Elektrik" },
+    { x: 1045, y: 903, ort: "Krankenstation" },
     { x: 900, y: 920, ort: "Sicherheit" }
   ] },
   { id: "netz-reaktor-nord", name: "Reaktor ↔ Oberer Motor", farbe: "#f97316", enden: [
@@ -321,7 +340,7 @@ STATIONS_TABELLE.forEach(([raumId, eintraege]) => {
 // bewusst in Raumecken statt in der Mitte — der Kartentest misst die verbleibende
 // Überlappungszone und lässt höchstens ein paar Pixel durch.
 const NOTFALLKNOPF = { x: 1546, y: 332, raum: "cafeteria" };
-const SICHERUNGSKASTEN = { x: 923, y: 1402, raum: "electrical" };
+const SICHERUNGSKASTEN = { x: 980, y: 1421, raum: "electrical" };
 const KUEHLUNG_A = { x: 115, y: 920, raum: "reactor" };
 const KUEHLUNG_B = { x: 2238, y: 920, raum: "o2" };
 // Das Kamerapult gibt der Sicherheit ihren Zweck — bis dahin war sie reines Risiko ohne
@@ -364,16 +383,32 @@ function imKamerabild(kamera, x, y) {
          y >= kamera.oben && y <= kamera.oben + kamera.hoehe;
 }
 
-// Startpositionen: alle starten im Cafeteria, kreisförmig verteilt (max. 10 Plätze).
+// Startpositionen: alle starten in der Cafeteria, auf Ellipsen um die Mitte verteilt.
+//
+// **Ab elf Personen braucht es einen zweiten Ring.** Der innere hat rund 535 px Umfang; auf
+// einem Ring verteilt kämen fünfzehn Figuren auf 36 px Abstand und stünden damit bei einem
+// Durchmesser von 2*SPIELER_RADIUS genau ineinander. Der äußere Ring ist bewusst breiter als
+// hoch — die Cafeteria ist mehr als doppelt so breit wie hoch, ein runder Ring würde oben und
+// unten aus dem Raum ragen. Der Winkelversatz je Ring verhindert, dass die Figuren in Speichen
+// stehen.
+const START_PRO_RING = 10;
 function startPositionen(anzahl) {
   const punkte = [];
-  const mitte = { x: 1546, y: 211 };
-  for (let i = 0; i < anzahl; i++) {
-    const winkel = (i / Math.max(anzahl, 1)) * Math.PI * 2;
-    punkte.push({
-      x: Math.round(mitte.x + Math.cos(winkel) * 102),
-      y: Math.round(mitte.y + Math.sin(winkel) * 64)
-    });
+  const mitte = { x: 1546, y: 240 };
+  const ringe = Math.max(Math.ceil(anzahl / START_PRO_RING), 1);
+  let gesetzt = 0;
+  for (let ring = 0; ring < ringe; ring++) {
+    const hier = Math.min(anzahl - gesetzt, Math.ceil(anzahl / ringe));
+    const rx = 102 + ring * 128;
+    const ry = 64 + ring * 46;
+    for (let i = 0; i < hier; i++) {
+      const winkel = (i / Math.max(hier, 1)) * Math.PI * 2 + ring * 0.4;
+      punkte.push({
+        x: Math.round(mitte.x + Math.cos(winkel) * rx),
+        y: Math.round(mitte.y + Math.sin(winkel) * ry)
+      });
+    }
+    gesetzt += hier;
   }
   return punkte;
 }

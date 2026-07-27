@@ -35,7 +35,7 @@
   <section class="screen active" id="screen-start">
     <div class="screen-inhalt zentriert">
       <h1 class="logo">🕵️ Der Maulwurf</h1>
-      <p class="untertitel">Auf dem Vereinsgelände sind Maulwürfe unterwegs. Erledigt eure Aufgaben – oder findet heraus, wer sie sabotiert. 4 bis 10 Mitspielende, je ein Handy.</p>
+      <p class="untertitel">Auf dem Vereinsgelände sind Maulwürfe unterwegs. Erledigt eure Aufgaben – oder findet heraus, wer sie sabotiert. 4 bis 15 Mitspielende, je ein Handy.</p>
 
       <div class="aktion-block">
         <button class="btn btn-primary btn-grow" id="btn-raum-erstellen">Raum erstellen</button>
@@ -74,7 +74,7 @@
       </div>
       <p class="lobby-modus" id="lobby-modus"></p>
 
-      <p class="spieler-zaehler" id="lobby-zaehler">0/10 Mitspielende</p>
+      <p class="spieler-zaehler" id="lobby-zaehler">0/15 Mitspielende</p>
       <ul class="spieler-liste" id="lobby-spielerliste"></ul>
 
       <details class="einstellungen-box" id="lobby-einstellungen">
@@ -87,7 +87,7 @@
             </select>
           </label>
           <label data-nur-klassisch>Maulwürfe
-            <select id="ein-maulwuerfe"><option value="1">1</option><option value="2">2</option></select>
+            <select id="ein-maulwuerfe"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
           </label>
           <label>Aufgaben pro Person
             <select id="ein-aufgaben"><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option></select>
@@ -364,10 +364,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js?v=1.0"></script>
-<script src="karte.js?v=2.6"></script>
+<script src="karte.js?v=2.7"></script>
 <script src="rollen.js?v=1.1"></script>
 <script src="aufgaben.js?v=2.2"></script>
-<script src="game-service.js?v=2.3"></script>
-<script src="app.js?v=2.6"></script>
+<script src="game-service.js?v=2.4"></script>
+<script src="app.js?v=2.7"></script>
 </body>
 </html>

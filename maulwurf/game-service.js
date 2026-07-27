@@ -33,10 +33,14 @@
 // nicht im Raumobjekt — sonst würde jeder Positions-Tick den kompletten Raumzustand an alle
 // Geräte pushen. Zusätzlich horchen die Clients per child_added/child_changed (nicht
 // on("value")), sodass pro Tick nur der eine geänderte Datensatz übertragen wird.
-// Rechnung für die größte Partie: 10 Spieler * 5 Hz = 50 Writes/s, jeder Client empfängt
-// 50 * ~40 Byte = ~2 KB/s, bei 10 Clients ~20 KB/s. Eine 10-Minuten-Partie kostet damit
-// ~12 MB Download. Mit on("value") auf dem Raumobjekt wäre es das Zehn- bis Zwanzigfache
+// Rechnung für die größte Partie: 15 Spieler * 5 Hz = 75 Writes/s, jeder Client empfängt
+// 75 * ~40 Byte = ~3 KB/s, bei 15 Clients ~45 KB/s. Eine 10-Minuten-Partie kostet damit
+// ~27 MB Download. Mit on("value") auf dem Raumobjekt wäre es das Zehn- bis Zwanzigfache
 // gewesen und der Free-Tier nach wenigen Partien aufgebraucht.
+//
+// **Das Volumen wächst quadratisch mit der Spielerzahl** (jeder schreibt, alle empfangen).
+// Die Anhebung von 10 auf 15 hat es gut verdoppelt. Wer weiter erhöhen will, sollte vorher
+// die Tickrate senken oder Positionen nur noch für Sichtbare übertragen.
 //
 // ============================================================================
 // Bekannte Grenzen (bewusst so, nicht als Bug melden)
@@ -60,12 +64,17 @@
 
 const STORAGE_KEY = "spiele_maulwurf_raumcode";
 const RAUMCODE_ZEICHEN = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ohne 0/O/1/I, leichter vorzulesen
+// **Es muss mindestens so viele Farben geben wie MAX_SPIELER.** Wird die Liste knapp, fällt
+// die Vergabe unten auf SPIELER_FARBEN[0] zurück und zwei Leute laufen in derselben Farbe
+// herum — auf der Karte und im Kamerabild sind sie dann nicht mehr auseinanderzuhalten, und
+// genau daran hängt jede Zeugenaussage. Die letzten fünf kamen mit der Anhebung auf 15 dazu.
 const SPIELER_FARBEN = [
-  "#dc2626", "#1a56a0", "#057a55", "#c9941f", "#9333ea",
-  "#0891b2", "#db2777", "#ea580c", "#4d7c0f", "#57534e"
+  "#dc2626", "#1a56a0", "#057a55", "#eab308", "#9333ea",
+  "#0891b2", "#db2777", "#fb923c", "#4d7c0f", "#57534e",
+  "#e2e8f0", "#a3e635", "#2dd4bf", "#c4b5fd", "#8b5a2b"
 ];
 const MIN_SPIELER = 4;
-const MAX_SPIELER = 10;
+const MAX_SPIELER = 15;
 
 const RAEUME_PFAD = "maulwurf/raeume";
 const POSITIONEN_PFAD = "maulwurf/positionen";
@@ -116,8 +125,13 @@ const STANDARD_EINSTELLUNGEN = {
   zeitlimitMin: 5            // nur Verstecken: danach hat das Team durchgehalten
 };
 
+// Vorschlag, den der Host in den Einstellungen überschreiben kann. Ab zwölf Personen drei
+// Maulwürfe: mit zweien gegen dreizehn wäre die Übermacht-Siegbedingung praktisch unerreichbar
+// und die Partie liefe nur noch über die Aufgaben aus.
 function anzahlMaulwuerfeFuer(spielerAnzahl) {
-  return spielerAnzahl >= 7 ? 2 : 1;
+  if (spielerAnzahl >= 12) return 3;
+  if (spielerAnzahl >= 7) return 2;
+  return 1;
 }
 
 // --- Verstecken-Modus ---
