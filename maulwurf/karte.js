@@ -99,8 +99,8 @@ const KORRIDORE = [
   { id: "gang-m",  x: 1015, y: 227, w: 93, h: 1341 },
   // Cafeteria nach unten in den Lager, östlich am Krankenstation vorbei
   { id: "gang-c",  x: 1615, y: 482, w: 93, h: 576 },
-  // Cafeteria ↓ Verwaltung. Die Verwaltung hat ihre zweite Tür zum Gang Cafeteria–Lager,
-  // nicht zur Kommunikation — sonst wäre die Kommunikation keine Sackgasse mehr.
+  // Cafeteria ↓ Verwaltung. Die zweite Tür der Verwaltung liegt im Osten (zu O2), nicht nach
+  // unten zur Kommunikation — sonst wäre die Kommunikation keine Sackgasse mehr.
   { id: "gang-a",  x: 1800, y: 482, w: 92, h: 78 },
   // rechter Längsgang: Waffen ↕ O2 ↕ Navigation ↕ Schilde
   { id: "gang-r",  x: 2515, y: 482, w: 93, h: 576 },
@@ -163,7 +163,11 @@ const TUEREN = [
   tuer(1662, 1077, "v"),  // gang-c ↓ Lager
   tuer(1846, 462, "v"),  // Cafeteria ↓ gang-a
   tuer(1846, 578, "v"),  // gang-a ↓ Verwaltung
-  tuer(1754, 770, "h"),  // gang-c ↔ Verwaltung (zweite Tür, zum Gang Cafeteria–Lager)
+  // Die Verwaltung hat EINEN Ausgang nach Westen (aus der Cafeteria) und EINEN nach Osten,
+  // wie im Original: dort öffnet Admin auf den Gang, der O2 und Schilde bedient. Vorher lagen
+  // beide Türen im Westen — der ganze Ostflügel war von der Verwaltung aus nur über den
+  // Umweg Cafeteria oder Lager erreichbar.
+  tuer(2169, 770, "h"),  // Verwaltung ↔ O2 (Ausgang nach Osten)
   // rechter Längsgang
   tuer(2562, 462, "v"),  // Waffen ↓ gang-r
   tuer(2492, 687, "h"),  // O2 ↔ gang-r (obere Tür)
