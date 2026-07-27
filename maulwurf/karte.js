@@ -99,9 +99,15 @@ const KORRIDORE = [
   { id: "gang-m",  x: 1015, y: 227, w: 93, h: 1341 },
   // Cafeteria nach unten in den Lager, östlich am Krankenstation vorbei
   { id: "gang-c",  x: 1615, y: 482, w: 93, h: 576 },
-  // Cafeteria ↓ Verwaltung. Die zweite Tür der Verwaltung liegt im Osten (zu O2), nicht nach
-  // unten zur Kommunikation — sonst wäre die Kommunikation keine Sackgasse mehr.
+  // Cafeteria ↓ Verwaltung, der obere der beiden Verwaltungs-Ausgänge.
   { id: "gang-a",  x: 1800, y: 482, w: 92, h: 78 },
+  // Verwaltung ↓ Ostflur, der untere Ausgang. Im Original öffnet Admin unten rechts auf genau
+  // den Korridor, der Lager und Schilde verbindet — von dort kommt man in den ganzen Ostflügel,
+  // ohne über die Cafeteria zu müssen. Bis 2026-07-27 stieß diese Tür stattdessen direkt in die
+  // O2: Wand an Wand, ohne Gang dazwischen. Das ist die einzige Stelle, an der zwei RÄUME
+  // unmittelbar aneinandergrenzten, und es gab der O2 eine dritte Tür, die sie im Original nicht
+  // hat. Der Gang endet oberhalb der Kommunikation — die bleibt Sackgasse.
+  { id: "gang-v",  x: 2019, y: 982, w: 93, h: 268 },
   // rechter Längsgang: Waffen ↕ O2 ↕ Navigation ↕ Schilde
   { id: "gang-r",  x: 2515, y: 482, w: 93, h: 576 },
   // Unterer Quergang, ZWEIGETEILT. Er lief bis 2026-07-27 in einem Stück über 1955 px unter
@@ -140,11 +146,19 @@ function tuer(x, y, achse) {
 // Gang begeben, wo einen jeder sieht. Die Elektrik hat ihre zweite Tür zum unteren Quergang
 // verloren und ist damit die Sackgasse des Originals. Die Kommunikation hängt nur noch am
 // unteren Quergang; die Abkürzung Verwaltung↓Kommunikation ist weg, dafür hat die Verwaltung
-// ihre zweite Tür zum Gang Cafeteria–Lager.
+// ihren zweiten Ausgang nach unten auf den Ostflur.
+//
+// **Jede Tür verbindet genau eine Raum- mit einer Gangfläche.** Räume grenzen nie unmittelbar
+// aneinander — dazwischen liegt immer ein Flur, in dem man gesehen werden kann. Wer eine Tür
+// hinzufügt, prüft das mit tueranalyse.js nach; sie zählt außerdem die Türen je Raum gegen den
+// Original-Grundriss, denn die ANZAHL ist die eigentliche Spielinformation.
 const TUEREN = [
   // oberer Flur
   tuer(620, 271, "h"),   // Oberer Motor ↔ flur-o1
-  tuer(1168, 271, "h"),  // flur-o1 ↔ Cafeteria
+  // Ein paar Pixel weiter rechts als die Wandmitte: bei 1168 ragte die Schwelle drei Pixel in
+  // den Mittelgang, der den Oberflur genau dort kreuzt, und die Tür berührte drei Flächen statt
+  // zwei. Ohne Spielwirkung, aber tueranalyse.js kann sie so eindeutig zuordnen.
+  tuer(1174, 271, "h"),  // flur-o1 ↔ Cafeteria
   tuer(1923, 271, "h"),  // Cafeteria ↔ flur-o2
   tuer(2310, 271, "h"),  // flur-o2 ↔ Waffen
   // linker Längsgang
@@ -163,11 +177,10 @@ const TUEREN = [
   tuer(1662, 1077, "v"),  // gang-c ↓ Lager
   tuer(1846, 462, "v"),  // Cafeteria ↓ gang-a
   tuer(1846, 578, "v"),  // gang-a ↓ Verwaltung
-  // Die Verwaltung hat EINEN Ausgang nach Westen (aus der Cafeteria) und EINEN nach Osten,
-  // wie im Original: dort öffnet Admin auf den Gang, der O2 und Schilde bedient. Vorher lagen
-  // beide Türen im Westen — der ganze Ostflügel war von der Verwaltung aus nur über den
-  // Umweg Cafeteria oder Lager erreichbar.
-  tuer(2169, 770, "h"),  // Verwaltung ↔ O2 (Ausgang nach Osten)
+  // Der zweite Ausgang der Verwaltung führt nach UNTEN auf den Ostflur (Lager ↔ Schilde), wie
+  // im Original. Er stieß vorher direkt in die O2 — die einzige Tür der Karte, die zwei Räume
+  // ohne Gang dazwischen verband, und die der O2 eine dritte Tür gab.
+  tuer(2066, 962, "v"),  // Verwaltung ↓ gang-v
   // rechter Längsgang
   tuer(2562, 462, "v"),  // Waffen ↓ gang-r
   tuer(2492, 687, "h"),  // O2 ↔ gang-r (obere Tür)
