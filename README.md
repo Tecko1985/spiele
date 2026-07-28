@@ -19,7 +19,24 @@ Digitales Kartenspiel nach dem Vorbild des klassischen „Auto Quartett" (Top-Tr
 
 ### Architektur
 
-Die Spiellogik liegt komplett gekapselt in `auto-quartett/game-service.js` hinter einer async/Promise-basierten API mit Subscription-Pattern (`getZustand()`/`onZustandsAenderung()`); `auto-quartett/app.js` steuert ausschließlich Screens/Rendering/Events und redet nie direkt mit den Datenquellen.
+Die Spiellogik liegt komplett gekapselt in `auto-quartett/game-service.js` hinter einer async/Promise-basierten API mit Subscription-Pattern (`getZustand()`/`onZustandsAenderung()`) und redet nie direkt mit den Datenquellen.
+
+Die **Oberfläche ist seit 2026-07-28 gemeinsam** und liegt in `quartett/` (siehe unten) — die drei Spiele haben keine eigene `app.js` und keine eigene `style.css` mehr.
+
+## Gemeinsame Oberfläche: `quartett/`
+
+Die drei Quartetts waren bis auf ihr Kartendeck, ihren Firebase-Namensraum und vier Textstellen byte-identisch. Seit dem Umbau auf eine Zeichenfläche teilen sie sich deshalb eine Oberfläche:
+
+- `quartett/ui.js` — das Zeichenwerkzeug (unmittelbarer Modus): Knöpfe, Eingabefelder, Auswahllisten, Rollbereiche, Dialoge, Bildbeschnitt, Dateiauswahl. Übernommen aus `maulwurf/ui.js` und um das erweitert, was ein Kartenspiel braucht.
+- `quartett/bildschirme.js` — die einzelnen Ansichten (Start, Warteraum, Spiel, Vergleich, Endstand, Bestenliste, Kartenverwaltung, Karte/Kriterien bearbeiten, Info).
+- `quartett/app.js` — Zustand der Ansicht, Kopfzeile, Reiter, Kartenzeichnung, Dialoge, Admin-Prüfung. Wird **zuletzt** geladen.
+- `quartett/style.css` — nur noch das Nötigste fürs Dokument (Zeichenfläche formatfüllend, versteckte Felder).
+
+Je Spiel bleiben: `index.html`, `spiel-config.js` (Titel, Zeichen, Beschreibungen), `game-service.js` (Namensraum!), `mock-data.js` (Deck), `firebase-config.js`, `manifest.json`, `sw.js`, `icon.svg`, `logo.png`.
+
+**Im Dokument steht nur noch** eine `<canvas>`, ein unsichtbares Eingabefeld (ohne das öffnet iOS keine Bildschirmtastatur) und ein verstecktes Dateifeld fürs Kartenfoto — eine Dateiauswahl lässt sich nicht zeichnen. `escapeHtml` ist damit entfallen: fremde Namen werden gezeichnet, nicht in Markup eingesetzt.
+
+**Maulwurf hat bewusst seine eigene `ui.js`** und wird davon nicht berührt: es hat ein Spielfeld mit Dauerlauf, die Quartetts haben Menüs.
 
 ## Fußball-Quartett
 
@@ -31,7 +48,7 @@ Zweites Spiel nach exakt demselben Prinzip wie Auto-Quartett (gleicher Code-Aufb
 
 ### Architektur
 
-Identisch zu Auto-Quartett: `fussball-quartett/game-service.js` (Spiellogik) und `fussball-quartett/app.js` (Screens/Rendering), nur mit eigenem Basisdeck in `fussball-quartett/mock-data.js`.
+Identisch zu Auto-Quartett: `fussball-quartett/game-service.js` (Spiellogik), eigenes Basisdeck in `fussball-quartett/mock-data.js`, Oberfläche gemeinsam aus `quartett/`.
 
 ## Fußball-Vereine-Quartett
 
@@ -42,7 +59,7 @@ Drittes Spiel nach demselben Prinzip, mit **500 realen Fußballvereinen** aus al
 
 ### Architektur
 
-Identisch zu Auto-Quartett: `fussball-vereine-quartett/game-service.js` und `fussball-vereine-quartett/app.js`, eigenes Basisdeck in `fussball-vereine-quartett/mock-data.js`.
+Identisch zu Auto-Quartett: `fussball-vereine-quartett/game-service.js`, eigenes Basisdeck in `fussball-vereine-quartett/mock-data.js`, Oberfläche gemeinsam aus `quartett/`.
 
 ## Lokal starten
 
