@@ -2,17 +2,6 @@
 // (game-service.js) mit Firebase und über karte.js/aufgaben.js mit Spielgeometrie bzw.
 // Minispielen.
 
-const SCREEN_FUER_PHASE = {
-  start: "screen-start",
-  lobby: "screen-lobby",
-  zuteilung: "screen-reveal",
-  laeuft: "screen-spiel",
-  beendet: "screen-ende",
-  abgebrochen: "screen-abgebrochen"
-};
-
-const PHASEN_MIT_VERLASSEN_BUTTON = ["lobby", "zuteilung", "laeuft"];
-
 // Die KÜRZERE Bildschirmachse zeigt immer diesen Weltausschnitt. Eine feste Weltbreite (so
 // war es vorher) funktioniert nur im Hochformat: quer gehalten würde sie oben und unten
 // abschneiden, und der Sichtkreis passte nicht mehr aufs Bild. Über die kurze Achse gerechnet
@@ -45,21 +34,11 @@ let raumcodeEingabe = "";
 let letzteZustand = null;
 let letztePhase = null;
 let letzteMeetingUnterphase = null;
-let laufAnimation = null;
-let letzterFrameZeit = 0;
-let overlayOffen = null;       // "aufgabe" | "liste" | "sabotage" | null
-let schachtPanelStand = "";    // "netzId#index" des zuletzt gezeichneten Schachtpanels
-let aktiveAufgabeAufraeumen = null;
-let aktiveStationId = null;
 let meineStimme = null;
 
 const tasten = {};
 const joystick = { aktiv: false, dx: 0, dy: 0, pointerId: null };
 const angezeigtePositionen = {}; // uid -> {x,y}, weich nachgezogene Darstellung
-
-function avatarInitiale(name) {
-  return (name || "?").trim().charAt(0).toUpperCase();
-}
 
 // Der Anzeigename einer Station steht beim Minispiel, nicht bei der Karte: sonst müsste
 // derselbe Text an zwei Stellen gepflegt werden und könnte auseinanderlaufen.
@@ -71,22 +50,6 @@ function stationName(station) {
 function raumNameZu(raumId) {
   const raum = karte.RAEUME.find(r => r.id === raumId);
   return raum ? raum.name : "";
-}
-
-// Pflicht für alle innerHTML-Templates: Namen und Chat-Texte kommen aus Firebase, sind also
-// Eingaben der Mitspielenden (siehe XSS-Vorfall im Schwesterprojekt familien-quartett).
-function escapeHtml(str) {
-  return String(str ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
-function showScreen(screenId) {
-  document.querySelectorAll(".screen").forEach(el => el.classList.remove("active"));
-  const el = document.getElementById(screenId);
-  if (el) el.classList.add("active");
-}
-
-function el(id) {
-  return document.getElementById(id);
 }
 
 // --- Wake Lock: auf ALLEN Geräten, es sind alle durchgehend aktiv ---
@@ -156,54 +119,26 @@ function verlasseVollbild() {
   else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
 }
 
-function aktualisiereVollbildKnopf() {
-  const btn = el("btn-vollbild");
-  if (!btn) return;
-  btn.textContent = vollbildAktiv() ? "🗗" : "⛶";
-  btn.title = vollbildAktiv() ? "Vollbild verlassen" : "Vollbild";
-}
-
-function pruefeAusrichtung() {
+// Der Querformat-Hinweis ist keine eigene Ebene im Dokument mehr, sondern ein
+// gezeichneter Dialog. Hier steht nur noch, OB er faellig ist.
+function brauchtQuerformatHinweis() {
   const zustand = gameService.getZustand();
   const imSpiel = zustand.phase === "laeuft" && !zustand.meeting;
-  const hochkant = window.innerHeight > window.innerWidth * 1.05;
-  const box = el("hinweis-querformat");
-  if (box) box.style.display = imSpiel && hochkant && !querformatHinweisWeggetippt ? "flex" : "none";
+  const hochkant = ui.hoehe > ui.breite * 1.05;
+  return imSpiel && hochkant && !querformatHinweisWeggetippt;
 }
 
-document.addEventListener("fullscreenchange", () => { aktualisiereVollbildKnopf(); passeCanvasAn(); });
-document.addEventListener("webkitfullscreenchange", () => { aktualisiereVollbildKnopf(); passeCanvasAn(); });
-window.addEventListener("orientationchange", () => {
-  // Die neuen Maße stehen erst nach dem Umbruch fest, deshalb ein Frame warten.
-  requestAnimationFrame(() => { passeCanvasAn(); pruefeAusrichtung(); });
-});
-window.addEventListener("resize", pruefeAusrichtung);
+document.addEventListener("fullscreenchange", () => ui.passeGroesseAn());
+document.addEventListener("webkitfullscreenchange", () => ui.passeGroesseAn());
 
 // ============================================================
 // Canvas
 // ============================================================
 
-const canvas = el("spielfeld-canvas");
-const ctx = canvas.getContext("2d");
-
-// Ein Canvas, das beim Setzen der Größe noch in einem display:none-Screen liegt, behält die
-// Standardgröße 300x150 und rendert verzerrt. Deshalb wird die Größe hier IMMER gegen das
-// echte Rect geprüft und erst übernommen, wenn der Screen sichtbar ist.
-function passeCanvasAn() {
-  const huelle = el("spielfeld-huelle");
-  const rect = huelle.getBoundingClientRect();
-  if (rect.width < 10 || rect.height < 10) return false;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const breite = Math.round(rect.width * dpr);
-  const hoehe = Math.round(rect.height * dpr);
-  if (canvas.width !== breite || canvas.height !== hoehe) {
-    canvas.width = breite;
-    canvas.height = hoehe;
-  }
-  return true;
-}
-
-window.addEventListener("resize", () => passeCanvasAn());
+// Gezeichnet wird auf die gemeinsame Flaeche aus ui.js — es gibt nur noch EIN
+// Canvas fuer das ganze Spiel. `ctx` wird beim Start gesetzt und rechnet in
+// CSS-Pixeln; die Geraetepunkte-Umrechnung erledigt ui.js einmal zentral.
+let ctx = null;
 
 function sichtweiteFuer(zustand) {
   if (zustand.binGeist) return karte.SICHT_GEIST;
@@ -225,11 +160,10 @@ function istEinsehbar(mich, punkt, sichtweite, binGeist) {
 }
 
 function zeichne(zustand) {
-  if (!passeCanvasAn()) return;
   const mich = zustand.meinePosition || { x: karte.WELT_BREITE / 2, y: karte.WELT_HOEHE / 2 };
-  const skala = Math.min(canvas.width, canvas.height) / SICHT_KURZE_ACHSE;
-  const versatzX = canvas.width / 2 - mich.x * skala;
-  const versatzY = canvas.height / 2 - mich.y * skala;
+  const skala = Math.min(ui.breite, ui.hoehe) / SICHT_KURZE_ACHSE;
+  const versatzX = ui.breite / 2 - mich.x * skala;
+  const versatzY = ui.hoehe / 2 - mich.y * skala;
 
   // Das Sichtfeld wird einmal pro Bild bestimmt und danach für alles benutzt: Figuren,
   // Leichen, Alibi-Spuren und die Abdunklung. Für Geister entfällt es — sie sehen ohnehin
@@ -241,7 +175,7 @@ function zeichne(zustand) {
   const wy = y => y * skala + versatzY;
 
   ctx.fillStyle = "#0b1220";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, ui.breite, ui.hoehe);
 
   // Mauerwerk als Untergrund, darauf die Gänge, dann die Räume mit ihrer Umrandung, dann die
   // Türschwellen: die Schwellen liegen bewusst ÜBER der Raumlinie und stanzen so die Öffnung
@@ -535,7 +469,7 @@ const NEBEL_FERN = "rgba(5,10,20,0.93)";
 function zeichneSichtfeld(wx, wy, mitteX, mitteY, radius, polygon) {
   ctx.save();
   ctx.beginPath();
-  ctx.rect(0, 0, canvas.width, canvas.height);
+  ctx.rect(0, 0, ui.breite, ui.hoehe);
   ctx.moveTo(wx(polygon[0].x), wy(polygon[0].y));
   for (let i = 1; i < polygon.length; i++) ctx.lineTo(wx(polygon[i].x), wy(polygon[i].y));
   ctx.closePath();
@@ -547,52 +481,12 @@ function zeichneSichtfeld(wx, wy, mitteX, mitteY, radius, polygon) {
   rand.addColorStop(0, "rgba(5,10,20,0)");
   rand.addColorStop(1, NEBEL_FERN);
   ctx.fillStyle = rand;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, ui.breite, ui.hoehe);
 }
 
 // ============================================================
 // Steuerung
 // ============================================================
-
-function richteJoystickEin() {
-  const feld = el("joystick");
-  const knopf = el("joystick-knopf");
-  const maxWeg = 34;
-
-  function setzeAus(dx, dy) {
-    const laenge = Math.hypot(dx, dy);
-    const begrenzt = laenge > maxWeg ? maxWeg / laenge : 1;
-    knopf.style.transform = `translate(${dx * begrenzt}px, ${dy * begrenzt}px)`;
-    joystick.dx = (dx * begrenzt) / maxWeg;
-    joystick.dy = (dy * begrenzt) / maxWeg;
-  }
-
-  feld.addEventListener("pointerdown", e => {
-    e.preventDefault();
-    joystick.aktiv = true;
-    joystick.pointerId = e.pointerId;
-    try { feld.setPointerCapture(e.pointerId); } catch (err) { /* Testartefakt, unkritisch */ }
-    const rect = feld.getBoundingClientRect();
-    setzeAus(e.clientX - (rect.left + rect.width / 2), e.clientY - (rect.top + rect.height / 2));
-  });
-
-  feld.addEventListener("pointermove", e => {
-    if (!joystick.aktiv || e.pointerId !== joystick.pointerId) return;
-    const rect = feld.getBoundingClientRect();
-    setzeAus(e.clientX - (rect.left + rect.width / 2), e.clientY - (rect.top + rect.height / 2));
-  });
-
-  const beenden = e => {
-    if (!joystick.aktiv || (e && e.pointerId !== joystick.pointerId)) return;
-    joystick.aktiv = false;
-    joystick.pointerId = null;
-    joystick.dx = 0;
-    joystick.dy = 0;
-    knopf.style.transform = "";
-  };
-  feld.addEventListener("pointerup", beenden);
-  feld.addEventListener("pointercancel", beenden);
-}
 
 document.addEventListener("keydown", e => {
   if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
@@ -637,24 +531,14 @@ function interpolierePositionen(zustand, delta) {
   });
 }
 
-function schleife(zeit) {
-  laufAnimation = requestAnimationFrame(schleife);
-  const zustand = gameService.getZustand();
-  if (zustand.phase !== "laeuft") { letzterFrameZeit = 0; return; }
+// Wird aus der Zeichenschleife gerufen, solange die Partie laeuft: Eingabe
+// auswerten, bewegen, Positionen weich nachziehen. Gezeichnet wird danach von
+// spielfeld.js.
+function bewegeUndZiehNach(zustand) {
+  const delta = Math.min(ui.delta / 1000, 0.1);
 
-  const delta = letzterFrameZeit ? Math.min((zeit - letzterFrameZeit) / 1000, 0.1) : 0;
-  letzterFrameZeit = zeit;
-
-  // Im Meeting läuft nur der Countdown weiter — render() feuert dort nur bei Firebase-
-  // Updates, und während eines Countdowns schreibt oft niemand.
-  if (zustand.meeting) {
-    const rest = Math.max(Math.ceil((zustand.meeting.endeAt - zustand.jetzt) / 1000), 0);
-    const timer = el("meeting-timer");
-    if (timer.textContent !== String(rest)) timer.textContent = rest;
-    return;
-  }
-
-  if (!overlayOffen) {
+  // Waehrend ein Dialog offen ist, wird nicht gelaufen.
+  if (!spielfeld.offenerDialog && !zustand.meeting) {
     const taste = tastenRichtung();
     const dx = joystick.dx + taste.dx;
     const dy = joystick.dy + taste.dy;
@@ -663,11 +547,7 @@ function schleife(zeit) {
       gameService.schreibePosition(false);
     }
   }
-
-  const aktuell = gameService.getZustand();
-  interpolierePositionen(aktuell, delta);
-  zeichne(aktuell);
-  aktualisiereHud(aktuell);
+  interpolierePositionen(gameService.getZustand(), delta);
 }
 
 // ============================================================
@@ -819,120 +699,6 @@ const NAEHE_STUFEN = [
   { bis: 600, text: "🟡 Irgendwo da", klasse: "naehe-gelb" }
 ];
 
-function aktualisiereVersteckHud(zustand) {
-  const leiste = el("hud-verstecken");
-  if (!zustand.versteckModus) { leiste.style.display = "none"; return; }
-  leiste.style.display = "flex";
-
-  const binFaenger = zustand.eigenerSpielerId === zustand.faengerUid;
-  const vorsprungRest = zustand.vorsprungBis ? zustand.vorsprungBis - zustand.jetzt : 0;
-  const uhr = el("hud-uhr");
-  if (!zustand.zeitlimitBis) {
-    uhr.textContent = "⏳ …";       // Startzeit steht noch nicht fest
-    uhr.className = "hud-uhr";
-  } else if (vorsprungRest > 0) {
-    uhr.textContent = binFaenger
-      ? `⏳ Noch ${Math.ceil(vorsprungRest / 1000)} s – du darfst noch nicht los`
-      : `⏳ ${Math.ceil(vorsprungRest / 1000)} s Vorsprung`;
-    uhr.className = "hud-uhr vorsprung";
-  } else {
-    uhr.textContent = "⏱ " + mmss(zustand.zeitlimitBis - zustand.jetzt);
-    uhr.className = "hud-uhr" + (zustand.zeitlimitBis - zustand.jetzt < 30000 ? " knapp" : "");
-  }
-
-  const naehe = el("hud-naehe");
-  const d = zustand.binGeist ? null : naechsteGegenseite(zustand);
-  const stufe = d === null ? null : NAEHE_STUFEN.find(s => d <= s.bis);
-  if (!stufe) {
-    naehe.textContent = binFaenger ? "🔍 niemand in der Nähe" : "🟢 Luft rein";
-    naehe.className = "hud-naehe";
-  } else {
-    naehe.textContent = stufe.text;
-    naehe.className = "hud-naehe " + stufe.klasse;
-  }
-}
-
-function aktualisiereHud(zustand) {
-  const pos = zustand.meinePosition;
-  el("hud-raumname").textContent = pos ? karte.raumName(pos.x, pos.y) : "";
-
-  const rolleEl = el("hud-rolle");
-  rolleEl.className = "hud-rolle " + (zustand.meineRolle || "");
-  rolleEl.textContent = zustand.binGeist ? "👻 Geist" : rollenBezeichnung(zustand);
-
-  const aufgaben = zustand.aufgaben || { erledigt: 0, gesamt: 0 };
-  const anteil = aufgaben.gesamt > 0 ? Math.min(aufgaben.erledigt / aufgaben.gesamt, 1) : 0;
-  el("hud-aufgaben-fuellung").style.width = Math.round(anteil * 100) + "%";
-
-  const warnung = el("hud-warnung");
-  const sab = zustand.sabotage;
-  if (sab && sab.typ === "reaktor") {
-    const rest = Math.max(Math.ceil((sab.endeAt - zustand.jetzt) / 1000), 0);
-    warnung.style.display = "block";
-    warnung.textContent = `☢️ Reaktor überhitzt – ${rest} s bis zur Kernschmelze. Beide Kühlventile gleichzeitig halten!`;
-  } else if (sab && sab.typ === "licht") {
-    warnung.style.display = "block";
-    warnung.textContent = "💡 Licht aus – Sicherungskasten in der Elektrik.";
-  } else if (sab && sab.typ === "funk") {
-    warnung.style.display = "block";
-    warnung.textContent = "📻 Funk gestört – keine Kameras, keine Aufgabenliste. Funkpult in der Kommunikation.";
-  } else {
-    warnung.style.display = "none";
-  }
-
-  // Die Aufgabenliste fällt mit dem Funk aus. Der eigene Fortschritt bleibt sichtbar (die
-  // Marker auf der Karte), nur der gemeinsame Überblick ist weg — das ist der Punkt: man
-  // weiß nicht mehr, wie weit das Team wirklich ist.
-  const listenBtn = el("btn-aufgabenliste");
-  listenBtn.disabled = !!zustand.funkGestoert;
-  listenBtn.title = zustand.funkGestoert ? "Funk gestört" : "Aufgabenliste";
-
-  const aktion = ermittleAktion(zustand);
-  const interaktion = el("btn-interaktion");
-  interaktion.disabled = !aktion;
-  interaktion.textContent = aktion ? aktion.zeichen : "✋";
-  interaktion.title = aktion ? aktion.label : "Nichts in Reichweite";
-
-  const leicheUid = findeMeldbareLeiche(zustand);
-  el("btn-melden").style.display = leicheUid ? "flex" : "none";
-
-  // Der Ingenieur hat keinen Knopf — seine Fähigkeit liegt auf der normalen Aktionstaste,
-  // sobald er auf einer Abkürzung steht.
-  const rollenBtn = el("btn-rollenfaehigkeit");
-  const sonder = zustand.meineSonderrolle && rollenModul.sonderrolleInfo(zustand.meineSonderrolle);
-  const mitKnopf = ["wissenschaftler", "schutzengel", "gestaltwandler"].indexOf(zustand.meineSonderrolle) !== -1;
-  rollenBtn.style.display = mitKnopf ? "flex" : "none";
-  if (mitKnopf) {
-    rollenBtn.textContent = sonder.icon;
-    rollenBtn.title = sonder.name;
-    // Schutzengel wirkt erst als Geist, alle anderen nur zu Lebzeiten
-    rollenBtn.disabled = zustand.meineSonderrolle === "schutzengel" ? !zustand.binGeist : zustand.binGeist;
-  }
-
-  const killBtn = el("btn-ausschalten");
-  const sabBtn = el("btn-sabotage");
-  if (zustand.meineRolle === "maulwurf" && !zustand.binGeist) {
-    killBtn.style.display = "flex";
-    // Im Verstecken-Modus gibt es keine Sabotage — der Knopf verschwindet ganz, statt nur
-    // dauerhaft ausgegraut zu bleiben.
-    sabBtn.style.display = zustand.versteckModus ? "none" : "flex";
-    const gesperrt = zustand.versteckModus && zustand.vorsprungBis > zustand.jetzt;
-    const rest = Math.max(Math.ceil((zustand.killCooldownBis - zustand.jetzt) / 1000), 0);
-    const ziel = findeKillZiel(zustand);
-    // Aus dem Schacht heraus geht nichts — erst aussteigen. Der Server lehnt es ohnehin ab;
-    // ein Knopf, der sich drücken lässt und dann nichts tut, wäre nur verwirrend.
-    killBtn.disabled = !!zustand.schacht || gesperrt || !ziel || rest > 0;
-    killBtn.textContent = gesperrt ? "⏳" : rest > 0 ? rest : "🥾";
-    sabBtn.disabled = !!zustand.schacht || (zustand.sabotageCooldownBis || 0) > zustand.jetzt;
-  } else {
-    killBtn.style.display = "none";
-    sabBtn.style.display = "none";
-  }
-
-  aktualisiereSchachtpanel(zustand);
-  aktualisiereVersteckHud(zustand);
-}
-
 async function fuehreAktionAus() {
   const zustand = gameService.getZustand();
   const aktion = ermittleAktion(zustand);
@@ -942,24 +708,23 @@ async function fuehreAktionAus() {
     // **Nur einsteigen, nicht springen.** Wohin es geht, entscheidet man drinnen — dort sieht
     // man an jedem Ende erst die Umgebung, bevor man auftaucht.
     gameService.betreteSchacht();
-    render();
     return;
   }
   if (aktion.typ === "notfall") {
     const ergebnis = await gameService.drueckeNotfallknopf();
-    if (!ergebnis.erfolg && ergebnis.fehler) alert(ergebnis.fehler);
+    if (!ergebnis.erfolg && ergebnis.fehler) spielfeld.melde(ergebnis.fehler);
     return;
   }
   if (aktion.typ === "aufgabe") {
-    oeffneAufgabe(aktion.station);
+    spielfeld.oeffneAufgabe(aktion.station);
     return;
   }
   if (aktion.typ === "reparatur-licht") {
-    oeffneReparaturLicht();
+    spielfeld.oeffneReparaturLicht();
     return;
   }
   if (aktion.typ === "reparatur-reaktor") {
-    oeffneReparaturKuehlung(aktion.seite);
+    spielfeld.oeffneReparaturKuehlung(aktion.seite);
     return;
   }
   if (aktion.typ === "reparatur-funk") {
@@ -967,262 +732,13 @@ async function fuehreAktionAus() {
     return;
   }
   if (aktion.typ === "kameras") {
-    oeffneKameras();
+    spielfeld.oeffneKameras();
   }
 }
 
 // ============================================================
 // Overlays
 // ============================================================
-
-function schliesseOverlay() {
-  if (aktiveAufgabeAufraeumen) {
-    aktiveAufgabeAufraeumen();
-    aktiveAufgabeAufraeumen = null;
-  }
-  // Wer die Kameras verlässt, meldet sich sofort ab, statt den Eintrag auslaufen zu lassen —
-  // sonst blinkt die Warnung noch acht Sekunden weiter, obwohl niemand mehr hinsieht.
-  if (kameraTakt) { clearInterval(kameraTakt); kameraTakt = null; }
-  if (overlayOffen === "kameras") gameService.kameraWegsehen();
-  document.querySelectorAll(".overlay").forEach(o => o.classList.remove("aktiv"));
-  overlayOffen = null;
-  aktiveStationId = null;
-}
-
-function oeffneAufgabe(station) {
-  const typ = aufgabenModul.AUFGABEN_TYPEN[station.typ];
-  if (!typ) return;
-  const zustand = gameService.getZustand();
-  const eintrag = zustand.meineAufgaben.find(a => a.id === station.id);
-
-  schliesseOverlay();
-  overlayOffen = "aufgabe";
-  aktiveStationId = station.id;
-  el("aufgabe-titel").textContent = stationName(station);
-  const inhalt = el("aufgabe-inhalt");
-  inhalt.innerHTML = "";
-
-  // Ein gesperrter Kettenteil wird gar nicht erst geöffnet: das Minispiel ließe sich sonst
-  // durchspielen und erledigeAufgabe würde es hinterher stillschweigend ablehnen — der
-  // Eindruck wäre "die Aufgabe hakt", nicht "ich war in der falschen Reihenfolge dran".
-  if (eintrag && eintrag.gesperrt) {
-    inhalt.innerHTML = `<p class="af-anleitung">Diese Aufgabe hat mehrere Schritte.</p>
-      <p class="af-status">Erst der vorherige Schritt – dann geht es hier weiter.</p>`;
-    aktiveAufgabeAufraeumen = null;
-    el("overlay-aufgabe").classList.add("aktiv");
-    return;
-  }
-
-  // Die Optionen tragen alles, was das Minispiel über seinen Platz in einer mehrteiligen
-  // Aufgabe wissen muss. jetzt() kommt bewusst aus dem Spiel (Serverzeit), damit eine
-  // Wartezeit auf allen Geräten gleich läuft.
-  const optionen = {
-    teil: eintrag ? eintrag.teil : 1,
-    teile: eintrag ? eintrag.teile : 1,
-    zielRaum: eintrag ? eintrag.zielRaum : null,
-    wartenSeit: eintrag ? eintrag.wartenSeit : 0,
-    jetzt: gameService.serverJetzt,
-    starteWarten: () => gameService.starteWartezeit(station.id)
-  };
-
-  aktiveAufgabeAufraeumen = typ.start(inhalt, async () => {
-    await gameService.erledigeAufgabe(station.id);
-    setTimeout(schliesseOverlay, 700);
-  }, optionen);
-  el("overlay-aufgabe").classList.add("aktiv");
-}
-
-// Das Schachtpanel bleibt eingeblendet, SOLANGE man drinsitzt — es ist kein Dialog, den man
-// wegklickt, sondern die Anzeige eines Aufenthalts. Man wechselt zwischen den Enden, sieht bei
-// jedem die Umgebung im Sichtfeld und steigt aus, wenn die Luft rein ist.
-//
-// Deshalb wird es aus render() heraus gepflegt und nicht einmalig geöffnet: nach jedem Wechsel
-// muss die Beschriftung stimmen, und wer während des Meetings oder beim Ausscheiden im Schacht
-// war, muss es verschwinden sehen.
-function aktualisiereSchachtpanel(zustand) {
-  const panel = el("schacht-panel");
-  if (!panel) return;
-  const schacht = zustand.schacht;
-  if (!schacht || zustand.phase !== "laeuft" || zustand.meeting) {
-    panel.classList.remove("aktiv");
-    schachtPanelStand = "";
-    return;
-  }
-  panel.classList.add("aktiv");
-  // Neu aufbauen nur, wenn sich wirklich etwas geändert hat — sonst verlöre ein Fingerdruck
-  // mitten im Antippen sein Ziel, weil der Knopf unter ihm ersetzt wurde.
-  const stand = schacht.tunnel.id + "#" + schacht.index;
-  if (schachtPanelStand === stand) return;
-  schachtPanelStand = stand;
-
-  el("schacht-panel-ort").textContent = schacht.hier.ort;
-  el("schacht-panel-netz").textContent = schacht.tunnel.name;
-  el("schacht-panel-netz").style.color = schacht.tunnel.farbe;
-  const box = el("schacht-panel-ziele");
-  box.innerHTML = "";
-  schacht.ziele.forEach(ziel => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn btn-secondary btn-grow";
-    btn.textContent = "↝ " + ziel.ort;
-    btn.style.borderColor = schacht.tunnel.farbe;
-    btn.addEventListener("click", () => {
-      gameService.wechsleSchachtEnde(ziel.index);
-      render();
-    });
-    box.appendChild(btn);
-  });
-}
-
-function oeffneReparaturLicht() {
-  schliesseOverlay();
-  overlayOffen = "aufgabe";
-  el("aufgabe-titel").textContent = "Sicherungskasten";
-  const inhalt = el("aufgabe-inhalt");
-  inhalt.innerHTML = "";
-  aktiveAufgabeAufraeumen = aufgabenModul.reparaturLicht(inhalt, async () => {
-    await gameService.repariereLicht();
-    setTimeout(schliesseOverlay, 600);
-  });
-  el("overlay-aufgabe").classList.add("aktiv");
-}
-
-function oeffneReparaturKuehlung(seite) {
-  schliesseOverlay();
-  overlayOffen = "aufgabe";
-  el("aufgabe-titel").textContent = seite === "a" ? "Ventil Materialkeller" : "Ventil Küche";
-  const inhalt = el("aufgabe-inhalt");
-  inhalt.innerHTML = "";
-  aktiveAufgabeAufraeumen = aufgabenModul.reparaturKuehlung(
-    inhalt,
-    () => gameService.setzeKuehlventil(seite, true),
-    () => gameService.setzeKuehlventil(seite, false)
-  );
-  el("overlay-aufgabe").classList.add("aktiv");
-}
-
-function oeffneAufgabenliste() {
-  const zustand = gameService.getZustand();
-  schliesseOverlay();
-  overlayOffen = "liste";
-  const liste = el("aufgaben-liste");
-  liste.innerHTML = "";
-  zustand.meineAufgaben.forEach(a => {
-    if (!a.station) return;
-    const typ = aufgabenModul.AUFGABEN_TYPEN[a.station.typ];
-    const li = document.createElement("li");
-    li.className = a.erledigt ? "erledigt" : (a.gesperrt ? "gesperrt" : "");
-    // Mehrteilige Aufgaben stehen mit ihrer Schrittnummer da, sonst läse sich dieselbe
-    // Aufgabe dreimal identisch und man wüsste nicht, welcher Ort noch offen ist.
-    const schritt = a.teile > 1 ? ` <span class="teilnummer">${a.teil}/${a.teile}</span>` : "";
-    const zeichen = a.erledigt ? "✅" : (a.gesperrt ? "🔒" : "⬜");
-    const wartetNoch = a.wartenSeit && gameService.serverJetzt() < a.wartenSeit + a.wartenSek * 1000;
-    const hinweis = wartetNoch
-      ? ` <span class="teilnummer">läuft …</span>`
-      : (a.wartenSeit && !a.erledigt ? ` <span class="teilnummer">fertig – hingehen</span>` : "");
-    li.innerHTML = `<span>${zeichen}</span>
-      <span>${escapeHtml(stationName(a.station))}${schritt}${hinweis}${typ && typ.sichtbar ? ' <b class="sichtbar-marke" title="Wer zusieht, sieht dass du wirklich arbeitest">👁</b>' : ""}</span>
-      <span class="ort">${escapeHtml(raumNameZu(a.station.raum))}</span>`;
-    liste.appendChild(li);
-  });
-  const hatSichtbare = zustand.meineAufgaben.some(a => {
-    const typ = a.station && aufgabenModul.AUFGABEN_TYPEN[a.station.typ];
-    return typ && typ.sichtbar;
-  });
-  el("aufgaben-liste-hinweis").textContent = zustand.meineRolle === "maulwurf"
-    ? "Du bist Maulwurf – diese Aufgaben zählen nicht, sehen aber echt aus." +
-      (hatSichtbare ? " Vorsicht bei 👁: dort bleibt sichtbar, dass jemand gearbeitet hat – bei dir passiert nichts." : "")
-    : `Gemeinsamer Fortschritt: ${zustand.aufgaben.erledigt} von ${zustand.aufgaben.gesamt}` +
-      (hatSichtbare ? " · 👁 sehen alle in der Nähe – dein Alibi." : "");
-  el("overlay-liste").classList.add("aktiv");
-}
-
-// Ein Knopf für drei Rollen: der Wissenschaftler liest hier nur ab, Schutzengel und
-// Gestaltwandler wählen ein Ziel. Die Liste wird bei jedem Öffnen neu gebaut, weil sich
-// Lebensstatus und Cooldowns laufend ändern.
-function oeffneRollenPanel() {
-  const zustand = gameService.getZustand();
-  const sonder = zustand.meineSonderrolle && rollenModul.sonderrolleInfo(zustand.meineSonderrolle);
-  if (!sonder) return;
-  schliesseOverlay();
-  overlayOffen = "rolle";
-
-  el("rolle-titel").textContent = `${sonder.icon} ${sonder.name}`;
-  el("rolle-beschreibung").textContent = sonder.beschreibung;
-  const liste = el("rolle-liste");
-  liste.innerHTML = "";
-  const status = el("rolle-status");
-  status.textContent = "";
-
-  const andere = zustand.spieler.filter(s => s.id !== zustand.eigenerSpielerId);
-
-  if (zustand.meineSonderrolle === "wissenschaftler") {
-    andere.forEach(s => {
-      const li = document.createElement("li");
-      li.innerHTML = `<span>${s.lebt === false ? "💀" : "❤️"}</span>
-        <span>${escapeHtml(s.name)}</span>
-        <span class="ort">${s.lebt === false ? "ausgeschaltet" : "lebt"}</span>`;
-      liste.appendChild(li);
-    });
-    const tot = andere.filter(s => s.lebt === false).length;
-    status.textContent = tot ? `${tot} von ${andere.length} sind ausgeschaltet.` : "Noch sind alle im Spiel.";
-  } else if (zustand.meineSonderrolle === "schutzengel") {
-    if (!zustand.binGeist) {
-      status.textContent = "Das geht erst, wenn du selbst ausgeschaltet bist.";
-    } else {
-      const rest = Math.max(Math.ceil(((zustand.schutzCooldownBis || 0) - zustand.jetzt) / 1000), 0);
-      andere.filter(s => s.lebt !== false).forEach(s => {
-        const geschuetzt = (zustand.schutz[s.id] || 0) > zustand.jetzt;
-        liste.appendChild(zielZeile(s, geschuetzt ? "geschützt" : rest > 0 ? `noch ${rest} s` : "schützen",
-          !geschuetzt && rest === 0, async () => {
-            const e = await gameService.schuetze(s.id);
-            status.textContent = e.erfolg ? `${s.name} ist jetzt eine Weile sicher.` : (e.fehler || "Geht gerade nicht.");
-            if (e.erfolg) setTimeout(oeffneRollenPanel, 400);
-          }));
-      });
-      if (!liste.children.length) status.textContent = "Niemand mehr da, den du schützen könntest.";
-    }
-  } else if (zustand.meineSonderrolle === "gestaltwandler") {
-    const meine = zustand.verkleidungen[zustand.eigenerSpielerId];
-    const verkleidet = meine && meine.bis > zustand.jetzt;
-    const rest = Math.max(Math.ceil(((zustand.verkleidungCooldownBis || 0) - zustand.jetzt) / 1000), 0);
-    if (verkleidet) {
-      const ziel = zustand.spieler.find(s => s.id === meine.alsUid);
-      status.textContent = `Du siehst gerade aus wie ${ziel ? ziel.name : "jemand anderes"}.`;
-      const li = document.createElement("li");
-      const btn = document.createElement("button");
-      btn.className = "btn btn-secondary btn-grow";
-      btn.textContent = "Verkleidung ablegen";
-      btn.addEventListener("click", async () => { await gameService.verkleideDich(null); setTimeout(oeffneRollenPanel, 400); });
-      li.appendChild(btn);
-      liste.appendChild(li);
-    } else {
-      andere.filter(s => s.lebt !== false).forEach(s => {
-        liste.appendChild(zielZeile(s, rest > 0 ? `noch ${rest} s` : "aussehen wie", rest === 0, async () => {
-          const e = await gameService.verkleideDich(s.id);
-          status.textContent = e.erfolg ? `Du siehst jetzt aus wie ${s.name}.` : (e.fehler || "Geht gerade nicht.");
-          if (e.erfolg) setTimeout(oeffneRollenPanel, 400);
-        }));
-      });
-      if (rest > 0) status.textContent = `Noch ${rest} s, bis du dich wieder verwandeln kannst.`;
-    }
-  }
-  el("overlay-rolle").classList.add("aktiv");
-}
-
-function zielZeile(spieler, knopfText, aktiv, beiKlick) {
-  const li = document.createElement("li");
-  const name = document.createElement("span");
-  name.textContent = spieler.name;
-  const btn = document.createElement("button");
-  btn.className = "btn btn-secondary rolle-ziel-btn";
-  btn.textContent = knopfText;
-  btn.disabled = !aktiv;
-  btn.addEventListener("click", beiKlick);
-  li.appendChild(name);
-  li.appendChild(btn);
-  return li;
-}
 
 // ---------- Kameras ----------
 //
@@ -1231,17 +747,25 @@ function zielZeile(spieler, knopfText, aktiv, beiKlick) {
 // als der eigene Blick — grün, körnig, ohne Beschriftung. Was man sieht, sind Punkte in
 // Bewegung, nicht wer sie sind.
 //
-// Namen werden NICHT angezeigt. Eine Kamera, die Namen verrät, würde jede Diskussion
-// beenden; so bleibt "da war jemand im Nordflur" eine Beobachtung, die man vertreten muss.
-let kameraTakt = null;
-const KAMERA_BILD_MS = 140;   // ~7 Bilder/s reichen; die Positionen treffen ohnehin nur mit 5 Hz ein
-
-function zeichneKamerabild(flaeche, kamera, zustand) {
-  const ctx2 = flaeche.getContext("2d");
-  const b = flaeche.width, h = flaeche.height;
+// Seit dem 2026-07-27 zeigt das Band Namen und Spielerfarben — Michels Vorgabe und näher am
+// Original. Die Verkleidung des Gestaltwandlers wird dabei über sichtbareIdentitaet
+// mitgeführt, sonst wäre ein Blick aufs Band die einfachste Art ihn zu enttarnen.
+//
+// Gezeichnet wird seit dem Umbau auf eine Zeichenfläche direkt in ein Rechteck der
+// gemeinsamen Leinwand statt in ein eigenes Canvas-Element. Alles innerhalb wird auf das
+// Rechteck beschnitten und um dessen Ursprung verschoben, damit der Zeichencode unverändert
+// in Bildkoordinaten ab (0,0) rechnen kann.
+function zeichneKamerabild(bx, by, b, h, kamera, zustand) {
+  const ctx2 = ui.ctx;
   const s = b / kamera.breite;
   const kx = x => (x - kamera.links) * s;
   const ky = y => (y - kamera.oben) * s;
+
+  ctx2.save();
+  ctx2.beginPath();
+  ctx2.rect(bx, by, b, h);
+  ctx2.clip();
+  ctx2.translate(bx, by);
 
   ctx2.fillStyle = "#04120a";
   ctx2.fillRect(0, 0, b, h);
@@ -1313,408 +837,50 @@ function zeichneKamerabild(flaeche, kamera, zustand) {
   // Schrift an. Der Röhrencharakter bleibt, die Lesbarkeit gewinnt.
   ctx2.fillStyle = "rgba(0,0,0,0.14)";
   for (let y = 0; y < h; y += 4) ctx2.fillRect(0, y, b, 2);
+
+  ctx2.restore();
   return gesehen;
-}
-
-function aktualisiereKameras() {
-  if (overlayOffen !== "kameras") return;
-  const zustand = gameService.getZustand();
-  const gestoert = zustand.funkGestoert;
-  el("kamera-stoerung").style.display = gestoert ? "block" : "none";
-  karte.KAMERAS.forEach((kamera, i) => {
-    const flaeche = el("kamera-bild-" + i);
-    if (!flaeche) return;
-    if (gestoert) {
-      const c = flaeche.getContext("2d");
-      c.fillStyle = "#04120a";
-      c.fillRect(0, 0, flaeche.width, flaeche.height);
-      // Rauschen statt Bild: man sieht sofort, dass hier etwas kaputt ist, statt zu glauben,
-      // der Gang sei einfach leer.
-      c.fillStyle = "rgba(125,252,174,0.20)";
-      for (let n = 0; n < 260; n++) {
-        c.fillRect(Math.random() * flaeche.width, Math.random() * flaeche.height, 2, 2);
-      }
-      return;
-    }
-    zeichneKamerabild(flaeche, kamera, zustand);
-  });
-}
-
-function oeffneKameras() {
-  schliesseOverlay();
-  overlayOffen = "kameras";
-  const gitter = el("kamera-gitter");
-  gitter.innerHTML = "";
-  karte.KAMERAS.forEach((kamera, i) => {
-    const kachel = document.createElement("figure");
-    kachel.className = "kamera-kachel";
-    const flaeche = document.createElement("canvas");
-    flaeche.id = "kamera-bild-" + i;
-    flaeche.width = 480;
-    flaeche.height = Math.round(480 * (kamera.hoehe / kamera.breite));
-    const titel = document.createElement("figcaption");
-    titel.textContent = kamera.name;
-    kachel.appendChild(flaeche);
-    kachel.appendChild(titel);
-    gitter.appendChild(kachel);
-  });
-  el("overlay-kameras").classList.add("aktiv");
-
-  // Zwei Takte mit verschiedenen Aufgaben: das Bild muss flüssig nachziehen (die Positionen
-  // treffen mit 5 Hz ein), der Firebase-Eintrag darf das nicht — sonst schriebe jedes
-  // zusehende Gerät achtmal pro Sekunde in den Raum, den alle anderen mithören.
-  gameService.kameraZusehen();
-  aktualisiereKameras();
-  let seitLetztemWrite = 0;
-  if (kameraTakt) clearInterval(kameraTakt);
-  kameraTakt = setInterval(() => {
-    aktualisiereKameras();
-    seitLetztemWrite += KAMERA_BILD_MS;
-    if (seitLetztemWrite >= gameService.KAMERA_TAKT_MS) {
-      seitLetztemWrite = 0;
-      gameService.kameraZusehen();
-    }
-  }, KAMERA_BILD_MS);
-}
-
-function oeffneSabotageMenue() {
-  const zustand = gameService.getZustand();
-  schliesseOverlay();
-  overlayOffen = "sabotage";
-  const gitter = el("sab-tueren-gitter");
-  gitter.innerHTML = "";
-  karte.RAEUME.forEach(r => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.textContent = r.name;
-    btn.addEventListener("click", async () => {
-      const ergebnis = await gameService.sabotiere("tueren", r.id);
-      el("sabotage-hinweis").textContent = ergebnis.erfolg ? "Verriegelt." : (ergebnis.fehler || "Geht gerade nicht.");
-      if (ergebnis.erfolg) setTimeout(schliesseOverlay, 500);
-    });
-    gitter.appendChild(btn);
-  });
-  el("btn-sab-reaktor").disabled = !!zustand.sabotage;
-  el("btn-sab-licht").disabled = !!zustand.sabotage;
-  el("btn-sab-funk").disabled = !!zustand.sabotage;
-  el("sabotage-hinweis").textContent = zustand.sabotage ? "Es läuft schon eine Sabotage." : "";
-  el("overlay-sabotage").classList.add("aktiv");
 }
 
 // ============================================================
 // Rendering pro Phase
 // ============================================================
 
+// Der Dienst meldet jede Zustandsaenderung hierher. Frueher wurde daraufhin das
+// Dokument umgebaut; jetzt wird nur noch ein neues Bild angefordert — was zu
+// sehen ist, ergibt sich beim Zeichnen aus dem Zustand.
 function render(zustand) {
-  letzteZustand = zustand;
+  const neu = zustand || gameService.getZustand();
+  letzteZustand = neu;
 
-  if (zustand.phase === "start") gibBildschirmFrei(); else sichereBildschirmWach();
+  if (neu.phase === "start") gibBildschirmFrei(); else sichereBildschirmWach();
 
-  const phasenWechsel = letztePhase !== zustand.phase;
-  letztePhase = zustand.phase;
-
-  // Nur auf dem Spielfeld wird formatfüllend gerendert – Lobby, Meeting und Ende bleiben im
-  // normalen Seitenlayout, dort ist die Kopfzeile mit dem Verlassen-Knopf wichtiger.
-  document.body.classList.toggle("im-spiel", zustand.phase === "laeuft" && !zustand.meeting);
-  if (zustand.phase === "start") {
-    querformatHinweisWeggetippt = false;
-    verlasseVollbild();
-  }
-  pruefeAusrichtung();
-
-  el("btn-spiel-abbrechen").style.display = PHASEN_MIT_VERLASSEN_BUTTON.includes(zustand.phase) ? "inline-block" : "none";
-
-  // Das Meeting hat einen eigenen Screen, läuft aber innerhalb der Phase "laeuft".
-  if (zustand.phase === "laeuft" && zustand.meeting) {
-    showScreen("screen-meeting");
-    if (overlayOffen) schliesseOverlay();
-    renderMeeting(zustand);
-    return;
-  }
-
-  showScreen(SCREEN_FUER_PHASE[zustand.phase] || "screen-start");
-
-  if (zustand.phase === "lobby") {
-    renderLobby(zustand);
-    if (phasenWechsel) { meineStimme = null; letzteMeetingUnterphase = null; }
-  }
-  if (zustand.phase === "zuteilung") renderReveal(zustand);
-  if (zustand.phase === "laeuft") {
-    if (phasenWechsel || !zustand.meinePosition) {
+  if (letztePhase !== neu.phase) {
+    letztePhase = neu.phase;
+    bildschirme.phaseGewechselt(neu.phase);
+    if (neu.phase === "start") {
+      querformatHinweisWeggetippt = false;
+      verlasseVollbild();
+      spielfeld.zuruecksetzen();
+      bildschirme.zurueckZumStart();
+    }
+    if (neu.phase === "lobby") { meineStimme = null; letzteMeetingUnterphase = null; }
+    if (neu.phase === "laeuft") {
       gameService.setzeStartposition();
       gameService.startePositionsSchleife();
-      // Der Screen ist erst nach showScreen sichtbar – die Canvas-Größe deshalb im
-      // nächsten Frame setzen, sonst greift der 300x150-Fallback.
-      requestAnimationFrame(() => passeCanvasAn());
     }
-    if (letzteMeetingUnterphase) { letzteMeetingUnterphase = null; meineStimme = null; }
-    aktualisiereHud(zustand);
-  }
-  if (zustand.phase === "beendet") renderEnde(zustand);
-}
-
-function renderLobby(zustand) {
-  el("lobby-raumcode").textContent = zustand.raumCode || "------";
-  el("lobby-zaehler").textContent = `${zustand.spieler.length}/${zustand.maxSpieler} Mitspielende`;
-  el("lobby-modus").textContent = zustand.istHost ? "Du bist Gastgeber:in" : "";
-
-  const liste = el("lobby-spielerliste");
-  liste.innerHTML = "";
-  zustand.spieler.forEach(s => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <span class="spieler-avatar" style="background:${escapeHtml(s.farbe)}">${escapeHtml(avatarInitiale(s.name))}</span>
-      <span class="spieler-name">${escapeHtml(s.name)}</span>
-      <span class="spieler-badge">${s.istHost ? "Gastgeber:in" : s.istSimuliert ? "🤖 KI" : ""}</span>`;
-    if (s.istSimuliert && zustand.istHost) {
-      const btn = document.createElement("button");
-      btn.className = "btn-mini";
-      btn.type = "button";
-      btn.textContent = "entfernen";
-      btn.addEventListener("click", () => gameService.entferneKiMitspieler(s.id));
-      li.appendChild(btn);
-    }
-    liste.appendChild(li);
-  });
-
-  const genug = zustand.spieler.length >= zustand.minSpieler;
-  el("btn-spiel-starten").style.display = zustand.istHost ? "block" : "none";
-  el("btn-spiel-starten").disabled = !genug;
-  el("btn-ki-hinzufuegen").style.display = zustand.istHost && zustand.spieler.length < zustand.maxSpieler ? "block" : "none";
-  el("lobby-einstellungen").style.display = zustand.istHost ? "block" : "none";
-  el("lobby-warte-hinweis").textContent = genug
-    ? (zustand.istHost ? "" : "Warte auf den Start …")
-    : `Noch ${zustand.minSpieler - zustand.spieler.length} Mitspielende nötig (oder KI hinzufügen).`;
-
-  // Der Modus bestimmt, welche Einstellungen überhaupt etwas bewirken. Was im gewählten Modus
-  // wirkungslos wäre, wird ausgeblendet statt nur ignoriert — sonst stellt man Diskussionszeit
-  // für ein Spiel ohne Besprechung ein und wundert sich.
-  const versteckt = zustand.einstellungen.modus === "verstecken";
-  document.querySelectorAll("[data-nur-klassisch]").forEach(n => { n.style.display = versteckt ? "none" : ""; });
-  document.querySelectorAll("[data-nur-verstecken]").forEach(n => { n.style.display = versteckt ? "" : "none"; });
-
-  // Auswahlfelder nur setzen, wenn sie nicht gerade bedient werden.
-  if (document.activeElement && document.activeElement.tagName === "SELECT") return;
-  const e = zustand.einstellungen;
-  el("ein-modus").value = e.modus;
-  el("ein-vorsprung").value = String(e.vorsprungSek);
-  el("ein-zeitlimit").value = String(e.zeitlimitMin);
-  el("ein-maulwuerfe").value = String(zustand.anzahlMaulwuerfe);
-  el("ein-aufgaben").value = String(e.aufgabenProSpieler);
-  el("ein-killcooldown").value = String(e.killCooldownSek);
-  el("ein-notfall").value = String(e.notfallKnoepfe);
-  el("ein-diskussion").value = String(e.diskussionSek);
-  el("ein-abstimmung").value = String(e.abstimmungSek);
-  // Ein Raum kann noch einen Tempowert aus einer früheren Fassung tragen (die Stufen wurden
-  // am 2026-07-27 gesenkt). Ein `value`, den es als Option nicht gibt, lässt das Auswahlfeld
-  // LEER stehen — sichtbar kaputt, obwohl der Raum in Ordnung ist. Dann die nächstgelegene
-  // Stufe anzeigen; gespielt wird weiter mit dem gespeicherten Wert, bis jemand umstellt.
-  setzeAuswahlNaheliegend(el("ein-tempo"), e.tempo);
-  el("ein-rolle-rauswurf").value = String(e.rolleNachRauswurf ? 1 : 0);
-  el("ein-rolle-ingenieur").value = String(e.rolleIngenieur ? 1 : 0);
-  el("ein-rolle-wissenschaftler").value = String(e.rolleWissenschaftler ? 1 : 0);
-  el("ein-rolle-schutzengel").value = String(e.rolleSchutzengel ? 1 : 0);
-  el("ein-rolle-gestaltwandler").value = String(e.rolleGestaltwandler ? 1 : 0);
-}
-
-// Setzt ein Zahlen-Auswahlfeld auf den gespeicherten Wert — oder auf die nächstgelegene
-// angebotene Stufe, falls es den Wert als Option nicht (mehr) gibt.
-function setzeAuswahlNaheliegend(feld, wert) {
-  const zahl = Number(wert);
-  feld.value = String(zahl);
-  if (feld.value !== "") return;
-  let beste = null;
-  Array.prototype.forEach.call(feld.options, opt => {
-    const abstand = Math.abs(Number(opt.value) - zahl);
-    if (beste === null || abstand < beste.abstand) beste = { wert: opt.value, abstand };
-  });
-  if (beste) feld.value = beste.wert;
-}
-
-function renderReveal(zustand) {
-  const karteEl = el("reveal-karte");
-  if (!zustand.meineRolle) {
-    karteEl.className = "reveal-karte";
-    el("reveal-icon").textContent = "❓";
-    el("reveal-rolle").textContent = "Rolle wird gezogen …";
-    el("reveal-text").textContent = "Dein Gerät zieht gerade verdeckt eine Rolle aus dem gemischten Stapel.";
-    el("reveal-team").textContent = "";
-    return;
-  }
-  // Verstecken-Modus: hier ist nichts geheim. Beide Seiten erfahren denselben Namen — das
-  // Spannende ist nicht, WER der Fänger ist, sondern wo er gerade steckt.
-  if (zustand.versteckModus) {
-    const faenger = zustand.spieler.find(s => s.id === zustand.faengerUid);
-    const binFaenger = zustand.meineRolle === "maulwurf";
-    karteEl.className = "reveal-karte " + (binFaenger ? "maulwurf" : "team");
-    el("reveal-icon").textContent = binFaenger ? "🥅" : "🙈";
-    el("reveal-rolle").textContent = binFaenger ? "Du bist der Fänger" : "Versteck dich!";
-    el("reveal-text").textContent = binFaenger
-      ? "Alle wissen, wer du bist. Dafür siehst du selbst kaum etwas – die Nähe-Anzeige führt dich."
-      : "Erledigt eure Aufgaben oder haltet einfach durch, bis die Zeit um ist. Besprechungen gibt es keine.";
-    el("reveal-team").textContent = binFaenger
-      ? `Du bekommst ${zustand.einstellungen.vorsprungSek} Sekunden Vorsprung – so lange stehst du fest.`
-      : faenger ? `Der Fänger ist: ${faenger.name}` : "Der Fänger wird gerade ausgelost …";
-  } else if (zustand.meineRolle === "maulwurf") {
-    karteEl.className = "reveal-karte maulwurf";
-    el("reveal-icon").textContent = "🕵️";
-    el("reveal-rolle").textContent = "Du bist Maulwurf";
-    el("reveal-text").textContent = "Tu so, als würdest du arbeiten. Sabotiere, schalte Leute aus – und lass dich nicht erwischen.";
-    const mit = zustand.maulwurfTeam
-      .filter(uid => uid !== zustand.eigenerSpielerId)
-      .map(uid => (zustand.spieler.find(s => s.id === uid) || {}).name)
-      .filter(Boolean);
-    el("reveal-team").textContent = mit.length ? "Mit dir im Bunde: " + mit.join(", ") : "Du bist allein unterwegs.";
-  } else {
-    karteEl.className = "reveal-karte team";
-    el("reveal-icon").textContent = "⚽";
-    el("reveal-rolle").textContent = "Du gehörst zum Team";
-    el("reveal-text").textContent = "Erledige deine Aufgaben auf dem Gelände und finde heraus, wer sabotiert.";
-    el("reveal-team").textContent = `Achtung: ${zustand.anzahlMaulwuerfe === 1 ? "Ein Maulwurf ist" : zustand.anzahlMaulwuerfe + " Maulwürfe sind"} unter euch.`;
+    if (neu.phase !== "laeuft") spielfeld.zuruecksetzen();
   }
 
-  // Sonderrolle überschreibt Symbol und Überschrift, behält aber die Seitenfarbe der Karte —
-  // die Zugehörigkeit ist die wichtigere Information und darf nicht untergehen.
-  const sonder = zustand.meineSonderrolle && rollenModul.sonderrolleInfo(zustand.meineSonderrolle);
-  if (sonder) {
-    el("reveal-icon").textContent = sonder.icon;
-    el("reveal-rolle").textContent = "Du bist " + sonder.name;
-    el("reveal-text").textContent = sonder.beschreibung;
+  // Ein Meeting beendet jeden offenen Dialog — sonst stuende man nach der
+  // Besprechung wieder vor einem halb gespielten Minispiel.
+  if (neu.meeting && spielfeld.offenerDialog) spielfeld.schliesse();
+  if (neu.phase === "laeuft" && !neu.meeting && letzteMeetingUnterphase) {
+    letzteMeetingUnterphase = null;
+    meineStimme = null;
   }
-}
 
-function renderMeeting(zustand) {
-  const meeting = zustand.meeting;
-  const rest = Math.max(Math.ceil((meeting.endeAt - zustand.jetzt) / 1000), 0);
-  el("meeting-timer").textContent = rest;
-
-  const wechsel = letzteMeetingUnterphase !== meeting.unterphase;
-  letzteMeetingUnterphase = meeting.unterphase;
-  if (wechsel && meeting.unterphase === "abstimmung") meineStimme = null;
-
-  el("meeting-anlass").textContent = meeting.grund === "leiche"
-    ? `${escapeHtml(meeting.ausgeloestVon)} hat ${escapeHtml(meeting.opferName || "jemanden")} gefunden.`
-    : `${escapeHtml(meeting.ausgeloestVon)} hat den Notfallknopf gedrückt.`;
-
-  el("meeting-diskussion").style.display = meeting.unterphase === "diskussion" ? "block" : "none";
-  el("meeting-abstimmung").style.display = meeting.unterphase === "abstimmung" ? "block" : "none";
-  el("meeting-ergebnis").style.display = meeting.unterphase === "ergebnis" ? "block" : "none";
-
-  el("meeting-titel").textContent = meeting.unterphase === "diskussion" ? "🗣️ Besprechung"
-    : meeting.unterphase === "abstimmung" ? "🗳️ Abstimmung" : "📢 Ergebnis";
-
-  if (meeting.unterphase === "diskussion") renderChat(zustand);
-  if (meeting.unterphase === "abstimmung") renderAbstimmung(zustand);
-  if (meeting.unterphase === "ergebnis") renderMeetingErgebnis(zustand);
-}
-
-function renderChat(zustand) {
-  const box = el("chat-verlauf");
-  box.innerHTML = zustand.chat.map(n =>
-    `<p class="chat-zeile"><span class="cn" style="color:${escapeHtml(n.farbe || "#111827")}">${escapeHtml(n.name)}:</span> ${escapeHtml(n.text)}</p>`
-  ).join("");
-  box.scrollTop = box.scrollHeight;
-  el("input-chat").disabled = zustand.binGeist;
-  el("btn-chat-senden").disabled = zustand.binGeist;
-  el("input-chat").placeholder = zustand.binGeist ? "Geister können nicht reden …" : "Nachricht …";
-}
-
-function renderAbstimmung(zustand) {
-  const liste = el("stimm-liste");
-  const stimmen = (zustand.meeting.stimmen) || {};
-  liste.innerHTML = "";
-
-  zustand.spieler.forEach(s => {
-    const li = document.createElement("li");
-    const anzahl = Object.keys(stimmen).filter(uid => stimmen[uid] === s.id).length;
-    li.className = (s.lebt === false ? "tot " : "") + (meineStimme === s.id ? "gewaehlt" : "");
-    li.innerHTML = `
-      <span class="spieler-avatar" style="background:${escapeHtml(s.farbe)}">${escapeHtml(avatarInitiale(s.name))}</span>
-      <span class="spieler-name">${escapeHtml(s.name)}${s.lebt === false ? " (raus)" : ""}</span>
-      <span class="stimm-zaehler">${anzahl > 0 ? "▮".repeat(anzahl) : ""}</span>`;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.textContent = "wählen";
-    btn.disabled = s.lebt === false || zustand.binGeist || !!stimmen[zustand.eigenerSpielerId];
-    btn.addEventListener("click", async () => {
-      const ergebnis = await gameService.stimmeAb(s.id);
-      if (ergebnis.erfolg) { meineStimme = s.id; renderAbstimmung(gameService.getZustand()); }
-    });
-    li.appendChild(btn);
-    liste.appendChild(li);
-  });
-
-  const habeGestimmt = !!stimmen[zustand.eigenerSpielerId];
-  el("btn-stimme-skip").disabled = zustand.binGeist || habeGestimmt;
-  const lebende = zustand.spieler.filter(s => s.lebt !== false).length;
-  const abgegeben = Object.keys(stimmen).length;
-  el("abstimmung-status").textContent = zustand.binGeist
-    ? "Als Geist stimmst du nicht mit ab."
-    : habeGestimmt ? `Stimme abgegeben – ${abgegeben} von ${lebende}` : `${abgegeben} von ${lebende} haben gewählt`;
-}
-
-function renderMeetingErgebnis(zustand) {
-  const ergebnis = zustand.meeting.ergebnis || {};
-  el("ergebnis-text").textContent = ergebnis.ausgeschlossenName
-    ? `${ergebnis.ausgeschlossenName} muss gehen.`
-    : "Niemand muss gehen.";
-  // Ohne die Einstellung bliebe hier für immer "Wird geprüft …" stehen, weil dann niemand
-  // warMaulwurf schreibt.
-  const deckeAuf = !!zustand.einstellungen.rolleNachRauswurf;
-  el("ergebnis-rolle").textContent = !ergebnis.ausgeschlossenName
-    ? "Stimmengleichheit oder Mehrheit fürs Überspringen."
-    : !deckeAuf ? "Ob das richtig war, bleibt offen."
-    : ergebnis.warMaulwurf === undefined ? "Wird geprüft …"
-    : ergebnis.warMaulwurf ? "🕵️ … und war tatsächlich ein Maulwurf!" : "⚽ … war kein Maulwurf.";
-  gameService.deckeAusgeschlosseneRolleAuf();
-}
-
-function renderEnde(zustand) {
-  const teamGewinnt = zustand.sieger === "team";
-  el("ende-titel").textContent = zustand.versteckModus
-    ? (teamGewinnt ? "🙈 Die Versteckten gewinnen!" : "🥅 Der Fänger gewinnt!")
-    : (teamGewinnt ? "⚽ Das Team gewinnt!" : "🕵️ Die Maulwürfe gewinnen!");
-  const seite = el("ende-seite");
-  seite.className = "sieger-name " + (zustand.sieger || "");
-  const habeGewonnen = (teamGewinnt && zustand.meineRolle === "team") || (!teamGewinnt && zustand.meineRolle === "maulwurf");
-  seite.textContent = zustand.meineRolle ? (habeGewonnen ? "Du hast gewonnen 🎉" : "Du hast verloren") : "";
-  el("ende-grund").textContent = zustand.siegGrund || "";
-
-  const liste = el("ende-aufdeckung");
-  const aufdeckung = zustand.aufdeckung || {};
-  liste.innerHTML = "";
-  zustand.spieler.forEach(s => {
-    const rolle = aufdeckung[s.id];
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <span class="spieler-avatar" style="background:${escapeHtml(s.farbe)}">${escapeHtml(avatarInitiale(s.name))}</span>
-      <span class="spieler-name">${escapeHtml(s.name)}</span>
-      <span class="spieler-badge">${rolle === "maulwurf" ? (zustand.versteckModus ? "🥅 Fänger" : "🕵️ Maulwurf")
-                                  : rolle === "team" ? (zustand.versteckModus ? "🙈 Versteckt" : "⚽ Team")
-                                  : "– unbekannt"}</span>`;
-    liste.appendChild(li);
-  });
-
-  el("btn-neue-runde").style.display = zustand.istHost ? "block" : "none";
-}
-
-// ============================================================
-// Bestenliste + Admin-Gate
-// ============================================================
-
-async function zeigeBestenliste() {
-  showScreen("screen-bestenliste");
-  const koerper = el("bestenliste-koerper");
-  koerper.innerHTML = "";
-  el("btn-bestenliste-zuruecksetzen").style.display = istAdmin ? "block" : "none";
-
-  const eintraege = await gameService.ladeBestenliste();
-  el("bestenliste-leer").style.display = eintraege.length === 0 ? "block" : "none";
-  eintraege.forEach(eintrag => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${escapeHtml(eintrag.name)}</td><td>${eintrag.gespielt}</td><td>${eintrag.gewonnen}</td><td>${eintrag.prozent}%</td>`;
-    koerper.appendChild(tr);
-  });
+  ui.anfordern();
 }
 
 // Nutzt dieselbe Anmeldung wie die ToolsUebersicht-Landingpage (gleicher Origin
@@ -1743,183 +909,31 @@ async function pruefeAdminStatus() {
   } catch (e) {
     istAdmin = false; // fail-closed
   }
-  if (el("screen-bestenliste").classList.contains("active")) zeigeBestenliste();
-}
-
-// ============================================================
-// Event-Wiring
-// ============================================================
-
-el("btn-raum-erstellen").addEventListener("click", () => {
-  ausstehenderModus = "erstellen";
-  el("input-spielername").value = "";
-  el("name-eingabe-fehler").textContent = "";
-  showScreen("screen-name-eingabe");
-});
-
-el("btn-raum-beitreten").addEventListener("click", () => {
-  const code = el("input-raumcode").value.trim();
-  if (!code) { el("start-fehler").textContent = "Bitte einen Raum-Code eingeben."; return; }
-  el("start-fehler").textContent = "";
-  raumcodeEingabe = code;
-  ausstehenderModus = "beitreten";
-  el("input-spielername").value = "";
-  el("name-eingabe-fehler").textContent = "";
-  showScreen("screen-name-eingabe");
-});
-
-el("input-raumcode").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); });
-
-el("btn-name-bestaetigen").addEventListener("click", async () => {
-  const name = el("input-spielername").value.trim();
-  // Vollbild muss aus einer Nutzergeste heraus angefordert werden. Dieser Klick ist der
-  // einzige, den ALLE machen – wer nur beitritt, tippt später nichts mehr an, bis die Partie
-  // schon läuft. Bewusst vor dem await, sonst gilt die Geste als abgelaufen.
-  betreteVollbild();
-  const ergebnis = ausstehenderModus === "erstellen"
-    ? await gameService.erstelleRaum(name)
-    : await gameService.tritRaumBei(raumcodeEingabe, name);
-  if (!ergebnis.erfolg) el("name-eingabe-fehler").textContent = ergebnis.fehler || "Das hat nicht funktioniert.";
-});
-
-el("btn-vollbild").addEventListener("click", () => {
-  if (vollbildAktiv()) verlasseVollbild(); else betreteVollbild();
-});
-
-el("btn-querformat-egal").addEventListener("click", () => {
-  querformatHinweisWeggetippt = true;
-  pruefeAusrichtung();
-});
-
-el("btn-name-zurueck").addEventListener("click", () => showScreen("screen-start"));
-el("btn-bestenliste-oeffnen").addEventListener("click", zeigeBestenliste);
-el("btn-ende-bestenliste").addEventListener("click", zeigeBestenliste);
-el("btn-bestenliste-zurueck").addEventListener("click", () => render(gameService.getZustand()));
-
-el("btn-bestenliste-zuruecksetzen").addEventListener("click", async () => {
-  if (!window.confirm("Bestenliste wirklich unwiderruflich zurücksetzen?")) return;
-  await gameService.setzeBestenlisteZurueck();
-  zeigeBestenliste();
-});
-
-el("btn-ki-hinzufuegen").addEventListener("click", () => gameService.fuegeKiMitspielerHinzu());
-el("btn-spiel-starten").addEventListener("click", async () => {
-  const ergebnis = await gameService.starteSpiel();
-  if (!ergebnis.erfolg && ergebnis.fehler) el("lobby-warte-hinweis").textContent = ergebnis.fehler;
-});
-
-[["ein-maulwuerfe", "anzahlMaulwuerfe"], ["ein-aufgaben", "aufgabenProSpieler"], ["ein-killcooldown", "killCooldownSek"],
- ["ein-notfall", "notfallKnoepfe"], ["ein-diskussion", "diskussionSek"], ["ein-abstimmung", "abstimmungSek"],
- ["ein-tempo", "tempo"], ["ein-rolle-rauswurf", "rolleNachRauswurf"],
- ["ein-rolle-ingenieur", "rolleIngenieur"], ["ein-rolle-wissenschaftler", "rolleWissenschaftler"],
- ["ein-rolle-schutzengel", "rolleSchutzengel"], ["ein-rolle-gestaltwandler", "rolleGestaltwandler"],
- ["ein-vorsprung", "vorsprungSek"], ["ein-zeitlimit", "zeitlimitMin"]].forEach(([feldId, schluessel]) => {
-  el(feldId).addEventListener("change", e => {
-    gameService.speichereEinstellungen({ [schluessel]: parseInt(e.target.value, 10) });
-  });
-});
-
-// Der Spielmodus ist die einzige Einstellung mit einem Text statt einer Zahl — deshalb ein
-// eigener Handler und kein parseInt. In der Datenbank steht damit "verstecken" statt einer 1,
-// was beim Nachsehen im Zweifelsfall den Unterschied macht.
-el("ein-modus").addEventListener("change", e => {
-  gameService.speichereEinstellungen({ modus: e.target.value === "verstecken" ? "verstecken" : "klassisch" });
-});
-
-el("btn-interaktion").addEventListener("click", fuehreAktionAus);
-el("btn-aufgabenliste").addEventListener("click", oeffneAufgabenliste);
-el("btn-rollenfaehigkeit").addEventListener("click", oeffneRollenPanel);
-el("btn-rolle-schliessen").addEventListener("click", schliesseOverlay);
-el("btn-sabotage").addEventListener("click", oeffneSabotageMenue);
-el("btn-liste-schliessen").addEventListener("click", schliesseOverlay);
-el("btn-sabotage-schliessen").addEventListener("click", schliesseOverlay);
-el("btn-schacht-raus").addEventListener("click", () => { gameService.verlasseSchacht(); render(); });
-el("btn-aufgabe-schliessen").addEventListener("click", schliesseOverlay);
-
-el("btn-kameras-schliessen").addEventListener("click", schliesseOverlay);
-
-el("btn-sab-licht").addEventListener("click", async () => {
-  const ergebnis = await gameService.sabotiere("licht");
-  el("sabotage-hinweis").textContent = ergebnis.erfolg ? "Licht ist aus." : (ergebnis.fehler || "Geht gerade nicht.");
-  if (ergebnis.erfolg) setTimeout(schliesseOverlay, 500);
-});
-
-el("btn-sab-funk").addEventListener("click", async () => {
-  const ergebnis = await gameService.sabotiere("funk");
-  el("sabotage-hinweis").textContent = ergebnis.erfolg ? "Funk ist gestört." : (ergebnis.fehler || "Geht gerade nicht.");
-  if (ergebnis.erfolg) setTimeout(schliesseOverlay, 500);
-});
-
-el("btn-sab-reaktor").addEventListener("click", async () => {
-  const ergebnis = await gameService.sabotiere("reaktor");
-  el("sabotage-hinweis").textContent = ergebnis.erfolg ? "Reaktor überhitzt." : (ergebnis.fehler || "Geht gerade nicht.");
-  if (ergebnis.erfolg) setTimeout(schliesseOverlay, 500);
-});
-
-el("btn-ausschalten").addEventListener("click", async () => {
-  const ziel = findeKillZiel(gameService.getZustand());
-  if (!ziel) return;
-  const ergebnis = await gameService.schalteAus(ziel.id);
-  if (!ergebnis.erfolg && ergebnis.fehler) el("hud-raumname").textContent = ergebnis.fehler;
-});
-
-el("btn-melden").addEventListener("click", async () => {
-  const leicheUid = findeMeldbareLeiche(gameService.getZustand());
-  if (leicheUid) await gameService.meldeLeiche(leicheUid);
-});
-
-el("btn-chat-senden").addEventListener("click", async () => {
-  const eingabe = el("input-chat");
-  if (!eingabe.value.trim()) return;
-  await gameService.sendeChat(eingabe.value);
-  eingabe.value = "";
-});
-
-el("input-chat").addEventListener("keydown", e => {
-  if (e.key === "Enter") el("btn-chat-senden").click();
-});
-
-el("btn-stimme-skip").addEventListener("click", async () => {
-  const ergebnis = await gameService.stimmeAb("skip");
-  if (ergebnis.erfolg) { meineStimme = "skip"; renderAbstimmung(gameService.getZustand()); }
-});
-
-el("btn-neue-runde").addEventListener("click", () => gameService.neueRunde());
-el("btn-ende-verlassen").addEventListener("click", () => gameService.raeumeRaumAuf());
-el("btn-abbruch-zurueck").addEventListener("click", () => gameService.raeumeRaumAuf());
-
-el("btn-spiel-abbrechen").addEventListener("click", async () => {
-  const zustand = gameService.getZustand();
-  const frage = zustand.istHost && zustand.phase !== "lobby"
-    ? "Partie wirklich beenden? Sie ist damit für alle vorbei."
-    : "Wirklich verlassen?";
-  if (!window.confirm(frage)) return;
-  await gameService.verlasseSpiel();
-});
-
-// Schnellphrasen für die Diskussion (schneller als tippen, gerade im fahrenden Bus)
-const schnellBox = el("chat-schnell");
-SCHNELL_PHRASEN.forEach(text => {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.textContent = text;
-  btn.addEventListener("click", () => gameService.sendeChat(text));
-  schnellBox.appendChild(btn);
-});
-
-richteJoystickEin();
-aktualisiereVollbildKnopf();
-gameService.onZustandsAenderung(render);
-pruefeAdminStatus();
-laufAnimation = requestAnimationFrame(schleife);
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  ui.anfordern();
 }
 
 // ---------- Info-Tab / Versionshistorie ----------
 const APP_VERSION = "1.0";
 const APP_CHANGELOG = [
+  {
+    version: "1.2",
+    groups: [
+      { title: "Die ganze Oberfläche wird jetzt gezeichnet", items: [
+          "Menüs, Warteraum, Besprechung, Aufgaben und Bestenliste laufen auf derselben Zeichenfläche wie das Spielfeld. Das Spiel sieht dadurch überall gleich aus – vorher war alles außerhalb der Karte eine gewöhnliche Webseite mit eigenen Schaltflächen.",
+          "Das Steuerkreuz und die Aktionsknöpfe lassen sich gleichzeitig bedienen: ein Daumen läuft, der andere tippt. Vorher konnte immer nur eines von beidem den Finger haben.",
+          "Nachfragen wie „Partie wirklich beenden?\" erscheinen als Fenster im Spiel statt als Browser-Hinweis, der die Seite einfriert und im Vollbild wie ein Absturz aussah.",
+          "Die Warteräume und Listen rollen sanft mit Schwung, und ein Wisch darüber löst keine Schaltfläche mehr versehentlich aus."
+      ]},
+      { title: "Aufgaben", items: [
+          "Alle 17 Minispiele und die beiden Reparaturen sind neu gebaut und sitzen jetzt im dunklen Pult-Look – besser lesbar im Querformat und mit größeren Bedienflächen für den Daumen.",
+          "„Verteiler kalibrieren\" blieb hängen, wenn man einen Zeiger daneben stoppte: Der Zeiger lief erst nach langer Zeit wieder an, wenn das Spiel im Hintergrund lag. Er läuft jetzt zuverlässig nach einer halben Sekunde weiter."
+      ]},
+      { title: "Behoben", items: [
+          "Beim Ziehen – Kabel verbinden, Blätter in den Schacht – wurde der Endpunkt nicht immer erkannt, wenn man zügig losließ.",
+          "Auf manchen Geräten konnte die Spielfläche nach dem Drehen ins Unermessliche wachsen, bis nichts mehr zu treffen war."
+      ]}
+    ]
+  },
   {
     version: "1.1",
     groups: [
@@ -1993,36 +1007,45 @@ const APP_CHANGELOG = [
   }
 ];
 
-function activateTab(name) {
-  document.querySelectorAll("nav.tabs button[data-tab]").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
-  document.querySelectorAll(".tab-section").forEach(s => s.classList.toggle("active", s.id === "tab-" + name));
-}
+// ============================================================
+// Start
+// ============================================================
 
-function renderVersionInfo() {
-  document.querySelectorAll("#version-badge, #version-badge-2").forEach(elem => { if (elem) elem.textContent = "v" + APP_VERSION; });
-  const box = el("changelog-list");
-  if (!box) return;
-  box.innerHTML = APP_CHANGELOG.map(entry => `
-    <div class="changelog-entry">
-      <div class="cv">Version ${entry.version}</div>
-      ${entry.groups.map(g => `
-        <div class="cgt">${g.title}</div>
-        <ul>${g.items.map(i => `<li>${i}</li>`).join("")}</ul>`).join("")}
-    </div>`).join("");
-}
+// Eine einzige Szene beschreibt das gesamte Bild. Im Spielbetrieb uebernimmt
+// spielfeld.js, sonst bildschirme.js — dazwischen gibt es nichts, was
+// „aktualisiert" werden muesste.
+function szene() {
+  const zustand = gameService.getZustand();
+  const imSpiel = zustand.phase === "laeuft" && !zustand.meeting;
 
-function setupInfoTab() {
-  document.querySelectorAll("nav.tabs button[data-tab]").forEach(b => {
-    b.addEventListener("click", () => activateTab(b.dataset.tab));
-  });
-  const badge = el("version-badge");
-  if (badge) {
-    badge.addEventListener("click", () => activateTab("info"));
-    badge.addEventListener("keydown", e => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activateTab("info"); }
-    });
+  ui.setzeDauerlauf(imSpiel);
+
+  if (imSpiel) {
+    bewegeUndZiehNach(zustand);
+    spielfeld.zeichneSpielfeld(gameService.getZustand());
+  } else {
+    bildschirme.zeichneMenue(zustand);
   }
-  renderVersionInfo();
+  ui.zeichneOffeneListen();
 }
 
-document.addEventListener("DOMContentLoaded", setupInfoTab);
+function starteOberflaeche() {
+  const leinwand = document.getElementById("buehne");
+  const proxy = document.getElementById("tastatur-proxy");
+  ui.starte(leinwand, proxy, szene);
+  ctx = ui.ctx;
+
+  gameService.onZustandsAenderung(render);
+  pruefeAdminStatus();
+  render(gameService.getZustand());
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", starteOberflaeche);
+} else {
+  starteOberflaeche();
+}

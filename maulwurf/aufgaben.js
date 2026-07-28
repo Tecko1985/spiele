@@ -1,26 +1,34 @@
-// Die Aufgaben-Minispiele. Reines DOM/Timer-Modul ohne Firebase-Bezug: jede Aufgabe bekommt
-// einen leeren Container, eine onFertig-Funktion und ein optionales Optionen-Objekt und gibt
-// eine Aufräumfunktion zurück (Timer/Listener stoppen, falls die Aufgabe vorzeitig geschlossen
-// wird — z.B. weil ein Meeting startet).
+// Die Aufgaben-Minispiele. Reines Zeichen-Modul ohne Firebase-Bezug: jede Aufgabe bekommt ein
+// Optionen-Objekt und eine onFertig-Funktion und gibt ein Objekt zurück:
+//
+//   { zeichne(rechteck), hoehe?, aufraeumen? }
+//     zeichne(r)  — malt sich in {x, y, b, h} und wertet dabei die Eingaben aus
+//     hoehe       — gewünschte Höhe im Dialog (Vorgabe 260)
+//     aufraeumen  — optional, falls etwas zurückzusetzen ist
+//
+// Gezeichnet wird auf die gemeinsame Fläche aus ui.js; Eingaben laufen über dieselben
+// Treffer-Prüfungen wie jedes andere Bedienelement (`ui.geklickt`, `ui.beanspruche`). Es gibt
+// keine DOM-Elemente und keine eigenen Timer mehr — beides hat der Umbau auf die
+// Zeichenfläche ersetzt.
 //
 // Maulwürfe sehen exakt dieselben Aufgaben und können sie auch "erledigen" — nur gezählt
 // wird ihr Ergebnis nicht (siehe erledigeAufgabe in game-service.js). Genau das ist der
 // Bluff: wer neben einer Station steht, sieht nicht, ob dort echt gearbeitet wird.
 //
-// Alle Inhalte hier sind statisch (Zahlen, Emojis, feste Texte) — es fließen keine
-// Spielernamen oder andere Fremdeingaben in die Templates, deshalb ist innerHTML unkritisch.
-//
 // Zuschnitt: jede Aufgabe soll in 5–15 Sekunden zu schaffen sein und im Querformat auf ein
-// Handydisplay passen. Deshalb sind die Spielfelder flach gehalten (kein hohes Gitter) und
-// alle Bedienelemente mindestens fingergroß. Ausnahmen sind die beiden Warteaufgaben, deren
-// ganzer Sinn die lange Pause ist.
+// Handydisplay passen. Deshalb sind die Spielfelder flach gehalten und alle Bedienelemente
+// mindestens fingergroß. Ausnahmen sind die beiden Warteaufgaben, deren ganzer Sinn die
+// lange Pause ist.
 //
-// **Bewegung läuft über verstrichene Zeit, nicht über Tick-Zählung.** In einem versteckten
-// Tab drosselt der Browser Timer um Faktor 8 bis 35; würde pro Tick ein fester Betrag
+// **Bewegung läuft über verstrichene Zeit (`ui.delta`), nicht über Bildzählung.** In einem
+// versteckten Tab drosselt der Browser um Faktor 8 bis 35; würde je Bild ein fester Betrag
 // addiert, liefen Asteroiden und Zeiger dort in Zeitlupe und jeder Test wäre wertlos.
 //
-// Das Optionen-Objekt (dritter Parameter) trägt alles, was die Aufgabe über ihren Platz in
-// einer mehrteiligen Kette wissen muss:
+// **Animierte Aufgaben rufen `ui.anfordern()`**, sonst schläft die Zeichenschleife ein —
+// gerendert wird nur auf Anforderung.
+//
+// Das Optionen-Objekt trägt alles, was die Aufgabe über ihren Platz in einer mehrteiligen
+// Kette wissen muss:
 //   teil / teile   — 1-basierte Nummer und Gesamtzahl der Teile (z.B. Kabel 2 von 3)
 //   zielRaum       — Name des Raums, in dem der nächste Teil liegt (für Strom/Daten)
 //   wartenSeit     — Zeitstempel, wann die Wartezeit gestartet wurde (0 = noch nicht)
@@ -29,1243 +37,1366 @@
 
 const WARTEZEIT_SEK = 60;   // Proben analysieren und WLAN-Neustart, wie in der Vorlage
 
-function mischen(liste) {
-  const kopie = liste.slice();
-  for (let i = kopie.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const merk = kopie[i];
-    kopie[i] = kopie[j];
-    kopie[j] = merk;
-  }
-  return kopie;
-}
+const aufgabenModul = (function () {
+  "use strict";
 
-function zufallAus(liste) {
-  return liste[Math.floor(Math.random() * liste.length)];
-}
+  const F = ui.F;
 
-function zufallZahl(min, max) {
-  return min + Math.floor(Math.random() * (max - min + 1));
-}
+  /* Farben der Minispiele — dunkles Gerätepult, damit sich die Aufgabe vom hellen
+     Dialog absetzt und wie ein Bedienfeld wirkt. */
+  const PULT = "#1b2536";
+  const PULT_HELL = "#26334a";
+  const LINIE = "#3d4f6d";
+  const GUT = "#22c55e";
+  const SCHLECHT = "#ef4444";
+  const GELB = "#facc15";
 
-// Einheitlicher Aufbau: Anleitung oben, Spielfeld, Statuszeile unten. Spart in jeder Aufgabe
-// das Zusammensuchen der immer gleichen Elemente.
-function rahmen(container, anleitung, koerper) {
-  container.innerHTML = `<p class="af-anleitung">${anleitung}</p>${koerper}<p class="af-status"></p>`;
-  return {
-    q: sel => container.querySelector(sel),
-    alle: sel => Array.prototype.slice.call(container.querySelectorAll(sel)),
-    status: container.querySelector(".af-status")
-  };
-}
+  /* ==================================================================== */
+  /*  Helfer                                                              */
+  /* ==================================================================== */
 
-// Ziffernblock für die Aufgaben, bei denen ein Wert eingetippt wird. Ein eigenes Feld statt
-// <input type="number">, weil auf dem Handy sonst die Systemtastatur das halbe Spielfeld
-// verdeckt — im Querformat bliebe nichts übrig.
-function ziffernblockHtml() {
-  return `<div class="af-ziffernblock">
-    ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(z => `<button type="button" data-ziffer="${z}">${z}</button>`).join("")}
-    <button type="button" data-ziffer="loeschen">←</button>
-    <button type="button" data-ziffer="0">0</button>
-    <button type="button" data-ziffer="ok" class="af-ok">OK</button>
-  </div>`;
-}
-
-function verdrahteZiffernblock(hilf, anzeigeSelektor, onBestaetigt) {
-  const anzeige = hilf.q(anzeigeSelektor);
-  let eingabe = "";
-  hilf.alle(".af-ziffernblock button").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const ziffer = btn.dataset.ziffer;
-      if (ziffer === "loeschen") eingabe = eingabe.slice(0, -1);
-      else if (ziffer === "ok") { onBestaetigt(eingabe); eingabe = ""; }
-      else if (eingabe.length < 6) eingabe += ziffer;
-      anzeige.textContent = eingabe || "–";
-    });
-  });
-}
-
-// Halten/Ziehen mit Zeiger: liefert den Anteil 0..1 innerhalb eines Elements. Wird von allen
-// Schiebe- und Ziehaufgaben benutzt, damit Maus und Finger gleich reagieren.
-function anteilIn(element, e, achse) {
-  const rect = element.getBoundingClientRect();
-  const roh = achse === "y"
-    ? (e.clientY - rect.top) / rect.height
-    : (e.clientX - rect.left) / rect.width;
-  return Math.min(Math.max(roh, 0), 1);
-}
-
-function fangeZeiger(element, e) {
-  try { element.setPointerCapture(e.pointerId); } catch (err) { /* Testartefakt, unkritisch */ }
-}
-
-// Zeitgesteuerte Schleife. Gibt die Stoppfunktion zurück; der Rückruf bekommt die seit dem
-// letzten Aufruf verstrichenen Millisekunden.
-function taktgeber(rueckruf, takt) {
-  let vorher = Date.now();
-  const id = setInterval(() => {
-    const jetzt = Date.now();
-    const delta = jetzt - vorher;
-    vorher = jetzt;
-    rueckruf(delta);
-  }, takt || 40);
-  return () => clearInterval(id);
-}
-
-// Gemeinsamer Unterbau der beiden Warteaufgaben (Proben analysieren, WLAN neu starten).
-// Der Zeitstempel liegt im Spiel, nicht hier: wer die Aufgabe schließt und weggeht, soll
-// beim Zurückkommen die abgelaufene Zeit vorfinden — genau das ist ihr Zweck als Alibi.
-function warteAufgabe(container, onFertig, optionen, texte) {
-  optionen = optionen || {};
-  const jetzt = optionen.jetzt || (() => Date.now());
-  const seit = optionen.wartenSeit || 0;
-  const starteWarten = optionen.starteWarten || (() => {});
-  const fertigBis = seit ? seit + WARTEZEIT_SEK * 1000 : 0;
-
-  // Phase 1: noch nicht gestartet.
-  if (!seit) {
-    const hilf = rahmen(container, texte.anleitungStart, `
-      <div class="af-warte">
-        <div class="af-warte-symbol">${texte.symbol}</div>
-        <button type="button" class="af-warte-start">${texte.startKnopf}</button>
-      </div>`);
-    hilf.status.textContent = `Dauert ${WARTEZEIT_SEK} Sekunden – du kannst so lange weggehen.`;
-    hilf.q(".af-warte-start").addEventListener("click", () => {
-      starteWarten();
-      hilf.q(".af-warte-start").disabled = true;
-      hilf.status.textContent = "Läuft. Komm später wieder.";
-    });
-    return () => {};
+  function mischen(liste) {
+    const kopie = liste.slice();
+    for (let i = kopie.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const merk = kopie[i];
+      kopie[i] = kopie[j];
+      kopie[j] = merk;
+    }
+    return kopie;
   }
 
-  // Phase 2: läuft noch.
-  if (jetzt() < fertigBis) {
-    const hilf = rahmen(container, texte.anleitungWarten, `
-      <div class="af-warte">
-        <div class="af-warte-symbol dreht">${texte.symbol}</div>
-        <div class="af-warte-balken"><div class="af-warte-fuellung"></div></div>
-        <div class="af-warte-rest"></div>
-      </div>`);
-    const fuellung = hilf.q(".af-warte-fuellung");
-    const rest = hilf.q(".af-warte-rest");
-    const zeichne = () => {
-      const uebrig = Math.max(fertigBis - jetzt(), 0);
-      const anteil = 1 - uebrig / (WARTEZEIT_SEK * 1000);
-      fuellung.style.width = `${Math.round(anteil * 100)}%`;
-      rest.textContent = `noch ${Math.ceil(uebrig / 1000)} s`;
-      if (uebrig <= 0) hilf.status.textContent = "Fertig – Aufgabe noch einmal öffnen.";
-    };
-    zeichne();
-    hilf.status.textContent = "Du musst nicht danebenstehen.";
-    return taktgeber(zeichne, 250);
-  }
+  function zufallAus(liste) { return liste[Math.floor(Math.random() * liste.length)]; }
+  function zufallZahl(min, max) { return min + Math.floor(Math.random() * (max - min + 1)); }
+  function begrenze(w, min, max) { return Math.max(min, Math.min(max, w)); }
 
-  // Phase 3: abgelaufen, Schlussschritt.
-  return texte.schluss(container, onFertig);
-}
-
-// ============================================================
-// Reaktoren, Zahlen & Muster
-// ============================================================
-
-// --- 1. Reaktor starten (Simon Says) ---
-// Links leuchtet die Folge auf, rechts wird sie nachgetippt. Fünf Runden, pro Runde ein
-// Feld mehr. Ein Fehler wirft auf Runde 1 zurück — das ist der Druck, der die Aufgabe
-// gefährlich macht, wenn jemand im Türrahmen steht.
-function aufgabeReaktor(container, onFertig) {
-  const RUNDEN = 5;
-  const ZEIGE_MS = 520;
-  let folge = [];
-  let eingabe = 0;
-  let sperre = true;
-  const timer = [];
-
-  const gitter = seite => `<div class="af-reaktor-feld" data-seite="${seite}">${
-    [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i =>
-      `<button type="button" class="af-reaktor-zelle" data-i="${i}"${seite === "zeigen" ? " disabled" : ""}></button>`
-    ).join("")}</div>`;
-
-  const hilf = rahmen(container, "Merk dir die Reihenfolge links und tippe sie rechts nach.", `
-    <div class="af-reaktor">
-      <div class="af-reaktor-halb"><span class="af-reaktor-titel">Vorgabe</span>${gitter("zeigen")}</div>
-      <div class="af-reaktor-halb"><span class="af-reaktor-titel">Eingabe</span>${gitter("tippen")}</div>
-    </div>`);
-
-  const zeigeZellen = hilf.alle('[data-seite="zeigen"] .af-reaktor-zelle');
-  const tippZellen = hilf.alle('[data-seite="tippen"] .af-reaktor-zelle');
-
-  function warte(ms, was) { timer.push(setTimeout(was, ms)); }
-
-  function spieleFolgeVor() {
-    sperre = true;
-    hilf.status.textContent = `Runde ${folge.length} von ${RUNDEN} – zusehen …`;
-    zeigeZellen.forEach(z => z.classList.remove("an"));
-    folge.forEach((feld, i) => {
-      warte(i * ZEIGE_MS + 260, () => zeigeZellen[feld].classList.add("an"));
-      warte(i * ZEIGE_MS + 260 + ZEIGE_MS * 0.6, () => zeigeZellen[feld].classList.remove("an"));
-    });
-    warte(folge.length * ZEIGE_MS + 380, () => {
-      sperre = false;
-      eingabe = 0;
-      hilf.status.textContent = `Runde ${folge.length} von ${RUNDEN} – jetzt du.`;
-    });
-  }
-
-  function naechsteRunde() {
-    folge = folge.concat([zufallZahl(0, 8)]);
-    spieleFolgeVor();
-  }
-
-  tippZellen.forEach(zelle => {
-    zelle.addEventListener("click", () => {
-      if (sperre) return;
-      const i = Number(zelle.dataset.i);
-      if (i !== folge[eingabe]) {
-        sperre = true;
-        zelle.classList.add("falsch");
-        hilf.status.textContent = "Falsch – der Reaktor fährt runter. Noch mal von vorn.";
-        warte(700, () => {
-          zelle.classList.remove("falsch");
-          folge = [];
-          naechsteRunde();
-        });
-        return;
-      }
-      zelle.classList.add("an");
-      warte(220, () => zelle.classList.remove("an"));
-      eingabe++;
-      if (eingabe < folge.length) return;
-      if (folge.length >= RUNDEN) {
-        sperre = true;
-        hilf.status.textContent = "Reaktor läuft!";
-        onFertig();
-        return;
-      }
-      sperre = true;
-      hilf.status.textContent = "Richtig – nächste Runde.";
-      warte(600, naechsteRunde);
-    });
-  });
-
-  naechsteRunde();
-  return () => timer.forEach(clearTimeout);
-}
-
-// --- 2. Manifold entsperren: 1 bis 10 in aufsteigender Reihenfolge ---
-function aufgabeManifold(container, onFertig) {
-  const zahlen = mischen([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-  let naechste = 1;
-
-  const hilf = rahmen(container, "Tippe die Zahlen von 1 bis 10 der Reihe nach an.", `
-    <div class="af-manifold">${zahlen.map(z =>
-      `<button type="button" class="af-manifold-taste" data-zahl="${z}">${z}</button>`).join("")}</div>`);
-  hilf.status.textContent = "Als nächstes: 1";
-
-  hilf.alle(".af-manifold-taste").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const zahl = Number(btn.dataset.zahl);
-      if (zahl !== naechste) {
-        btn.classList.add("falsch");
-        setTimeout(() => btn.classList.remove("falsch"), 380);
-        hilf.status.textContent = `Nicht die ${zahl} – die ${naechste} ist dran.`;
-        return;
-      }
-      btn.classList.add("gut");
-      btn.disabled = true;
-      naechste++;
-      if (naechste > 10) {
-        hilf.status.textContent = "Manifold entsperrt!";
-        onFertig();
-        return;
-      }
-      hilf.status.textContent = `Als nächstes: ${naechste}`;
-    });
-  });
-
-  return () => {};
-}
-
-// --- 3. Proben analysieren: starten, 60 s weggehen, abweichende Probe wählen ---
-function aufgabeProben(container, onFertig, optionen) {
-  return warteAufgabe(container, onFertig, optionen, {
-    symbol: "🧪",
-    startKnopf: "Analyse starten",
-    anleitungStart: "Starte die Analyse. Das Ergebnis liegt in einer Minute vor.",
-    anleitungWarten: "Die Proben werden analysiert.",
-    schluss(container, onFertig) {
-      const ANZAHL = 5;
-      const abweichend = zufallZahl(0, ANZAHL - 1);
-      const hilf = rahmen(container, "Analyse fertig – wähl die auffällige Probe aus.", `
-        <div class="af-proben">${Array.from({ length: ANZAHL }, (_, i) =>
-          `<button type="button" class="af-probe${i === abweichend ? " auffaellig" : ""}" data-i="${i}">
-             <span class="af-probe-glas"></span><span class="af-probe-nr">${i + 1}</span>
-           </button>`).join("")}</div>`);
-      hilf.status.textContent = "Eine Probe ist rot verfärbt.";
-      hilf.alle(".af-probe").forEach(btn => {
-        btn.addEventListener("click", () => {
-          if (Number(btn.dataset.i) !== abweichend) {
-            btn.classList.add("falsch");
-            setTimeout(() => btn.classList.remove("falsch"), 380);
-            hilf.status.textContent = "Die ist unauffällig – schau noch mal genau hin.";
-            return;
-          }
-          hilf.alle(".af-probe").forEach(b => { b.disabled = true; });
-          btn.classList.add("gut");
-          hilf.status.textContent = "Probe erfasst!";
-          onFertig();
-        });
+  /* Einheitlicher Aufbau: Anleitung oben, Spielfeld in der Mitte, Statuszeile unten.
+     Gibt den Innenbereich für das Spielfeld zurück. */
+  function rahmen(r, anleitung, status) {
+    const zeilen = ui.umbrich(anleitung, r.b, 13);
+    const kopfH = zeilen.length * 17 + 4;
+    zeilen.forEach((z, i) => {
+      ui.schreibe(z, r.x + r.b / 2, r.y + i * 17 + 9, {
+        groesse: 13, farbe: F.gedaempft, ausrichtung: "center"
       });
-      return () => {};
+    });
+    const fussH = status ? 22 : 0;
+    if (status) {
+      ui.schreibe(status, r.x + r.b / 2, r.y + r.h - 9, {
+        groesse: 13, fett: "halb", farbe: F.text, ausrichtung: "center"
+      });
     }
-  });
-}
+    return { x: r.x, y: r.y + kopfH, b: r.b, h: r.h - kopfH - fussH };
+  }
 
-// ============================================================
-// Strom & Verkabelung
-// ============================================================
+  /* Dunkles Pult als Grund eines Spielfelds. */
+  function pult(r, farbe) {
+    ui.fuelleRund(r.x, r.y, r.b, r.h, 10, farbe || PULT);
+  }
 
-// --- 4. Kabel reparieren: vier Kabel verbinden, an drei Orten ---
-// Farbe UND Symbol müssen zusammenpassen. Nur die Farbe wäre für Farbenblinde nicht lösbar,
-// nur das Symbol wäre auf dem Handy zu klein.
-function aufgabeKabel(container, onFertig, optionen) {
-  optionen = optionen || {};
-  const ADERN = [
-    { farbe: "#dc2626", zeichen: "▲" },
-    { farbe: "#2563eb", zeichen: "●" },
-    { farbe: "#16a34a", zeichen: "■" },
-    { farbe: "#f59e0b", zeichen: "★" }
-  ];
-  const rechts = mischen(ADERN);
-  let gewaehlt = null;
-  let verbunden = 0;
+  /* Rechteckige Taste. Gibt true bei Treffer. */
+  function taste(id, r, beschriftung, opt) {
+    const o = opt || {};
+    const aus = !!o.aus;
+    const gedrueckt = !aus && ui.gedruecktAuf(r);
+    const treffer = !aus && ui.geklickt(r);
+    ui.fuelleRund(r.x, r.y, r.b, r.h, o.radius === undefined ? 8 : o.radius,
+      o.farbe || (aus ? "#33405a" : gedrueckt ? "#4a5f85" : PULT_HELL));
+    if (o.rand) ui.rahmeRund(r.x, r.y, r.b, r.h, o.radius === undefined ? 8 : o.radius, o.rand, 2);
+    if (beschriftung) {
+      ui.schreibe(beschriftung, r.x + r.b / 2, r.y + r.h / 2, {
+        groesse: o.groesse || 18, fett: "halb", ausrichtung: "center",
+        farbe: aus ? "#64748b" : (o.textFarbe || "#e2e8f0")
+      });
+    }
+    ui.merke(id, r, "aufgabe-taste");
+    return treffer;
+  }
 
-  const stecker = (a, seite) => `<button type="button" class="af-stecker" data-seite="${seite}"
-      data-zeichen="${a.zeichen}" style="background:${a.farbe}">${a.zeichen}</button>`;
+  /* Zieht einen Finger innerhalb des Feldes nach und liefert seine Position.
+     Beansprucht ihn, damit er unterwegs keine Knöpfe auslöst. */
+  function zieher(feld, kennung) {
+    return ui.beanspruche(feld, kennung);
+  }
 
-  const hilf = rahmen(container, "Verbinde die Kabel – erst links, dann rechts. Farbe und Zeichen müssen passen.", `
-    <div class="af-kabel">
-      <div class="af-kabel-spalte">${ADERN.map(a => stecker(a, "links")).join("")}</div>
-      <div class="af-kabel-spalte">${rechts.map(a => stecker(a, "rechts")).join("")}</div>
-    </div>`);
+  /* Fortschrittsbalken im Pult-Stil */
+  function balken(x, y, b, h, anteil, farbe) {
+    ui.fuelleRund(x, y, b, h, h / 2, "#0f1726");
+    const a = begrenze(anteil, 0, 1);
+    if (a > 0) ui.fuelleRund(x, y, Math.max(h, b * a), h, h / 2, farbe || GUT);
+  }
 
-  const teilText = optionen.teile > 1 ? ` · Ort ${optionen.teil} von ${optionen.teile}` : "";
-  hilf.status.textContent = `0 von ${ADERN.length} Adern${teilText}`;
-
-  hilf.alle(".af-stecker").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (btn.disabled) return;
-      if (btn.dataset.seite === "links") {
-        hilf.alle('.af-stecker[data-seite="links"]').forEach(b => b.classList.remove("aktiv"));
-        btn.classList.add("aktiv");
-        gewaehlt = btn;
-        hilf.status.textContent = "… und jetzt das passende Gegenstück rechts.";
-        return;
-      }
-      if (!gewaehlt) { hilf.status.textContent = "Erst links eine Ader wählen."; return; }
-      if (gewaehlt.dataset.zeichen !== btn.dataset.zeichen) {
-        hilf.status.textContent = "Passt nicht – das gibt einen Kurzschluss.";
-        btn.classList.add("falsch");
-        setTimeout(() => btn.classList.remove("falsch"), 400);
-        return;
-      }
-      gewaehlt.disabled = btn.disabled = true;
-      gewaehlt.classList.remove("aktiv");
-      gewaehlt.classList.add("gut");
-      btn.classList.add("gut");
-      gewaehlt = null;
-      verbunden++;
-      hilf.status.textContent = `${verbunden} von ${ADERN.length} Adern${teilText}`;
-      if (verbunden >= ADERN.length) {
-        hilf.status.textContent = optionen.teil < optionen.teile
-          ? "Fertig – der nächste Kabelkasten wartet woanders."
-          : "Alles verkabelt!";
-        onFertig();
+  /* Ziffernblock 1–9 + 0 + OK, für Aufgaben mit Zahleneingabe. */
+  function ziffernblock(r, wert, opt) {
+    const o = opt || {};
+    const spalten = 5;
+    const zeilen = 2;
+    const luecke = 6;
+    const tb = (r.b - (spalten - 1) * luecke) / spalten;
+    const th = Math.min(46, (r.h - (zeilen - 1) * luecke) / zeilen);
+    const tasten = ["1","2","3","4","5","6","7","8","9","0"];
+    let neu = wert;
+    tasten.forEach((z, i) => {
+      const sp = i % spalten, ze = Math.floor(i / spalten);
+      const tr = { x: r.x + sp * (tb + luecke), y: r.y + ze * (th + luecke), b: tb, h: th };
+      if (taste("ziffer-" + z, tr, z, { groesse: 17 })) {
+        if (neu.length < (o.maxLaenge || 4)) neu += z;
       }
     });
-  });
-
-  return () => {};
-}
-
-// --- 5. Strom umleiten: Teil 1 Regler in der Elektrik, Teil 2 Schalter im Zielraum ---
-function aufgabeStrom(container, onFertig, optionen) {
-  optionen = optionen || {};
-  const istQuelle = (optionen.teil || 1) === 1;
-  return istQuelle ? stromRegler(container, onFertig, optionen) : stromSchalter(container, onFertig);
-}
-
-function stromRegler(container, onFertig, optionen) {
-  const hilf = rahmen(container, "Schieb den leuchtenden Regler ganz nach oben.", `
-    <div class="af-stromregler">
-      <div class="af-regler-schacht">
-        <div class="af-regler-ziel"></div>
-        <div class="af-regler-griff" style="bottom:0%"></div>
-      </div>
-    </div>`);
-  const zielRaum = optionen.zielRaum ? ` Danach den Schalter in ${optionen.zielRaum} umlegen.` : "";
-  hilf.status.textContent = "Ganz nach oben ziehen." + zielRaum;
-
-  const schacht = hilf.q(".af-regler-schacht");
-  const griff = hilf.q(".af-regler-griff");
-  let zieht = false;
-  let fertig = false;
-
-  function setze(e) {
-    const anteil = 1 - anteilIn(schacht, e, "y");
-    griff.style.bottom = `${Math.round(anteil * 100)}%`;
-    if (anteil >= 0.94 && !fertig) {
-      fertig = true;
-      zieht = false;
-      griff.style.bottom = "100%";
-      griff.classList.add("gut");
-      hilf.status.textContent = "Strom umgeleitet." + zielRaum;
-      onFertig();
-    }
+    return neu;
   }
 
-  schacht.addEventListener("pointerdown", e => { if (fertig) return; zieht = true; fangeZeiger(schacht, e); setze(e); });
-  schacht.addEventListener("pointermove", e => { if (zieht) setze(e); });
-  const los = () => {
-    if (!zieht || fertig) return;
-    zieht = false;
-    griff.style.bottom = "0%";
-    hilf.status.textContent = "Zurückgerutscht – bis ganz nach oben ziehen.";
-  };
-  schacht.addEventListener("pointerup", los);
-  schacht.addEventListener("pointercancel", los);
-  schacht.addEventListener("pointerleave", los);
+  /* ==================================================================== */
+  /*  Warteaufgaben                                                       */
+  /* ==================================================================== */
 
-  return () => {};
-}
+  /* Gemeinsamer Unterbau von „Proben analysieren" und dem WLAN-Neustart.
+     Der Zeitstempel liegt im Spiel, nicht hier: wer die Aufgabe schließt und weggeht, soll
+     beim Zurückkommen die abgelaufene Zeit vorfinden — genau das ist ihr Zweck als Alibi. */
+  function warteAufgabe(optionen, onFertig, texte) {
+    optionen = optionen || {};
+    const jetzt = optionen.jetzt || (() => Date.now());
+    const seit = optionen.wartenSeit || 0;
+    const starteWarten = optionen.starteWarten || (() => {});
+    const fertigBis = seit ? seit + WARTEZEIT_SEK * 1000 : 0;
+    let gestartet = false;
+    const schluss = texte.schluss ? texte.schluss(optionen, onFertig) : null;
 
-function stromSchalter(container, onFertig) {
-  const hilf = rahmen(container, "Der Strom liegt an – leg den Hauptschalter um.", `
-    <div class="af-stromschalter">
-      <div class="af-lampe"></div>
-      <button type="button" class="af-hauptschalter">AUS</button>
-    </div>`);
-  hilf.status.textContent = "Schalter umlegen.";
-  const schalter = hilf.q(".af-hauptschalter");
-  schalter.addEventListener("click", () => {
-    if (schalter.disabled) return;
-    schalter.disabled = true;
-    schalter.textContent = "AN";
-    hilf.q(".af-lampe").classList.add("an");
-    hilf.status.textContent = "Raum ist versorgt!";
-    onFertig();
-  });
-  return () => {};
-}
+    return {
+      hoehe: 240,
+      zeichne: function (r) {
+        /* Phase 1: noch nicht gestartet. */
+        if (!seit && !gestartet) {
+          const innen = rahmen(r, texte.anleitungStart,
+            "Dauert " + WARTEZEIT_SEK + " Sekunden – du kannst so lange weggehen.");
+          ui.schreibe(texte.symbol, innen.x + innen.b / 2, innen.y + innen.h / 2 - 24,
+                      { groesse: 46, ausrichtung: "center" });
+          const kr = { x: innen.x + innen.b / 2 - 90, y: innen.y + innen.h - 52, b: 180, h: 46 };
+          if (taste("warte-start", kr, texte.startKnopf, { farbe: F.primaer, groesse: 15 })) {
+            starteWarten();
+            gestartet = true;
+          }
+          return;
+        }
 
-// --- 6. Verteiler kalibrieren: drei rotierende Zeiger im richtigen Moment stoppen ---
-function aufgabeVerteiler(container, onFertig) {
-  const ANZAHL = 3;
-  const TOLERANZ = 14;              // Grad Abweichung, die noch zählt
-  const zeiger = [];
-  let index = 0;
+        /* Phase 2: läuft noch. */
+        if (gestartet && !seit) {
+          rahmen(r, texte.anleitungWarten, "Läuft. Komm später wieder.");
+          ui.schreibe(texte.symbol, r.x + r.b / 2, r.y + r.h / 2, { groesse: 46, ausrichtung: "center" });
+          return;
+        }
+        if (jetzt() < fertigBis) {
+          const uebrig = Math.max(fertigBis - jetzt(), 0);
+          const anteil = 1 - uebrig / (WARTEZEIT_SEK * 1000);
+          const innen = rahmen(r, texte.anleitungWarten, "Du musst nicht danebenstehen.");
+          ui.schreibe(texte.symbol, innen.x + innen.b / 2, innen.y + 34, { groesse: 40, ausrichtung: "center" });
+          balken(innen.x + 20, innen.y + innen.h - 54, innen.b - 40, 12, anteil, F.primaer);
+          ui.schreibe("noch " + Math.ceil(uebrig / 1000) + " s",
+                      innen.x + innen.b / 2, innen.y + innen.h - 24,
+                      { groesse: 14, fett: "halb", ausrichtung: "center", farbe: F.text });
+          ui.anfordern();
+          return;
+        }
 
-  const hilf = rahmen(container, "Stopp jeden Zeiger genau auf der Markierung.", `
-    <div class="af-verteiler">${Array.from({ length: ANZAHL }, (_, i) => `
-      <div class="af-skala" data-i="${i}">
-        <div class="af-skala-marke"></div>
-        <div class="af-skala-zeiger"></div>
-      </div>`).join("")}
-    </div>
-    <button type="button" class="af-stoppknopf">Stopp</button>`);
-  hilf.status.textContent = `Zeiger 1 von ${ANZAHL}`;
-
-  hilf.alle(".af-skala").forEach((el, i) => {
-    zeiger.push({
-      el: el.querySelector(".af-skala-zeiger"),
-      winkel: zufallZahl(0, 359),
-      tempo: 150 + i * 45,          // Grad pro Sekunde, jeder etwas anders
-      steht: false
-    });
-  });
-
-  const stopp = taktgeber(delta => {
-    zeiger.forEach(z => {
-      if (z.steht) return;
-      z.winkel = (z.winkel + z.tempo * delta / 1000) % 360;
-      z.el.style.transform = `rotate(${z.winkel}deg)`;
-    });
-  });
-
-  // Abstand zur 0-Grad-Marke, über den Nullpunkt hinweg gerechnet.
-  function abweichung(winkel) {
-    const d = Math.abs(winkel % 360);
-    return Math.min(d, 360 - d);
-  }
-
-  hilf.q(".af-stoppknopf").addEventListener("click", () => {
-    if (index >= ANZAHL) return;
-    const z = zeiger[index];
-    if (abweichung(z.winkel) > TOLERANZ) {
-      hilf.status.textContent = "Daneben – der Zeiger läuft weiter.";
-      z.el.classList.add("falsch");
-      setTimeout(() => z.el.classList.remove("falsch"), 380);
-      return;
-    }
-    z.steht = true;
-    z.winkel = 0;
-    z.el.style.transform = "rotate(0deg)";
-    z.el.classList.add("gut");
-    index++;
-    if (index >= ANZAHL) {
-      hilf.status.textContent = "Verteiler kalibriert!";
-      onFertig();
-      return;
-    }
-    hilf.status.textContent = `Zeiger ${index + 1} von ${ANZAHL}`;
-  });
-
-  return stopp;
-}
-
-// ============================================================
-// Navigation & Zielgenauigkeit
-// ============================================================
-
-// --- 8. Kurs stabilisieren: Schiff auf der gestrichelten Linie zum Ziel ziehen ---
-// Die Strecke zwischen zwei pointermove-Ereignissen wird abgetastet, nicht nur ihr Endpunkt —
-// sonst ließe sich die Bahn mit einem schnellen Wisch überspringen (siehe Gegenprobe, die das
-// beim Vorgänger aufgedeckt hat).
-function aufgabeKurs(container, onFertig) {
-  const BAHN = [
-    { x: 4,  y: 62, w: 26, h: 18 },
-    { x: 24, y: 22, w: 18, h: 58 },
-    { x: 24, y: 22, w: 36, h: 18 },
-    { x: 54, y: 22, w: 18, h: 58 },
-    { x: 54, y: 62, w: 42, h: 18 }
-  ];
-
-  const hilf = rahmen(container, "Zieh das Schiff auf der gestrichelten Linie zum Ziel.", `
-    <div class="af-kursfeld">
-      ${BAHN.map(s => `<div class="af-kursbahn" style="left:${s.x}%;top:${s.y}%;width:${s.w}%;height:${s.h}%"></div>`).join("")}
-      <div class="af-kursstart">Start</div>
-      <div class="af-kursziel">Ziel</div>
-      <div class="af-kursschiff" style="left:10%;top:69%">🚀</div>
-    </div>`);
-  hilf.status.textContent = 'Am "Start" aufnehmen.';
-
-  const feld = hilf.q(".af-kursfeld");
-  const schiff = hilf.q(".af-kursschiff");
-  let zieht = false;
-  let letzter = null;
-
-  function position(e) {
-    const rect = feld.getBoundingClientRect();
-    return { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 };
-  }
-
-  const aufBahn = p => BAHN.some(s => p.x >= s.x && p.x <= s.x + s.w && p.y >= s.y && p.y <= s.y + s.h);
-
-  function streckeAufBahn(von, bis) {
-    const schritte = Math.max(Math.ceil(Math.hypot(bis.x - von.x, bis.y - von.y) / 1.5), 1);
-    for (let i = 1; i <= schritte; i++) {
-      const anteil = i / schritte;
-      if (!aufBahn({ x: von.x + (bis.x - von.x) * anteil, y: von.y + (bis.y - von.y) * anteil })) return false;
-    }
-    return true;
-  }
-
-  function setzeSchiff(p) {
-    schiff.style.left = `${p.x}%`;
-    schiff.style.top = `${p.y}%`;
-  }
-
-  function abbruch(text) {
-    zieht = false;
-    letzter = null;
-    feld.classList.remove("aktiv");
-    setzeSchiff({ x: 10, y: 69 });
-    hilf.status.textContent = text;
-  }
-
-  feld.addEventListener("pointerdown", e => {
-    const p = position(e);
-    if (p.x <= 16 && aufBahn(p)) {
-      zieht = true;
-      letzter = p;
-      feld.classList.add("aktiv");
-      setzeSchiff(p);
-      fangeZeiger(feld, e);
-      hilf.status.textContent = "Weiter …";
-    }
-  });
-
-  feld.addEventListener("pointermove", e => {
-    if (!zieht) return;
-    const p = position(e);
-    if (!streckeAufBahn(letzter, p)) { abbruch("Vom Kurs abgekommen – noch mal am Start."); return; }
-    letzter = p;
-    setzeSchiff(p);
-    if (p.x >= 90) {
-      zieht = false;
-      feld.classList.remove("aktiv");
-      hilf.status.textContent = "Kurs stabil!";
-      onFertig();
-    }
-  });
-
-  feld.addEventListener("pointerup", () => { if (zieht) abbruch("Losgelassen – noch mal am Start."); });
-  feld.addEventListener("pointercancel", () => { if (zieht) abbruch("Abgebrochen – noch mal am Start."); });
-
-  return () => {};
-}
-
-// --- 9. Triebwerke ausrichten: Hebel auf die Soll-Linie schieben ---
-function aufgabeTriebwerk(container, onFertig) {
-  const soll = zufallZahl(25, 75);
-  const TOLERANZ = 4;
-
-  const hilf = rahmen(container, "Schieb den Hebel, bis die Düse auf der Soll-Linie steht.", `
-    <div class="af-triebwerk">
-      <div class="af-triebwerk-soll" style="top:${soll}%"></div>
-      <div class="af-triebwerk-duese" style="top:50%">◀</div>
-    </div>
-    <div class="af-triebwerk-schacht"><div class="af-triebwerk-griff" style="top:50%"></div></div>`);
-  hilf.status.textContent = "Noch nicht ausgerichtet.";
-
-  const schacht = hilf.q(".af-triebwerk-schacht");
-  const griff = hilf.q(".af-triebwerk-griff");
-  const duese = hilf.q(".af-triebwerk-duese");
-  let zieht = false;
-  let fertig = false;
-
-  function setze(e) {
-    const anteil = anteilIn(schacht, e, "y") * 100;
-    griff.style.top = `${anteil}%`;
-    duese.style.top = `${anteil}%`;
-    const passt = Math.abs(anteil - soll) <= TOLERANZ;
-    duese.classList.toggle("gut", passt);
-    hilf.status.textContent = passt ? "Sitzt – loslassen." : "Noch nicht ausgerichtet.";
-  }
-
-  schacht.addEventListener("pointerdown", e => { if (fertig) return; zieht = true; fangeZeiger(schacht, e); setze(e); });
-  schacht.addEventListener("pointermove", e => { if (zieht) setze(e); });
-
-  const los = () => {
-    if (!zieht || fertig) return;
-    zieht = false;
-    const ist = parseFloat(griff.style.top);
-    if (Math.abs(ist - soll) <= TOLERANZ) {
-      fertig = true;
-      griff.classList.add("gut");
-      hilf.status.textContent = "Triebwerk ausgerichtet!";
-      onFertig();
-    } else {
-      hilf.status.textContent = "Daneben – noch mal schieben.";
-    }
-  };
-  schacht.addEventListener("pointerup", los);
-  schacht.addEventListener("pointercancel", los);
-
-  return () => {};
-}
-
-// --- 10. Asteroiden zerstören: 20 Treffer ---
-function aufgabeAsteroiden(container, onFertig) {
-  const ZIEL = 20;
-  const MAX_GLEICHZEITIG = 5;
-  let getroffen = 0;
-  const brocken = [];
-
-  const hilf = rahmen(container, "Schieß alle Asteroiden ab – tippe sie an.", `
-    <div class="af-asteroiden"><div class="af-fadenkreuz-mitte">+</div></div>`);
-  hilf.status.textContent = `0 von ${ZIEL}`;
-  const feld = hilf.q(".af-asteroiden");
-
-  function neuerBrocken() {
-    const el = document.createElement("button");
-    el.type = "button";
-    el.className = "af-asteroid";
-    el.textContent = zufallAus(["🪨", "☄️"]);
-    const b = {
-      el,
-      x: 100 + zufallZahl(0, 30),
-      y: zufallZahl(8, 82),
-      tempo: 14 + Math.random() * 16,        // Prozent Breite pro Sekunde
-      weg: false
+        /* Phase 3: abgelaufen, Schlussschritt. */
+        if (schluss) schluss.zeichne(r);
+      }
     };
-    el.style.top = `${b.y}%`;
-    el.addEventListener("click", () => {
-      if (b.weg) return;
-      b.weg = true;
-      el.classList.add("treffer");
-      getroffen++;
-      hilf.status.textContent = `${getroffen} von ${ZIEL}`;
-      setTimeout(() => el.remove(), 200);
-      if (getroffen >= ZIEL) {
-        hilf.status.textContent = "Feld geräumt!";
-        onFertig();
+  }
+
+  /* ==================================================================== */
+  /*  1. Reaktor starten (Simon Says)                                     */
+  /* ==================================================================== */
+
+  /* Links leuchtet die Folge auf, rechts wird sie nachgetippt. Fünf Runden, pro Runde ein
+     Feld mehr. Ein Fehler wirft auf Runde 1 zurück — das ist der Druck, der die Aufgabe
+     gefährlich macht, wenn jemand im Türrahmen steht. */
+  function aufgabeReaktor(optionen, onFertig) {
+    const RUNDEN = 5;
+    const FELDER = 4;
+    let runde = 1;
+    let folge = [zufallZahl(0, FELDER - 1)];
+    let zeigeIndex = 0;         // welches Feld gerade aufleuchtet
+    let zeigeBis = 0;           // Zeitpunkt, bis der Blitz steht
+    let zeigt = true;
+    let eingabe = [];
+    let fehler = false;
+    let fertig = false;
+    let uhr = 0;
+
+    function neueRunde() {
+      folge = [];
+      for (let i = 0; i < runde; i++) folge.push(zufallZahl(0, FELDER - 1));
+      zeigeIndex = 0; zeigt = true; eingabe = []; zeigeBis = 0;
+    }
+    neueRunde();
+
+    return {
+      hoehe: 250,
+      zeichne: function (r) {
+        uhr += ui.delta;
+        const status = fertig ? "Reaktor läuft."
+                     : fehler ? "Falsch – von vorn."
+                     : zeigt ? "Merken …" : "Runde " + runde + " von " + RUNDEN;
+        const innen = rahmen(r, "Merk dir die Folge und tippe sie nach.", status);
+        pult(innen);
+
+        /* Ablauf des Vorzeigens über verstrichene Zeit, nicht über Bildzählung. */
+        if (zeigt && !fertig) {
+          if (uhr > zeigeBis) { zeigeBis = uhr + 620; zeigeIndex++; }
+          if (zeigeIndex > folge.length) { zeigt = false; zeigeIndex = -1; }
+          ui.anfordern();
+        }
+
+        const luecke = 10;
+        const tb = (innen.b - 2 * 16 - (FELDER - 1) * luecke) / FELDER;
+        const th = Math.min(78, innen.h - 32);
+        const ty = innen.y + (innen.h - th) / 2;
+        const leuchtend = zeigt && zeigeIndex >= 1 && (uhr < zeigeBis - 180)
+                        ? folge[zeigeIndex - 1] : -1;
+
+        for (let i = 0; i < FELDER; i++) {
+          const tr = { x: innen.x + 16 + i * (tb + luecke), y: ty, b: tb, h: th };
+          const an = leuchtend === i;
+          const farben = ["#38bdf8", "#f472b6", "#fbbf24", "#4ade80"];
+          ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 10, an ? farben[i] : "#2b3a54");
+          ui.rahmeRund(tr.x, tr.y, tr.b, tr.h, 10, farben[i], an ? 3 : 1.5);
+          ui.merke("reaktor-" + i, tr, "aufgabe-taste");
+
+          if (!zeigt && !fertig && ui.geklickt(tr)) {
+            eingabe.push(i);
+            const pos = eingabe.length - 1;
+            if (eingabe[pos] !== folge[pos]) {
+              fehler = true; runde = 1; neueRunde();
+            } else if (eingabe.length === folge.length) {
+              fehler = false;
+              if (runde >= RUNDEN) { fertig = true; onFertig(); }
+              else { runde++; neueRunde(); }
+            }
+          }
+        }
+
+        /* Rundenpunkte unter dem Feld */
+        for (let i = 0; i < RUNDEN; i++) {
+          const px = innen.x + innen.b / 2 - (RUNDEN * 14) / 2 + i * 14 + 7;
+          ui.ctx.beginPath();
+          ui.ctx.arc(px, innen.y + innen.h - 10, 4, 0, Math.PI * 2);
+          ui.ctx.fillStyle = i < runde - 1 || fertig ? GUT : "#3d4f6d";
+          ui.ctx.fill();
+        }
+      }
+    };
+  }
+
+  /* ==================================================================== */
+  /*  2. Manifold entsperren: 1 bis 10 in aufsteigender Reihenfolge       */
+  /* ==================================================================== */
+
+  function aufgabeManifold(optionen, onFertig) {
+    const ZAHLEN = 10;
+    let plaetze = mischen([0,1,2,3,4,5,6,7,8,9]);
+    let naechste = 1;
+    let falsch = -1;
+    let falschBis = 0;
+    let uhr = 0;
+    let fertig = false;
+
+    return {
+      hoehe: 250,
+      zeichne: function (r) {
+        uhr += ui.delta;
+        const innen = rahmen(r, "Tippe 1 bis 10 der Reihe nach.",
+          fertig ? "Entsperrt." : "Als Nächstes: " + naechste);
+        pult(innen);
+
+        const spalten = 5, zeilen = 2, luecke = 8;
+        const tb = (innen.b - 2 * 14 - (spalten - 1) * luecke) / spalten;
+        const th = Math.min(62, (innen.h - 20 - (zeilen - 1) * luecke) / zeilen);
+        const oy = innen.y + (innen.h - (zeilen * th + luecke)) / 2;
+
+        for (let i = 0; i < ZAHLEN; i++) {
+          const zahl = plaetze[i] + 1;
+          const sp = i % spalten, ze = Math.floor(i / spalten);
+          const tr = { x: innen.x + 14 + sp * (tb + luecke), y: oy + ze * (th + luecke), b: tb, h: th };
+          const erledigt = zahl < naechste;
+          const istFalsch = falsch === zahl && uhr < falschBis;
+          ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 8,
+            erledigt ? "#14532d" : istFalsch ? "#7f1d1d" : PULT_HELL);
+          ui.schreibe(String(zahl), tr.x + tr.b / 2, tr.y + tr.h / 2, {
+            groesse: 20, fett: true, ausrichtung: "center",
+            farbe: erledigt ? "#4ade80" : "#e2e8f0"
+          });
+          ui.merke("manifold-" + zahl, tr, "aufgabe-taste");
+
+          if (!fertig && !erledigt && ui.geklickt(tr)) {
+            if (zahl === naechste) {
+              naechste++;
+              if (naechste > ZAHLEN) { fertig = true; onFertig(); }
+            } else {
+              falsch = zahl; falschBis = uhr + 400;
+            }
+          }
+        }
+        if (uhr < falschBis) ui.anfordern();
+      }
+    };
+  }
+
+  /* ==================================================================== */
+  /*  3. Proben analysieren                                               */
+  /* ==================================================================== */
+
+  function aufgabeProben(optionen, onFertig) {
+    return warteAufgabe(optionen, onFertig, {
+      symbol: "🧪",
+      anleitungStart: "Proben in den Analysator geben und starten.",
+      anleitungWarten: "Die Analyse läuft.",
+      startKnopf: "Analyse starten",
+      schluss: function (opt, fertig) {
+        /* Fünf Proben, eine weicht ab — die muss gewählt werden. */
+        const ANZAHL = 5;
+        const auffaellig = zufallZahl(0, ANZAHL - 1);
+        let gewaehlt = -1;
+        let geloest = false;
+        return {
+          zeichne: function (r) {
+            const innen = rahmen(r, "Analyse fertig. Welche Probe weicht ab?",
+              geloest ? "Richtig – Probe gemeldet." : gewaehlt >= 0 ? "Das war eine normale Probe." : "");
+            pult(innen);
+            const luecke = 8;
+            const tb = (innen.b - 2 * 14 - (ANZAHL - 1) * luecke) / ANZAHL;
+            const th = Math.min(84, innen.h - 24);
+            const ty = innen.y + (innen.h - th) / 2;
+            for (let i = 0; i < ANZAHL; i++) {
+              const tr = { x: innen.x + 14 + i * (tb + luecke), y: ty, b: tb, h: th };
+              const ist = i === auffaellig;
+              const zeige = geloest && ist;
+              ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 8, zeige ? "#14532d" : PULT_HELL);
+              /* Die abweichende Probe ist an ihrer Färbung zu erkennen. */
+              const fuell = ist ? "#f97316" : "#38bdf8";
+              ui.fuelleRund(tr.x + tb / 2 - 9, tr.y + 16, 18, th - 40, 4, fuell);
+              ui.schreibe(String(i + 1), tr.x + tb / 2, tr.y + th - 12, {
+                groesse: 12, ausrichtung: "center", farbe: "#94a3b8"
+              });
+              ui.merke("probe-" + i, tr, "aufgabe-taste");
+              if (!geloest && ui.geklickt(tr)) {
+                gewaehlt = i;
+                if (ist) { geloest = true; fertig(); }
+              }
+            }
+          }
+        };
       }
     });
-    feld.appendChild(el);
-    brocken.push(b);
   }
 
-  const stopp = taktgeber(delta => {
-    if (getroffen >= ZIEL) return;
-    const lebend = brocken.filter(b => !b.weg);
-    if (lebend.length < MAX_GLEICHZEITIG) neuerBrocken();
-    lebend.forEach(b => {
-      b.x -= b.tempo * delta / 1000;
-      if (b.x < -12) {                        // links raus: hinten wieder anstellen
-        b.x = 100 + zufallZahl(0, 25);
-        b.y = zufallZahl(8, 82);
-        b.el.style.top = `${b.y}%`;
+  /* ==================================================================== */
+  /*  4. Kabel reparieren (drei Orte, je vier Kabel)                      */
+  /* ==================================================================== */
+
+  /* Farbe UND Symbol müssen zusammenpassen. Nur die Farbe wäre für Farbenblinde nicht
+     lösbar, nur das Symbol wäre auf dem Handy zu klein. */
+  function aufgabeKabel(optionen, onFertig) {
+    const ADERN = [
+      { farbe: "#ef4444", zeichen: "▲" },
+      { farbe: "#3b82f6", zeichen: "●" },
+      { farbe: "#eab308", zeichen: "■" },
+      { farbe: "#22c55e", zeichen: "◆" }
+    ];
+    const links = mischen([0, 1, 2, 3]);
+    const rechts = mischen([0, 1, 2, 3]);
+    const verbunden = {};
+    let ziehtVon = -1;
+    let fertig = false;
+
+    return {
+      hoehe: 250,
+      zeichne: function (r) {
+        const teil = optionen.teile > 1 ? " (" + optionen.teil + " von " + optionen.teile + ")" : "";
+        const anzahl = Object.keys(verbunden).length;
+        const innen = rahmen(r, "Gleiche Farbe und gleiches Zeichen verbinden." + teil,
+          fertig ? "Kabel repariert." : anzahl + " von 4 verbunden");
+        pult(innen);
+
+        const rand = 18;
+        const hoeheJe = Math.min(34, (innen.h - 24) / 4);
+        const abstand = (innen.h - 4 * hoeheJe) / 5;
+        const bx = 62;
+        const lx = innen.x + rand;
+        const rx = innen.x + innen.b - rand - bx;
+
+        function platz(spalte, i) {
+          return {
+            x: spalte === 0 ? lx : rx,
+            y: innen.y + abstand + i * (hoeheJe + abstand),
+            b: bx, h: hoeheJe
+          };
+        }
+
+        /* Bereits gelegte Leitungen */
+        Object.keys(verbunden).forEach(ader => {
+          const li = links.indexOf(Number(ader));
+          const ri = rechts.indexOf(Number(ader));
+          const a = platz(0, li), b = platz(1, ri);
+          ui.ctx.beginPath();
+          ui.ctx.moveTo(a.x + a.b, a.y + a.h / 2);
+          ui.ctx.lineTo(b.x, b.y + b.h / 2);
+          ui.ctx.strokeStyle = ADERN[ader].farbe;
+          ui.ctx.lineWidth = 5;
+          ui.ctx.stroke();
+        });
+
+        /* Leitung am Finger */
+        const finger = ui.beanspruche(innen, "kabel");
+        if (ziehtVon >= 0 && finger) {
+          const li = links.indexOf(ziehtVon);
+          const a = platz(0, li);
+          ui.ctx.beginPath();
+          ui.ctx.moveTo(a.x + a.b, a.y + a.h / 2);
+          ui.ctx.lineTo(finger.x, finger.y);
+          ui.ctx.strokeStyle = ADERN[ziehtVon].farbe;
+          ui.ctx.lineWidth = 5;
+          ui.ctx.stroke();
+          ui.anfordern();
+        }
+
+        /* Anschlüsse zeichnen und Eingaben auswerten */
+        [0, 1].forEach(spalte => {
+          const reihe = spalte === 0 ? links : rechts;
+          reihe.forEach((ader, i) => {
+            const p = platz(spalte, i);
+            const fest = verbunden[ader];
+            ui.fuelleRund(p.x, p.y, p.b, p.h, 6, fest ? "#14532d" : PULT_HELL);
+            ui.fuelleRund(spalte === 0 ? p.x + p.b - 8 : p.x, p.y, 8, p.h, 2, ADERN[ader].farbe);
+            ui.schreibe(ADERN[ader].zeichen, p.x + p.b / 2 - (spalte === 0 ? 4 : -4), p.y + p.h / 2, {
+              groesse: 15, ausrichtung: "center", farbe: ADERN[ader].farbe
+            });
+            ui.merke("kabel-" + (spalte === 0 ? "l" : "r") + ader, p, "aufgabe-taste");
+
+            /* Aufsetzen links beginnt eine Leitung, Loslassen rechts schließt sie. */
+            if (spalte === 0 && !fest && finger && ziehtVon < 0 &&
+                ui.inRechteck(finger.startX, finger.startY, p)) {
+              ziehtVon = ader;
+            }
+          });
+        });
+
+        /* Loslassen auswerten */
+        const los = ui.beanspruchungGeloest("kabel");
+        if (ziehtVon >= 0 && los) {
+          rechts.forEach((ader, i) => {
+            const p = platz(1, i);
+            if (ader === ziehtVon && ui.inRechteck(los.x, los.y, p)) verbunden[ader] = true;
+          });
+          ziehtVon = -1;
+          if (!fertig && Object.keys(verbunden).length === 4) { fertig = true; onFertig(); }
+        }
+        if (ziehtVon >= 0 && !finger) ziehtVon = -1;
       }
-      b.el.style.left = `${b.x}%`;
-    });
-  });
+    };
+  }
 
-  return () => { stopp(); };
-}
+  /* ==================================================================== */
+  /*  5. Strom umleiten (Teil 1 Regler, Teil 2 Schalter)                  */
+  /* ==================================================================== */
 
-// ============================================================
-// Müll & Reinigung
-// ============================================================
+  function aufgabeStrom(optionen, onFertig) {
+    return (optionen.teil || 1) <= 1 ? stromRegler(optionen, onFertig) : stromSchalter(optionen, onFertig);
+  }
 
-// --- 12. Müll entsorgen: Hebel ziehen und halten, bis die Luke leer ist ---
-function aufgabeMuell(container, onFertig) {
-  const DAUER_MS = 3200;
-  let gehalten = 0;
-  let haelt = false;
-  let fertig = false;
+  /* Regler auf den markierten Bereich schieben und dort loslassen. */
+  function stromRegler(optionen, onFertig) {
+    const soll = 0.25 + Math.random() * 0.5;
+    const TOLERANZ = 0.06;
+    let wert = 0;
+    let fertig = false;
 
-  const hilf = rahmen(container, "Zieh den Hebel nach unten und halte ihn, bis alles draußen ist.", `
-    <div class="af-muellschacht">
-      <div class="af-muellhaufen">🗑️🍌📦🥤📰</div>
-      <div class="af-muellfuellung"></div>
-    </div>
-    <button type="button" class="af-muellhebel">Hebel halten</button>`);
-  hilf.status.textContent = "Schacht ist voll.";
+    return {
+      hoehe: 230,
+      zeichne: function (r) {
+        const ziel = optionen.zielRaum ? " Danach weiter in: " + optionen.zielRaum : "";
+        const innen = rahmen(r, "Schieb den Regler in den markierten Bereich." + ziel,
+          fertig ? "Strom umgeleitet." : Math.round(wert * 100) + " %");
+        pult(innen);
 
-  const hebel = hilf.q(".af-muellhebel");
-  const fuellung = hilf.q(".af-muellfuellung");
-  const haufen = hilf.q(".af-muellhaufen");
+        const sx = innen.x + 26, sb = innen.b - 52;
+        const sy = innen.y + innen.h / 2 - 16, sh = 32;
+        /* Sollbereich */
+        ui.fuelleRund(sx + sb * (soll - TOLERANZ), sy - 6, sb * TOLERANZ * 2, sh + 12, 6, "rgba(34,197,94,0.28)");
+        ui.fuelleRund(sx, sy, sb, sh, 8, "#0f1726");
 
-  const stopp = taktgeber(delta => {
-    if (fertig) return;
-    if (haelt) {
-      gehalten = Math.min(gehalten + delta, DAUER_MS);
-    } else if (gehalten > 0) {
-      // Loslassen klappt die Luke zu: der Müll rutscht zurück, sonst wäre "halten" bedeutungslos.
-      gehalten = Math.max(gehalten - delta * 1.6, 0);
-    }
-    const anteil = gehalten / DAUER_MS;
-    fuellung.style.height = `${Math.round((1 - anteil) * 100)}%`;
-    haufen.style.opacity = String(1 - anteil);
-    if (anteil >= 1) {
-      fertig = true;
-      haelt = false;
-      hebel.disabled = true;
-      hebel.textContent = "Leer";
-      hilf.status.textContent = "Schacht ist leer!";
-      onFertig();
-    } else {
-      hilf.status.textContent = haelt ? `Läuft … ${Math.round(anteil * 100)} %` : "Hebel halten.";
-    }
-  });
+        const griffB = 34;
+        const gx = sx + (sb - griffB) * wert;
+        const gr = { x: gx, y: sy - 8, b: griffB, h: sh + 16 };
+        const feld = { x: sx - 20, y: sy - 24, b: sb + 40, h: sh + 48 };
+        const finger = ui.beanspruche(feld, "stromregler");
+        if (finger && !fertig) {
+          wert = begrenze((finger.x - sx - griffB / 2) / (sb - griffB), 0, 1);
+          ui.anfordern();
+        }
+        const gut = Math.abs(wert - soll) <= TOLERANZ;
+        ui.fuelleRund(gr.x, gr.y, gr.b, gr.h, 6, gut ? GUT : "#94a3b8");
+        ui.merke("strom-griff", gr, "aufgabe-griff");
 
-  const halte = e => { if (fertig) return; haelt = true; fangeZeiger(hebel, e); hebel.classList.add("gedrueckt"); };
-  const lasse = () => { haelt = false; hebel.classList.remove("gedrueckt"); };
-  hebel.addEventListener("pointerdown", halte);
-  hebel.addEventListener("pointerup", lasse);
-  hebel.addEventListener("pointercancel", lasse);
-  hebel.addEventListener("pointerleave", lasse);
-
-  return stopp;
-}
-
-// --- 13. Filter reinigen: Blätter aus dem Gitter in den Abzugsschacht ziehen ---
-function aufgabeFilter(container, onFertig) {
-  const ANZAHL = 5;
-  let entfernt = 0;
-
-  const hilf = rahmen(container, "Zieh die Blätter aus dem Gitter in den Schacht rechts.", `
-    <div class="af-filter">
-      <div class="af-filtergitter">${Array.from({ length: ANZAHL }, (_, i) =>
-        `<span class="af-blatt" data-i="${i}" style="left:${8 + (i % 3) * 26}%;top:${12 + Math.floor(i / 3) * 38}%">🍃</span>`).join("")}</div>
-      <div class="af-filterschacht">⬇︎</div>
-    </div>`);
-  hilf.status.textContent = `0 von ${ANZAHL} Blättern`;
-
-  const feld = hilf.q(".af-filter");
-  const gitter = hilf.q(".af-filtergitter");
-  const schacht = hilf.q(".af-filterschacht");
-  let aktiv = null;
-
-  // Die Zeiger-Ereignisse hängen am äußeren .af-filter, damit der Schacht als Ziel erreichbar
-  // bleibt. Die Prozentwerte des Blattes zählen aber gegen .af-filtergitter, in dem es steckt —
-  // rechnet man sie gegen den äußeren Rahmen, springt das Blatt beim Anfassen zur Seite.
-  feld.addEventListener("pointerdown", e => {
-    const blatt = e.target.closest(".af-blatt");
-    if (!blatt || blatt.classList.contains("weg")) return;
-    aktiv = blatt;
-    blatt.classList.add("gezogen");
-    fangeZeiger(feld, e);
-  });
-
-  feld.addEventListener("pointermove", e => {
-    if (!aktiv) return;
-    const rect = gitter.getBoundingClientRect();
-    aktiv.style.left = `${((e.clientX - rect.left) / rect.width) * 100}%`;
-    aktiv.style.top = `${((e.clientY - rect.top) / rect.height) * 100}%`;
-  });
-
-  function loslassen(e) {
-    if (!aktiv) return;
-    const s = schacht.getBoundingClientRect();
-    const drin = e.clientX >= s.left && e.clientX <= s.right && e.clientY >= s.top && e.clientY <= s.bottom;
-    if (drin) {
-      aktiv.classList.add("weg");
-      aktiv.classList.remove("gezogen");
-      entfernt++;
-      hilf.status.textContent = `${entfernt} von ${ANZAHL} Blättern`;
-      if (entfernt >= ANZAHL) {
-        hilf.status.textContent = "Filter ist frei!";
-        onFertig();
+        if (!fertig && gut && ui.beanspruchungGeloest("stromregler")) { fertig = true; onFertig(); }
       }
-    } else {
-      aktiv.classList.remove("gezogen");
-    }
-    aktiv = null;
+    };
   }
 
-  feld.addEventListener("pointerup", loslassen);
-  feld.addEventListener("pointercancel", () => { if (aktiv) { aktiv.classList.remove("gezogen"); aktiv = null; } });
-
-  return () => {};
-}
-
-// ============================================================
-// Daten & Signale
-// ============================================================
-
-// --- 15. Daten herunterladen / hochladen: Teil 1 irgendwo, Teil 2 am Hauptserver ---
-function aufgabeDaten(container, onFertig, optionen) {
-  optionen = optionen || {};
-  const laden = (optionen.teil || 1) === 1;
-  const DAUER_MS = 4000;
-  let gestartet = false;
-  let vergangen = 0;
-
-  const wort = laden ? "Download" : "Upload";
-  const zielRaum = laden && optionen.zielRaum ? ` Danach am Hauptserver in ${optionen.zielRaum} hochladen.` : "";
-
-  const hilf = rahmen(container, laden
-    ? "Lade die Daten herunter und warte, bis der Balken voll ist."
-    : "Lade die Daten am Hauptserver hoch.", `
-    <div class="af-daten">
-      <div class="af-daten-symbol">${laden ? "⬇︎" : "⬆︎"}</div>
-      <div class="af-daten-balken"><div class="af-daten-fuellung"></div></div>
-      <div class="af-daten-prozent">0 %</div>
-      <button type="button" class="af-daten-start">${wort} starten</button>
-    </div>`);
-  hilf.status.textContent = "Bereit." + zielRaum;
-
-  const fuellung = hilf.q(".af-daten-fuellung");
-  const prozent = hilf.q(".af-daten-prozent");
-  const knopf = hilf.q(".af-daten-start");
-
-  knopf.addEventListener("click", () => {
-    if (gestartet) return;
-    gestartet = true;
-    knopf.disabled = true;
-    knopf.textContent = `${wort} läuft …`;
-    hilf.status.textContent = "Bitte warten.";
-  });
-
-  const stopp = taktgeber(delta => {
-    if (!gestartet || vergangen >= DAUER_MS) return;
-    vergangen = Math.min(vergangen + delta, DAUER_MS);
-    const anteil = vergangen / DAUER_MS;
-    fuellung.style.width = `${Math.round(anteil * 100)}%`;
-    prozent.textContent = `${Math.round(anteil * 100)} %`;
-    if (anteil >= 1) {
-      knopf.textContent = "Fertig";
-      hilf.status.textContent = laden
-        ? "Daten geladen." + zielRaum
-        : "Daten sind auf dem Server!";
-      onFertig();
-    }
-  }, 100);
-
-  return stopp;
-}
-
-// ============================================================
-// Sichtbare Aufgaben und Spezialgeräte
-// ============================================================
-
-// --- Scan durchführen (MedBay): die sichtbarste Aufgabe des Originals ---
-// Wer hier steht, kann von niemandem verdächtigt werden — deshalb ist der Scan das härteste
-// Alibi im Spiel und deshalb dauert er absichtlich lange. Abbrechen zählt nicht.
-function aufgabeScan(container, onFertig) {
-  const DAUER_MS = 9000;
-  let vergangen = 0;
-  let laeuft = false;
-
-  const hilf = rahmen(container, "Stell dich auf die Plattform und halte still.", `
-    <div class="af-scanner">
-      <div class="af-scan-figur">🧍</div>
-      <div class="af-scan-strahl"></div>
-      <div class="af-scan-werte">
-        <span data-wert="groesse">Größe –</span>
-        <span data-wert="gewicht">Gewicht –</span>
-        <span data-wert="blut">Blutgruppe –</span>
-      </div>
-    </div>
-    <button type="button" class="af-scan-start">Scan starten</button>`);
-  hilf.status.textContent = "Bereit.";
-
-  const strahl = hilf.q(".af-scan-strahl");
-  const knopf = hilf.q(".af-scan-start");
-  const werte = hilf.alle(".af-scan-werte span");
-  const ergebnisse = [`Größe ${zufallZahl(160, 195)} cm`, `Gewicht ${zufallZahl(55, 95)} kg`,
-                      `Blutgruppe ${zufallAus(["A", "B", "AB", "0"])}${zufallAus(["+", "−"])}`];
-
-  knopf.addEventListener("click", () => {
-    if (laeuft) return;
-    laeuft = true;
-    knopf.disabled = true;
-    knopf.textContent = "Scan läuft …";
-    hilf.status.textContent = "Nicht bewegen.";
-  });
-
-  return taktgeber(delta => {
-    if (!laeuft || vergangen >= DAUER_MS) return;
-    vergangen = Math.min(vergangen + delta, DAUER_MS);
-    const anteil = vergangen / DAUER_MS;
-    strahl.style.top = `${Math.round(anteil * 100)}%`;
-    // Die drei Werte erscheinen nacheinander — das macht den Fortschritt ohne Balken sichtbar.
-    werte.forEach((el, i) => { if (anteil > (i + 1) / 4) el.textContent = ergebnisse[i]; });
-    if (anteil >= 1) {
-      knopf.textContent = "Fertig";
-      hilf.status.textContent = "Scan übermittelt!";
-      onFertig();
-    }
-  }, 80);
-}
-
-// --- Triebwerk betanken: Kanister im Lager füllen, dann im Motorraum leeren ---
-// Zweiteilig wie im Original, und beide Hälften sind Halten-Aufgaben: man steht sichtbar
-// still, erst an der Tankstation, dann am Triebwerk.
-function aufgabeBetanken(container, onFertig, optionen) {
-  optionen = optionen || {};
-  const fuellen = (optionen.teil || 1) === 1;
-  const DAUER_MS = 3000;
-  let gehalten = 0;
-  let haelt = false;
-  let fertig = false;
-
-  const zielRaum = fuellen && optionen.zielRaum ? ` Danach ab damit nach ${optionen.zielRaum}.` : "";
-  const hilf = rahmen(container, fuellen
-    ? "Halte den Zapfhahn, bis der Kanister voll ist."
-    : "Halte den Kanister über den Einfüllstutzen, bis er leer ist.", `
-    <div class="af-tank">
-      <div class="af-kanister"><div class="af-kanister-inhalt"></div><span>⛽</span></div>
-    </div>
-    <button type="button" class="af-tankhebel">${fuellen ? "Zapfhahn halten" : "Kanister kippen"}</button>`);
-  hilf.status.textContent = fuellen ? "Kanister ist leer." : "Kanister ist voll.";
-
-  const inhalt = hilf.q(".af-kanister-inhalt");
-  const hebel = hilf.q(".af-tankhebel");
-  if (!fuellen) inhalt.style.height = "100%";
-
-  const stopp = taktgeber(delta => {
-    if (fertig) return;
-    if (haelt) gehalten = Math.min(gehalten + delta, DAUER_MS);
-    else if (gehalten > 0) gehalten = Math.max(gehalten - delta * 1.4, 0);
-    const anteil = gehalten / DAUER_MS;
-    inhalt.style.height = `${Math.round((fuellen ? anteil : 1 - anteil) * 100)}%`;
-    if (anteil >= 1) {
-      fertig = true;
-      haelt = false;
-      hebel.disabled = true;
-      hebel.classList.remove("gedrueckt");
-      hilf.status.textContent = fuellen ? "Kanister ist voll." + zielRaum : "Triebwerk betankt!";
-      onFertig();
-    } else {
-      hilf.status.textContent = haelt ? `Läuft … ${Math.round(anteil * 100)} %` : "Halten." + zielRaum;
-    }
-  });
-
-  const halte = e => { if (fertig) return; haelt = true; fangeZeiger(hebel, e); hebel.classList.add("gedrueckt"); };
-  const lasse = () => { haelt = false; hebel.classList.remove("gedrueckt"); };
-  hebel.addEventListener("pointerdown", halte);
-  hebel.addEventListener("pointerup", lasse);
-  hebel.addEventListener("pointercancel", lasse);
-  hebel.addEventListener("pointerleave", lasse);
-
-  return stopp;
-}
-
-// --- Lenkung ausrichten: das Fadenkreuz driftet weg, zurückziehen und halten ---
-function aufgabeLenkung(container, onFertig) {
-  const HALTEN_MS = 1800;
-  const TOLERANZ = 12;          // Prozent Abstand zur Mitte
-  let pos = { x: zufallZahl(20, 80), y: zufallZahl(20, 80) };
-  let zieht = false;
-  let imZiel = 0;
-  let fertig = false;
-
-  const hilf = rahmen(container, "Zieh das Fadenkreuz in die Mitte und halte es dort.", `
-    <div class="af-lenkung">
-      <div class="af-lenk-mitte"></div>
-      <div class="af-lenk-kreuz">✛</div>
-      <div class="af-lenk-balken"><div class="af-lenk-fuellung"></div></div>
-    </div>`);
-  hilf.status.textContent = "Der Kurs läuft weg.";
-
-  const feld = hilf.q(".af-lenkung");
-  const kreuz = hilf.q(".af-lenk-kreuz");
-  const fuellung = hilf.q(".af-lenk-fuellung");
-
-  function zeichne() {
-    kreuz.style.left = `${pos.x}%`;
-    kreuz.style.top = `${pos.y}%`;
-  }
-  zeichne();
-
-  feld.addEventListener("pointerdown", e => { if (!fertig) { zieht = true; fangeZeiger(feld, e); } });
-  feld.addEventListener("pointermove", e => {
-    if (!zieht || fertig) return;
-    pos = { x: anteilIn(feld, e, "x") * 100, y: anteilIn(feld, e, "y") * 100 };
-    zeichne();
-  });
-  const los = () => { zieht = false; };
-  feld.addEventListener("pointerup", los);
-  feld.addEventListener("pointercancel", los);
-
-  return taktgeber(delta => {
-    if (fertig) return;
-    const ab = Math.hypot(pos.x - 50, pos.y - 50);
-    // Ohne Hand driftet der Kurs weiter weg — sonst könnte man einmal ziehen und warten.
-    if (!zieht && ab < 95) {
-      const richtung = ab < 0.5 ? { x: 1, y: 0 } : { x: (pos.x - 50) / ab, y: (pos.y - 50) / ab };
-      pos = { x: Math.min(Math.max(pos.x + richtung.x * delta * 0.012, 0), 100),
-              y: Math.min(Math.max(pos.y + richtung.y * delta * 0.012, 0), 100) };
-      zeichne();
-    }
-    if (ab <= TOLERANZ) imZiel += delta; else imZiel = Math.max(imZiel - delta, 0);
-    fuellung.style.width = `${Math.round(Math.min(imZiel / HALTEN_MS, 1) * 100)}%`;
-    kreuz.classList.toggle("gut", ab <= TOLERANZ);
-    if (imZiel >= HALTEN_MS) {
-      fertig = true;
-      hilf.status.textContent = "Lenkung stabil!";
-      onFertig();
-    } else {
-      hilf.status.textContent = ab <= TOLERANZ ? "Halten …" : "Zurück in die Mitte.";
-    }
-  });
-}
-
-// --- Schilde aktivieren: alle roten Segmente antippen ---
-function aufgabeSchilde(container, onFertig) {
-  const ANZAHL = 7;
-  const aus = mischen([0, 1, 2, 3, 4, 5, 6]).slice(0, zufallZahl(4, 6));
-  let offen = aus.length;
-
-  const hilf = rahmen(container, "Tippe alle roten Segmente an, bis der Schild steht.", `
-    <div class="af-schild">${Array.from({ length: ANZAHL }, (_, i) =>
-      `<button type="button" class="af-schild-teil${aus.indexOf(i) === -1 ? " an" : ""}" data-i="${i}"></button>`).join("")}
-      <div class="af-schild-kern">🛡️</div>
-    </div>`);
-  hilf.status.textContent = `${offen} von ${ANZAHL} Segmenten aus`;
-
-  hilf.alle(".af-schild-teil").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (btn.classList.contains("an")) return;
-      btn.classList.add("an");
-      offen--;
-      if (offen <= 0) {
-        hilf.q(".af-schild-kern").classList.add("an");
-        hilf.status.textContent = "Schild steht!";
-        onFertig();
-        return;
+  /* Schalter im Zielraum umlegen. */
+  function stromSchalter(optionen, onFertig) {
+    let an = false;
+    return {
+      hoehe: 220,
+      zeichne: function (r) {
+        const innen = rahmen(r, "Hauptschalter umlegen.", an ? "Strom liegt an." : "");
+        pult(innen);
+        const b = 120, h = 76;
+        const tr = { x: innen.x + innen.b / 2 - b / 2, y: innen.y + innen.h / 2 - h / 2, b: b, h: h };
+        ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 10, an ? "#14532d" : PULT_HELL);
+        ui.rahmeRund(tr.x, tr.y, tr.b, tr.h, 10, an ? GUT : LINIE, 2);
+        /* Kipphebel */
+        ui.fuelleRund(tr.x + 16, an ? tr.y + 12 : tr.y + tr.h / 2 + 4, tr.b - 32, tr.h / 2 - 16, 6,
+                      an ? GUT : "#94a3b8");
+        ui.schreibe(an ? "AN" : "AUS", tr.x + tr.b / 2, tr.y + tr.h - 14, {
+          groesse: 13, fett: "halb", ausrichtung: "center", farbe: an ? "#bbf7d0" : "#94a3b8"
+        });
+        ui.merke("strom-schalter", tr, "aufgabe-taste");
+        if (!an && ui.geklickt(tr)) { an = true; onFertig(); }
       }
-      hilf.status.textContent = `${offen} von ${ANZAHL} Segmenten aus`;
-    });
-  });
+    };
+  }
 
-  return () => {};
-}
+  /* ==================================================================== */
+  /*  6. Verteiler kalibrieren: drei Zeiger im richtigen Moment stoppen   */
+  /* ==================================================================== */
 
-// --- Karte durchziehen (Swipe Card): weder zu schnell noch zu langsam ---
-// Die berüchtigtste Aufgabe des Originals. Genau deshalb prüft sie die Geschwindigkeit und
-// nicht nur, DASS gewischt wurde.
-function aufgabeSwipe(container, onFertig) {
-  const MIN_MS = 350, MAX_MS = 1200;
-  let start = null;
-
-  const hilf = rahmen(container, "Zieh die Karte gleichmäßig durch den Leser – nicht zu schnell, nicht zu langsam.", `
-    <div class="af-leser">
-      <div class="af-leser-schlitz"></div>
-      <div class="af-karte" style="left:2%">💳</div>
-    </div>`);
-  hilf.status.textContent = "Karte von links nach rechts ziehen.";
-
-  const leser = hilf.q(".af-leser");
-  const karte = hilf.q(".af-karte");
-
-  leser.addEventListener("pointerdown", e => {
-    const p = anteilIn(leser, e, "x");
-    if (p > 0.25) { hilf.status.textContent = "Ganz links anfassen."; return; }
-    start = { zeit: Date.now(), x: p };
-    fangeZeiger(leser, e);
-  });
-
-  leser.addEventListener("pointermove", e => {
-    if (!start) return;
-    karte.style.left = `${anteilIn(leser, e, "x") * 100}%`;
-  });
-
-  function ende(e) {
-    if (!start) return;
-    const p = anteilIn(leser, e, "x");
-    const dauer = Date.now() - start.zeit;
-    start = null;
-    if (p < 0.8) {
-      karte.style.left = "2%";
-      hilf.status.textContent = "Zu kurz – ganz durchziehen.";
-      return;
+  function aufgabeVerteiler(optionen, onFertig) {
+    const ANZAHL = 3;
+    const zeiger = [];
+    for (let i = 0; i < ANZAHL; i++) {
+      zeiger.push({ pos: Math.random(), tempo: (0.45 + Math.random() * 0.4) * (i % 2 ? -1 : 1),
+                    fest: false, gut: false, wiederAb: 0 });
     }
-    if (dauer < MIN_MS) { karte.style.left = "2%"; hilf.status.textContent = "Zu schnell. Noch mal."; return; }
-    if (dauer > MAX_MS) { karte.style.left = "2%"; hilf.status.textContent = "Zu langsam. Noch mal."; return; }
-    karte.style.left = "92%";
-    hilf.status.textContent = "Akzeptiert!";
-    onFertig();
+    const TOLERANZ = 0.07;
+    let fertig = false;
+    /* Eigene Uhr aus `ui.delta` statt `setTimeout`. Ein Timer wird in einem
+       Hintergrund-Tab um Faktor 8 bis 35 gedrosselt — ein danebengetroffener
+       Zeiger bliebe dann minutenlang stehen statt eine halbe Sekunde. */
+    let uhr = 0;
+
+    return {
+      hoehe: 250,
+      zeichne: function (r) {
+        uhr += ui.delta;
+        const fertigeZahl = zeiger.filter(z => z.fest && z.gut).length;
+        const innen = rahmen(r, "Stopp jeden Zeiger in der grünen Zone.",
+          fertig ? "Verteiler kalibriert." : fertigeZahl + " von " + ANZAHL);
+        pult(innen);
+
+        const hoeheJe = (innen.h - 16) / ANZAHL;
+        zeiger.forEach((z, i) => {
+          /* Danebengetroffen: nach kurzer Anzeige läuft dieser Zeiger weiter. */
+          if (z.fest && !z.gut && uhr >= z.wiederAb) { z.fest = false; }
+          if (!z.fest) {
+            z.pos += z.tempo * (ui.delta / 1000);
+            if (z.pos > 1) { z.pos = 1; z.tempo *= -1; }
+            if (z.pos < 0) { z.pos = 0; z.tempo *= -1; }
+            ui.anfordern();
+          }
+          const sx = innen.x + 20, sb = innen.b - 40;
+          const sy = innen.y + 8 + i * hoeheJe + hoeheJe / 2 - 11;
+          ui.fuelleRund(sx, sy, sb, 22, 6, "#0f1726");
+          /* Zielzone in der Mitte */
+          ui.fuelleRund(sx + sb * (0.5 - TOLERANZ), sy, sb * TOLERANZ * 2, 22, 4,
+                        z.fest && z.gut ? "rgba(34,197,94,0.5)" : "rgba(34,197,94,0.25)");
+          const zx = sx + sb * z.pos;
+          ui.ctx.fillStyle = z.fest ? (z.gut ? GUT : SCHLECHT) : "#e2e8f0";
+          ui.ctx.fillRect(zx - 2.5, sy - 5, 5, 32);
+
+          const feld = { x: sx - 12, y: sy - 10, b: sb + 24, h: 42 };
+          ui.merke("verteiler-" + i, feld, "aufgabe-taste");
+          if (!z.fest && ui.geklickt(feld)) {
+            z.fest = true;
+            z.gut = Math.abs(z.pos - 0.5) <= TOLERANZ;
+            if (!z.gut) { z.wiederAb = uhr + 500; ui.anfordern(); }
+          }
+        });
+
+        if (!fertig && zeiger.every(z => z.fest && z.gut)) { fertig = true; onFertig(); }
+      }
+    };
   }
-  leser.addEventListener("pointerup", ende);
-  leser.addEventListener("pointercancel", () => { start = null; });
 
-  return () => {};
-}
+  /* ==================================================================== */
+  /*  7. Kurs stabilisieren: Schiff auf der Bahn zum Ziel ziehen          */
+  /* ==================================================================== */
 
-// ============================================================
-// Reparaturen der Sabotagen (keine regulären Aufgaben)
-// ============================================================
+  /* Die Strecke ZWISCHEN zwei Zeigerpositionen wird abgetastet, nicht nur ihr Endpunkt —
+     sonst ließe sich die Bahn mit einem schnellen Wisch überspringen. Genau das hat die
+     Gegenprobe beim Vorgänger aufgedeckt. */
+  function aufgabeKurs(optionen, onFertig) {
+    let fortschritt = 0;       // 0..1 entlang der Bahn
+    let zieht = false;
+    let letzteX = null, letzteY = null;
+    let fertig = false;
+    let abgerutscht = false;
 
-// Unverändert aus der Vorfassung: die beiden Reparaturen sind keine Aufgaben aus Michels
-// Liste und werden vom Umbau nicht berührt.
-function reparaturLicht(container, onFertig) {
-  const ANZAHL = 5;
-  const oben = new Array(ANZAHL).fill(false);
-  const timer = [];
-
-  const hilf = rahmen(container, "Alle Sicherungen hochlegen – sie fallen einzeln wieder zurück.", `<div class="af-sicherungen"></div>`);
-  const feld = hilf.q(".af-sicherungen");
-  hilf.status.textContent = `0 von ${ANZAHL} oben`;
-
-  function aktualisiere() {
-    const anzahl = oben.filter(Boolean).length;
-    hilf.status.textContent = `${anzahl} von ${ANZAHL} oben`;
-    if (anzahl >= ANZAHL) {
-      hilf.status.textContent = "Licht ist wieder an!";
-      onFertig();
+    /* Die Bahn ist eine Sinuswelle von links nach rechts. */
+    function bahnY(feld, t) {
+      return feld.y + feld.h / 2 + Math.sin(t * Math.PI * 2) * (feld.h * 0.26);
     }
+    function bahnX(feld, t) { return feld.x + 26 + (feld.b - 52) * t; }
+
+    return {
+      hoehe: 250,
+      zeichne: function (r) {
+        const innen = rahmen(r, "Zieh das Schiff auf der Linie bis zum Ziel.",
+          fertig ? "Kurs stabil." : abgerutscht ? "Abgerutscht – neu ansetzen." :
+          Math.round(fortschritt * 100) + " %");
+        pult(innen);
+
+        /* Bahn zeichnen */
+        ui.ctx.beginPath();
+        for (let i = 0; i <= 60; i++) {
+          const t = i / 60;
+          const x = bahnX(innen, t), y = bahnY(innen, t);
+          if (i === 0) ui.ctx.moveTo(x, y); else ui.ctx.lineTo(x, y);
+        }
+        ui.ctx.strokeStyle = LINIE;
+        ui.ctx.lineWidth = 16;
+        ui.ctx.lineCap = "round";
+        ui.ctx.stroke();
+        ui.ctx.strokeStyle = "#4c6084";
+        ui.ctx.lineWidth = 2;
+        ui.ctx.setLineDash([6, 6]);
+        ui.ctx.stroke();
+        ui.ctx.setLineDash([]);
+
+        /* Ziel */
+        ui.schreibe("🎯", bahnX(innen, 1), bahnY(innen, 1), { groesse: 20, ausrichtung: "center" });
+
+        const sx = bahnX(innen, fortschritt), sy = bahnY(innen, fortschritt);
+        const finger = ui.beanspruche(innen, "kurs");
+
+        if (finger && !fertig) {
+          if (!zieht) {
+            /* Nur aufnehmen, wenn wirklich am Schiff angesetzt wurde. */
+            if (Math.hypot(finger.startX - sx, finger.startY - sy) < 46) {
+              zieht = true; abgerutscht = false;
+              letzteX = finger.x; letzteY = finger.y;
+            }
+          } else {
+            /* Die Strecke seit der letzten Position in Schritten abtasten. */
+            const schritte = Math.max(1, Math.ceil(Math.hypot(finger.x - letzteX, finger.y - letzteY) / 4));
+            for (let s = 1; s <= schritte && zieht; s++) {
+              const px = letzteX + (finger.x - letzteX) * s / schritte;
+              const py = letzteY + (finger.y - letzteY) * s / schritte;
+              /* Nächstgelegener Punkt der Bahn — nur vorwärts. */
+              let besterT = fortschritt, besterAbstand = Infinity;
+              for (let k = 0; k <= 40; k++) {
+                const t = fortschritt + (k / 40) * 0.09;
+                if (t > 1) break;
+                const d = Math.hypot(bahnX(innen, t) - px, bahnY(innen, t) - py);
+                if (d < besterAbstand) { besterAbstand = d; besterT = t; }
+              }
+              if (besterAbstand > 30) { zieht = false; abgerutscht = true; fortschritt = 0; break; }
+              fortschritt = Math.max(fortschritt, besterT);
+            }
+            letzteX = finger.x; letzteY = finger.y;
+          }
+          ui.anfordern();
+        }
+        if (!finger) zieht = false;
+
+        /* Schiff */
+        const nx = bahnX(innen, fortschritt), ny = bahnY(innen, fortschritt);
+        ui.ctx.beginPath();
+        ui.ctx.arc(nx, ny, 15, 0, Math.PI * 2);
+        ui.ctx.fillStyle = zieht ? "#38bdf8" : "#e2e8f0";
+        ui.ctx.fill();
+        ui.schreibe("🚀", nx, ny, { groesse: 15, ausrichtung: "center" });
+        ui.merke("kurs-schiff", { x: nx - 24, y: ny - 24, b: 48, h: 48 }, "aufgabe-griff");
+
+        if (!fertig && fortschritt >= 0.995) { fertig = true; onFertig(); }
+      }
+    };
   }
 
-  for (let i = 0; i < ANZAHL; i++) {
-    const btn = document.createElement("button");
-    btn.className = "af-sicherung";
-    btn.type = "button";
-    btn.textContent = "▼";
-    btn.addEventListener("click", () => {
-      if (oben[i]) return;
-      oben[i] = true;
-      btn.classList.add("oben");
-      btn.textContent = "▲";
-      timer.push(setTimeout(() => {
-        if (!oben[i] || oben.filter(Boolean).length >= ANZAHL) return;
-        oben[i] = false;
-        btn.classList.remove("oben");
-        btn.textContent = "▼";
-        aktualisiere();
-      }, 2600));
-      aktualisiere();
-    });
-    feld.appendChild(btn);
+  /* ==================================================================== */
+  /*  8. Triebwerke ausrichten: Hebel auf die Soll-Linie                  */
+  /* ==================================================================== */
+
+  function aufgabeTriebwerk(optionen, onFertig) {
+    const ANZAHL = 2;
+    const hebel = [];
+    for (let i = 0; i < ANZAHL; i++) hebel.push({ wert: Math.random() * 0.4, soll: 0.55 + Math.random() * 0.4 });
+    const TOLERANZ = 0.05;
+    let fertig = false;
+
+    return {
+      hoehe: 260,
+      zeichne: function (r) {
+        const gut = hebel.filter(h => Math.abs(h.wert - h.soll) <= TOLERANZ).length;
+        const innen = rahmen(r, "Schieb beide Hebel auf ihre Marke.",
+          fertig ? "Triebwerke ausgerichtet." : gut + " von " + ANZAHL + " auf Marke");
+        pult(innen);
+
+        const breiteJe = innen.b / ANZAHL;
+        hebel.forEach((h, i) => {
+          const sx = innen.x + breiteJe * i + breiteJe / 2;
+          const sy = innen.y + 16, sh = innen.h - 44;
+          ui.fuelleRund(sx - 15, sy, 30, sh, 8, "#0f1726");
+          /* Sollmarke */
+          const my = sy + sh * (1 - h.soll);
+          ui.ctx.fillStyle = GELB;
+          ui.ctx.fillRect(sx - 30, my - 2, 60, 4);
+
+          const griffH = 30;
+          const gy = sy + (sh - griffH) * (1 - h.wert);
+          const gr = { x: sx - 26, y: gy, b: 52, h: griffH };
+          const feld = { x: sx - 40, y: sy - 16, b: 80, h: sh + 32 };
+          const finger = ui.beanspruche(feld, "triebwerk" + i);
+          if (finger && !fertig) {
+            h.wert = begrenze(1 - (finger.y - sy - griffH / 2) / (sh - griffH), 0, 1);
+            ui.anfordern();
+          }
+          const passt = Math.abs(h.wert - h.soll) <= TOLERANZ;
+          ui.fuelleRund(gr.x, gr.y, gr.b, gr.h, 6, passt ? GUT : "#94a3b8");
+          ui.merke("triebwerk-" + i, gr, "aufgabe-griff");
+        });
+
+        if (!fertig && hebel.every(h => Math.abs(h.wert - h.soll) <= TOLERANZ)) {
+          fertig = true; onFertig();
+        }
+      }
+    };
   }
 
-  return () => timer.forEach(t => clearTimeout(t));
-}
+  /* ==================================================================== */
+  /*  9. Triebwerk betanken (zweiteilig, beide Hälften Halten-Aufgaben)   */
+  /* ==================================================================== */
 
-// Das Kühlventil braucht zwei Personen an entgegengesetzten Enden der Karte: gehalten
-// wird hier nur die eigene Seite, die Gleichzeitigkeit prüft das Spiel.
-function reparaturKuehlung(container, onHalten, onLoslassen) {
-  const hilf = rahmen(container, "Ventil gedrückt halten – beide Ventile müssen gleichzeitig offen sein.", `
-    <button class="af-ventil" type="button">🔧<span>halten</span></button>`);
-  const ventil = hilf.q(".af-ventil");
-  hilf.status.textContent = "Ventil geschlossen";
-  let haelt = false;
+  function aufgabeBetanken(optionen, onFertig) {
+    const fuellen = (optionen.teil || 1) <= 1;
+    let stand = fuellen ? 0 : 1;
+    let fertig = false;
 
-  function starte(e) {
-    e.preventDefault();
-    if (haelt) return;
-    haelt = true;
-    ventil.classList.add("aktiv");
-    hilf.status.textContent = "Ventil offen – halten!";
-    onHalten();
+    return {
+      hoehe: 250,
+      zeichne: function (r) {
+        const ziel = fuellen && optionen.zielRaum ? " Danach zum Triebwerk in: " + optionen.zielRaum : "";
+        const innen = rahmen(r,
+          (fuellen ? "Hebel gedrückt halten, bis der Kanister voll ist."
+                   : "Hebel gedrückt halten, bis der Kanister leer ist.") + ziel,
+          fertig ? (fuellen ? "Kanister ist voll." : "Triebwerk betankt.")
+                 : Math.round(stand * 100) + " %");
+        pult(innen);
+
+        /* Kanister */
+        const kb = 92, kh = Math.min(112, innen.h - 30);
+        const kx = innen.x + innen.b / 2 - kb - 16;
+        const ky = innen.y + (innen.h - kh) / 2;
+        ui.fuelleRund(kx, ky, kb, kh, 8, "#0f1726");
+        const fh = kh * stand;
+        if (fh > 2) ui.fuelleRund(kx + 5, ky + kh - fh + 5, kb - 10, Math.max(0, fh - 10), 5, "#f59e0b");
+        ui.rahmeRund(kx, ky, kb, kh, 8, LINIE, 2);
+        ui.schreibe("⛽", kx + kb / 2, ky + kh / 2, { groesse: 26, ausrichtung: "center" });
+
+        /* Hebel zum Halten */
+        const hr = { x: innen.x + innen.b / 2 + 16, y: innen.y + (innen.h - 76) / 2, b: 110, h: 76 };
+        const gehalten = !fertig && !!ui.beanspruche(hr, "tankhebel");
+        ui.fuelleRund(hr.x, hr.y, hr.b, hr.h, 10, gehalten ? "#166534" : PULT_HELL);
+        ui.rahmeRund(hr.x, hr.y, hr.b, hr.h, 10, gehalten ? GUT : LINIE, 2);
+        ui.schreibe(gehalten ? "hält …" : "halten", hr.x + hr.b / 2, hr.y + hr.h / 2, {
+          groesse: 14, fett: "halb", ausrichtung: "center", farbe: gehalten ? "#bbf7d0" : "#cbd5e1"
+        });
+        ui.merke("tank-hebel", hr, "aufgabe-halten");
+
+        if (gehalten) {
+          const schritt = (ui.delta / 1000) / 3.2;     // gut drei Sekunden
+          stand = begrenze(fuellen ? stand + schritt : stand - schritt, 0, 1);
+          ui.anfordern();
+          if (!fertig && (fuellen ? stand >= 1 : stand <= 0)) { fertig = true; onFertig(); }
+        }
+      }
+    };
   }
-  function ende() {
-    if (!haelt) return;
-    haelt = false;
-    ventil.classList.remove("aktiv");
-    hilf.status.textContent = "Ventil geschlossen";
-    onLoslassen();
+
+  /* ==================================================================== */
+  /*  10. Lenkung ausrichten: Fadenkreuz driftet weg                      */
+  /* ==================================================================== */
+
+  function aufgabeLenkung(optionen, onFertig) {
+    let px = 0.5, py = 0.5;          // Position des Fadenkreuzes (0..1)
+    let dx = 0.16, dy = -0.12;       // Drift je Sekunde
+    let gehalten = 0;                // Sekunden im Zentrum
+    const NOETIG = 2.2;
+    const ZONE = 0.13;
+    let fertig = false;
+
+    return {
+      hoehe: 260,
+      zeichne: function (r) {
+        const innen = rahmen(r, "Halte das Fadenkreuz in der Mitte, bis der Balken voll ist.",
+          fertig ? "Lenkung ausgerichtet." : "");
+        pult(innen);
+
+        const feld = { x: innen.x + 16, y: innen.y + 8, b: innen.b - 32, h: innen.h - 34 };
+        ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, 8, "#0f1726");
+
+        const finger = ui.beanspruche(feld, "lenkung");
+        const sek = ui.delta / 1000;
+
+        if (finger && !fertig) {
+          px = begrenze((finger.x - feld.x) / feld.b, 0, 1);
+          py = begrenze((finger.y - feld.y) / feld.h, 0, 1);
+        } else if (!fertig) {
+          /* Ohne Hand driftet es weg und prallt an den Rändern ab. */
+          px += dx * sek; py += dy * sek;
+          if (px < 0.04 || px > 0.96) { dx *= -1; px = begrenze(px, 0.04, 0.96); }
+          if (py < 0.06 || py > 0.94) { dy *= -1; py = begrenze(py, 0.06, 0.94); }
+        }
+
+        const mitte = Math.hypot(px - 0.5, py - 0.5) < ZONE;
+        if (!fertig) {
+          gehalten = mitte ? gehalten + sek : Math.max(0, gehalten - sek * 0.8);
+          if (gehalten >= NOETIG) { fertig = true; onFertig(); }
+        }
+        ui.anfordern();
+
+        /* Zielzone */
+        ui.ctx.beginPath();
+        ui.ctx.arc(feld.x + feld.b / 2, feld.y + feld.h / 2, Math.min(feld.b, feld.h) * ZONE, 0, Math.PI * 2);
+        ui.ctx.strokeStyle = mitte ? GUT : LINIE;
+        ui.ctx.lineWidth = 2;
+        ui.ctx.stroke();
+
+        /* Fadenkreuz */
+        const cx = feld.x + feld.b * px, cy = feld.y + feld.h * py;
+        ui.ctx.strokeStyle = mitte ? GUT : "#e2e8f0";
+        ui.ctx.lineWidth = 2;
+        ui.ctx.beginPath();
+        ui.ctx.moveTo(cx - 14, cy); ui.ctx.lineTo(cx + 14, cy);
+        ui.ctx.moveTo(cx, cy - 14); ui.ctx.lineTo(cx, cy + 14);
+        ui.ctx.stroke();
+        ui.ctx.beginPath();
+        ui.ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+        ui.ctx.stroke();
+        ui.merke("lenkung-kreuz", { x: cx - 24, y: cy - 24, b: 48, h: 48 }, "aufgabe-griff");
+
+        balken(innen.x + 16, innen.y + innen.h - 18, innen.b - 32, 10, gehalten / NOETIG, GUT);
+      }
+    };
   }
 
-  ventil.addEventListener("pointerdown", starte);
-  ventil.addEventListener("pointerup", ende);
-  ventil.addEventListener("pointercancel", ende);
-  ventil.addEventListener("pointerleave", ende);
+  /* ==================================================================== */
+  /*  11. Asteroiden zerstören: 20 Treffer                                */
+  /* ==================================================================== */
 
-  return () => { if (haelt) onLoslassen(); };
-}
+  function aufgabeAsteroiden(optionen, onFertig) {
+    const ZIEL = 20;
+    const MAX = 5;
+    let getroffen = 0;
+    const brocken = [];
+    let fertig = false;
 
-// Die Schlüssel hier müssen exakt den Typen in karte.js STATIONS_TABELLE entsprechen —
-// eine Station ohne passenden Eintrag wäre eine Aufgabe, die sich nicht öffnen lässt.
-//
-// sichtbar: Wer dabei zusieht, weiß, dass hier wirklich gearbeitet wurde — das einzige harte
-// Alibi im Spiel. Nur fünf Typen tragen die Markierung, und zwar solche, deren Wirkung auch
-// außerhalb des Minispiels plausibel zu sehen oder zu hören ist (im Original sind das genau
-// die "visual tasks"). Maulwürfe dürfen dieselbe Aufgabe spielen, lösen die Anzeige aber
-// nicht aus (siehe erledigeAufgabe).
-//
-// teile / kette / wartenSek machen eine Aufgabe mehrteilig:
-//   teile: 3            — drei Standorte in drei verschiedenen Räumen, Reihenfolge egal
-//   kette: [a, b]       — feste Reihenfolge; "*" heißt "beliebiger anderer Raum"
-//   wartenSek           — die Aufgabe hat eine Pause, in der man weggehen kann
-// waehleAufgaben() in game-service.js liest diese Felder; wer hier eins ergänzt, muss die
-// Standorte in STATIONS_TABELLE passend vorhalten.
-const AUFGABEN_TYPEN = {
-  // Reaktoren, Zahlen & Muster
-  reaktor:      { name: "Reaktor starten",       start: aufgabeReaktor },
-  manifold:     { name: "Manifold entsperren",   start: aufgabeManifold },
-  proben:       { name: "Proben analysieren",    start: aufgabeProben, wartenSek: WARTEZEIT_SEK },
-  scan:         { name: "Scan durchführen",      start: aufgabeScan, sichtbar: "🩺" },
-  // Strom & Verkabelung
-  kabel:        { name: "Kabel reparieren",      start: aufgabeKabel, teile: 3 },
-  strom:        { name: "Strom umleiten",        start: aufgabeStrom, kette: ["electrical", "*"] },
-  verteiler:    { name: "Verteiler kalibrieren", start: aufgabeVerteiler },
-  // Antrieb & Navigation
-  triebwerk:    { name: "Triebwerke ausrichten", start: aufgabeTriebwerk },
-  betanken:     { name: "Triebwerk betanken",    start: aufgabeBetanken, kette: ["storage", "*"], sichtbar: "⛽" },
-  kurs:         { name: "Kurs stabilisieren",    start: aufgabeKurs },
-  lenkung:      { name: "Lenkung ausrichten",    start: aufgabeLenkung },
-  asteroiden:   { name: "Asteroiden zerstören",  start: aufgabeAsteroiden, sichtbar: "💥" },
-  schilde:      { name: "Schilde aktivieren",    start: aufgabeSchilde, sichtbar: "🛡️" },
-  // Versorgung & Daten
-  muell:        { name: "Müll entsorgen",        start: aufgabeMuell, sichtbar: "🗑️" },
-  filter:       { name: "Filter reinigen",       start: aufgabeFilter },
-  daten:        { name: "Daten übertragen",      start: aufgabeDaten, kette: ["*", "admin"] },
-  swipe:        { name: "Karte durchziehen",     start: aufgabeSwipe }
-};
+    function neuer(feld) {
+      brocken.push({
+        x: 1.05 + Math.random() * 0.3,
+        y: 0.08 + Math.random() * 0.78,
+        tempo: 0.14 + Math.random() * 0.16,     // Anteil der Breite je Sekunde
+        zeichen: zufallAus(["🪨", "☄️"]),
+        weg: false, blitzBis: 0
+      });
+    }
 
-const aufgabenModul = { AUFGABEN_TYPEN, reparaturLicht, reparaturKuehlung, mischen, WARTEZEIT_SEK };
+    return {
+      hoehe: 250,
+      zeichne: function (r) {
+        const innen = rahmen(r, "Tippe die Asteroiden ab.",
+          fertig ? "Feld geräumt!" : getroffen + " von " + ZIEL);
+        pult(innen);
+        const feld = { x: innen.x + 10, y: innen.y + 6, b: innen.b - 20, h: innen.h - 16 };
+        ui.ctx.save();
+        ui.ctx.beginPath(); ui.ctx.rect(feld.x, feld.y, feld.b, feld.h); ui.ctx.clip();
+
+        /* Fadenkreuz in der Mitte */
+        ui.schreibe("+", feld.x + feld.b / 2, feld.y + feld.h / 2, {
+          groesse: 22, farbe: "rgba(226,232,240,0.25)", ausrichtung: "center"
+        });
+
+        const lebend = brocken.filter(b => !b.weg);
+        if (!fertig && lebend.length < MAX) neuer(feld);
+
+        const sek = ui.delta / 1000;
+        brocken.forEach((b, i) => {
+          if (b.weg) return;
+          b.x -= b.tempo * sek;
+          if (b.x < -0.1) { b.x = 1.05 + Math.random() * 0.25; b.y = 0.08 + Math.random() * 0.78; }
+          const bx = feld.x + feld.b * b.x, by = feld.y + feld.h * b.y;
+          const tr = { x: bx - 24, y: by - 24, b: 48, h: 48 };
+          ui.schreibe(b.zeichen, bx, by, { groesse: 26, ausrichtung: "center" });
+          ui.merke("asteroid-" + i, tr, "aufgabe-taste");
+          if (!fertig && ui.geklickt(tr)) {
+            b.weg = true;
+            getroffen++;
+            if (getroffen >= ZIEL) { fertig = true; onFertig(); }
+          }
+        });
+        ui.ctx.restore();
+        if (!fertig) ui.anfordern();
+      }
+    };
+  }
+
+  /* ==================================================================== */
+  /*  12. Schilde aktivieren: alle roten Segmente antippen                */
+  /* ==================================================================== */
+
+  function aufgabeSchilde(optionen, onFertig) {
+    const ANZAHL = 7;
+    const offen = [];
+    for (let i = 0; i < ANZAHL; i++) offen.push(Math.random() < 0.6);
+    if (!offen.some(o => o)) offen[zufallZahl(0, ANZAHL - 1)] = true;
+    let fertig = false;
+
+    return {
+      hoehe: 250,
+      zeichne: function (r) {
+        const rest = offen.filter(o => o).length;
+        const innen = rahmen(r, "Tippe alle roten Segmente an.",
+          fertig ? "Schilde aktiv." : rest + " offen");
+        pult(innen);
+
+        const cx = innen.x + innen.b / 2, cy = innen.y + innen.h / 2;
+        const radius = Math.min(innen.b, innen.h) / 2 - 14;
+        const innenR = radius * 0.42;
+
+        for (let i = 0; i < ANZAHL; i++) {
+          const a0 = (i / ANZAHL) * Math.PI * 2 - Math.PI / 2;
+          const a1 = ((i + 1) / ANZAHL) * Math.PI * 2 - Math.PI / 2 - 0.05;
+          ui.ctx.beginPath();
+          ui.ctx.arc(cx, cy, radius, a0, a1);
+          ui.ctx.arc(cx, cy, innenR, a1, a0, true);
+          ui.ctx.closePath();
+          ui.ctx.fillStyle = offen[i] ? "rgba(239,68,68,0.85)" : "rgba(34,197,94,0.8)";
+          ui.ctx.fill();
+
+          /* Trefferfläche als Rechteck um die Segmentmitte — genau genug bei sieben
+             Segmenten und ohne aufwendige Winkelprüfung. */
+          const am = (a0 + a1) / 2;
+          const mr = (radius + innenR) / 2;
+          const tr = { x: cx + Math.cos(am) * mr - 22, y: cy + Math.sin(am) * mr - 22, b: 44, h: 44 };
+          ui.merke("schild-" + i, tr, "aufgabe-taste");
+          if (!fertig && offen[i] && ui.geklickt(tr)) {
+            offen[i] = false;
+            if (!offen.some(o => o)) { fertig = true; onFertig(); }
+          }
+        }
+        ui.ctx.beginPath();
+        ui.ctx.arc(cx, cy, innenR - 6, 0, Math.PI * 2);
+        ui.ctx.fillStyle = fertig ? "rgba(34,197,94,0.35)" : "#0f1726";
+        ui.ctx.fill();
+        ui.schreibe("🛡️", cx, cy, { groesse: 22, ausrichtung: "center" });
+      }
+    };
+  }
+
+  /* ==================================================================== */
+  /*  13. Müll entsorgen: Hebel ziehen und halten                         */
+  /* ==================================================================== */
+
+  function aufgabeMuell(optionen, onFertig) {
+    let stand = 1;      // 1 = voll
+    let fertig = false;
+
+    return {
+      hoehe: 250,
+      zeichne: function (r) {
+        const innen = rahmen(r, "Hebel nach unten ziehen und halten, bis die Luke leer ist.",
+          fertig ? "Müll entsorgt." : Math.round(stand * 100) + " % voll");
+        pult(innen);
+
+        /* Schacht mit Inhalt */
+        const sb = innen.b * 0.5, sh = innen.h - 24;
+        const sx = innen.x + 16, sy = innen.y + 12;
+        ui.fuelleRund(sx, sy, sb, sh, 8, "#0f1726");
+        const fh = (sh - 12) * stand;
+        if (fh > 2) {
+          ui.ctx.save();
+          ui.ctx.beginPath(); ui.ctx.rect(sx + 6, sy + sh - 6 - fh, sb - 12, fh); ui.ctx.clip();
+          for (let i = 0; i < 22; i++) {
+            const gx = sx + 12 + (i * 37) % (sb - 30);
+            const gy = sy + sh - 12 - (i * 23) % Math.max(10, fh);
+            ui.schreibe(zufallAus(["🗑️"]), gx, gy, { groesse: 14 });
+          }
+          ui.ctx.restore();
+          ui.fuelleRund(sx + 6, sy + sh - 6 - fh, sb - 12, fh, 4, "rgba(120,113,108,0.55)");
+        }
+        ui.rahmeRund(sx, sy, sb, sh, 8, LINIE, 2);
+
+        /* Hebel: die Bahn läuft senkrecht, unten heißt „gezogen". */
+        const hx = innen.x + innen.b - 74;
+        const bahnY = innen.y + 16, bahnH = innen.h - 44;
+        ui.fuelleRund(hx - 9, bahnY, 18, bahnH, 8, "#0f1726");
+        const feld = { x: hx - 46, y: bahnY - 12, b: 92, h: bahnH + 24 };
+        const finger = ui.beanspruche(feld, "muellhebel");
+        const gezogen = !fertig && finger && finger.y > bahnY + bahnH * 0.55;
+        const gy = gezogen ? bahnY + bahnH - 34 : bahnY + 4;
+        ui.fuelleRund(hx - 26, gy, 52, 32, 6, gezogen ? GUT : "#94a3b8");
+        ui.merke("muell-hebel", { x: hx - 26, y: gy, b: 52, h: 32 }, "aufgabe-halten");
+        ui.schreibe("↓", hx, gy + 16, { groesse: 16, fett: true, ausrichtung: "center", farbe: "#0f1726" });
+
+        if (gezogen) {
+          stand = begrenze(stand - (ui.delta / 1000) / 2.6, 0, 1);
+          ui.anfordern();
+          if (!fertig && stand <= 0) { fertig = true; onFertig(); }
+        }
+      }
+    };
+  }
+
+  /* ==================================================================== */
+  /*  14. Filter reinigen: Blätter in den Abzugsschacht ziehen            */
+  /* ==================================================================== */
+
+  function aufgabeFilter(optionen, onFertig) {
+    const ANZAHL = 5;
+    const blaetter = [];
+    for (let i = 0; i < ANZAHL; i++) {
+      blaetter.push({
+        x: 0.08 + (i % 3) * 0.16 + Math.random() * 0.05,
+        y: 0.16 + Math.floor(i / 3) * 0.42 + Math.random() * 0.08,
+        weg: false, zeichen: zufallAus(["🍂", "🍁", "🌿"])
+      });
+    }
+    let zieht = -1;
+    let fertig = false;
+
+    return {
+      hoehe: 250,
+      zeichne: function (r) {
+        const rest = blaetter.filter(b => !b.weg).length;
+        const innen = rahmen(r, "Zieh die Blätter in den Schacht rechts.",
+          fertig ? "Filter sauber." : rest + " übrig");
+        pult(innen);
+
+        const gitter = { x: innen.x + 10, y: innen.y + 6, b: innen.b * 0.64, h: innen.h - 14 };
+        ui.fuelleRund(gitter.x, gitter.y, gitter.b, gitter.h, 8, "#0f1726");
+        /* Gittermuster */
+        ui.ctx.strokeStyle = "rgba(120,140,175,0.25)";
+        ui.ctx.lineWidth = 1;
+        for (let gx = gitter.x + 12; gx < gitter.x + gitter.b; gx += 14) {
+          ui.ctx.beginPath(); ui.ctx.moveTo(gx, gitter.y + 4); ui.ctx.lineTo(gx, gitter.y + gitter.h - 4); ui.ctx.stroke();
+        }
+
+        const schacht = { x: innen.x + innen.b - innen.b * 0.28 - 8, y: innen.y + 14,
+                          b: innen.b * 0.28, h: innen.h - 30 };
+        ui.fuelleRund(schacht.x, schacht.y, schacht.b, schacht.h, 8,
+                      zieht >= 0 ? "rgba(34,197,94,0.25)" : "#132033");
+        ui.rahmeRund(schacht.x, schacht.y, schacht.b, schacht.h, 8, zieht >= 0 ? GUT : LINIE, 2);
+        ui.schreibe("Abzug", schacht.x + schacht.b / 2, schacht.y + schacht.h - 14, {
+          groesse: 11, ausrichtung: "center", farbe: "#94a3b8"
+        });
+
+        const finger = ui.beanspruche(innen, "filter");
+
+        blaetter.forEach((b, i) => {
+          if (b.weg) return;
+          let bx = gitter.x + gitter.b * b.x, by = gitter.y + gitter.h * b.y;
+          if (zieht === i && finger) { bx = finger.x; by = finger.y; ui.anfordern(); }
+          const tr = { x: bx - 22, y: by - 22, b: 44, h: 44 };
+          ui.schreibe(b.zeichen, bx, by, { groesse: 24, ausrichtung: "center" });
+          ui.merke("blatt-" + i, tr, "aufgabe-griff");
+          if (zieht < 0 && finger && ui.inRechteck(finger.startX, finger.startY, tr)) zieht = i;
+        });
+
+        const losF = ui.beanspruchungGeloest("filter");
+        if (zieht >= 0 && losF) {
+          if (ui.inRechteck(losF.x, losF.y, schacht)) {
+            blaetter[zieht].weg = true;
+            if (!fertig && blaetter.every(b => b.weg)) { fertig = true; onFertig(); }
+          }
+          zieht = -1;
+        }
+        if (zieht >= 0 && !finger) zieht = -1;
+      }
+    };
+  }
+
+  /* ==================================================================== */
+  /*  15. Daten übertragen (zweiteilig)                                   */
+  /* ==================================================================== */
+
+  function aufgabeDaten(optionen, onFertig) {
+    const hoch = (optionen.teil || 1) > 1;
+    let anteil = 0;
+    let laeuft = false;
+    let fertig = false;
+
+    return {
+      hoehe: 240,
+      zeichne: function (r) {
+        const ziel = !hoch && optionen.zielRaum ? " Danach zum Hauptserver in: " + optionen.zielRaum : "";
+        const innen = rahmen(r,
+          (hoch ? "Daten auf den Hauptserver hochladen." : "Daten herunterladen.") + ziel,
+          fertig ? (hoch ? "Übertragung abgeschlossen." : "Daten liegen auf dem Gerät.")
+                 : laeuft ? Math.round(anteil * 100) + " %" : "");
+        pult(innen);
+
+        ui.schreibe(hoch ? "📡" : "💾", innen.x + innen.b / 2, innen.y + 42, {
+          groesse: 34, ausrichtung: "center"
+        });
+
+        if (!laeuft) {
+          const kr = { x: innen.x + innen.b / 2 - 84, y: innen.y + innen.h - 60, b: 168, h: 46 };
+          if (taste("daten-start", kr, hoch ? "Hochladen" : "Herunterladen",
+                    { farbe: F.primaer, groesse: 15 })) laeuft = true;
+        } else {
+          anteil = begrenze(anteil + (ui.delta / 1000) / 4.5, 0, 1);
+          balken(innen.x + 24, innen.y + innen.h - 44, innen.b - 48, 12, anteil, F.primaer);
+          ui.anfordern();
+          if (!fertig && anteil >= 1) { fertig = true; onFertig(); }
+        }
+      }
+    };
+  }
+
+  /* ==================================================================== */
+  /*  16. Scan durchführen (MedBay) — das härteste Alibi                  */
+  /* ==================================================================== */
+
+  /* Wer hier steht, kann von niemandem verdächtigt werden — deshalb dauert der Scan
+     absichtlich lange. Abbrechen zählt nicht. */
+  function aufgabeScan(optionen, onFertig) {
+    const DAUER = 9;
+    let laeuft = false;
+    let vergangen = 0;
+    let fertig = false;
+
+    return {
+      hoehe: 260,
+      zeichne: function (r) {
+        const innen = rahmen(r, "Auf die Plattform stellen und still halten.",
+          fertig ? "Scan abgeschlossen." : laeuft ? "Scan läuft – " + Math.ceil(DAUER - vergangen) + " s" : "");
+        pult(innen);
+
+        const cx = innen.x + innen.b / 2;
+        const oben = innen.y + 8, hoehe = innen.h - 46;
+
+        /* Figur auf der Plattform */
+        ui.schreibe("🧍", cx, oben + hoehe / 2, { groesse: 40, ausrichtung: "center" });
+        ui.fuelleRund(cx - 52, oben + hoehe - 10, 104, 10, 5, PULT_HELL);
+
+        /* Scanstrahl wandert über die verstrichene Zeit */
+        if (laeuft && !fertig) {
+          vergangen += ui.delta / 1000;
+          const t = (vergangen % 2) / 2;
+          const sy = oben + hoehe * t;
+          ui.ctx.fillStyle = "rgba(56,189,248,0.55)";
+          ui.ctx.fillRect(cx - 62, sy - 2, 124, 4);
+          ui.anfordern();
+          if (vergangen >= DAUER) { fertig = true; onFertig(); }
+        }
+
+        balken(innen.x + 24, innen.y + innen.h - 30, innen.b - 48, 10,
+               laeuft ? vergangen / DAUER : 0, "#38bdf8");
+
+        if (!laeuft) {
+          const kr = { x: cx - 84, y: innen.y + innen.h - 62, b: 168, h: 44 };
+          if (taste("scan-start", kr, "Scan starten", { farbe: F.primaer, groesse: 15 })) laeuft = true;
+        }
+      }
+    };
+  }
+
+  /* ==================================================================== */
+  /*  17. Karte durchziehen (Swipe Card)                                  */
+  /* ==================================================================== */
+
+  /* Die berüchtigtste Aufgabe des Originals. Genau deshalb prüft sie die
+     Geschwindigkeit und nicht nur, DASS gewischt wurde. */
+  function aufgabeSwipe(optionen, onFertig) {
+    let zieht = false;
+    let anteil = 0;
+    let start = 0;
+    let meldung = "";
+    let fertig = false;
+
+    return {
+      hoehe: 240,
+      zeichne: function (r) {
+        const innen = rahmen(r, "Karte gleichmäßig durchziehen – nicht zu schnell, nicht zu langsam.",
+          fertig ? "Akzeptiert." : meldung);
+        pult(innen);
+
+        const schlitzY = innen.y + 28;
+        const sx = innen.x + 20, sb = innen.b - 40;
+        ui.fuelleRund(sx, schlitzY, sb, 14, 7, "#0f1726");
+        ui.schreibe("Leser", innen.x + innen.b / 2, schlitzY - 12, {
+          groesse: 11, ausrichtung: "center", farbe: "#94a3b8"
+        });
+
+        const kb = 96, kh = 58;
+        const ky = schlitzY + 26;
+        const kx = sx + (sb - kb) * anteil;
+        const feld = { x: sx - 10, y: ky - 14, b: sb + 20, h: kh + 28 };
+        const finger = ui.beanspruche(feld, "swipe");
+
+        if (finger && !fertig) {
+          if (!zieht && ui.inRechteck(finger.startX, finger.startY, { x: kx - 20, y: ky - 10, b: kb + 40, h: kh + 20 })) {
+            zieht = true;
+            start = Date.now();
+            meldung = "";
+          }
+          if (zieht) {
+            anteil = begrenze((finger.x - sx - kb / 2) / (sb - kb), 0, 1);
+            ui.anfordern();
+          }
+        }
+
+        if (zieht && ui.beanspruchungGeloest("swipe")) {
+          zieht = false;
+          if (anteil >= 0.97) {
+            const dauer = Date.now() - start;
+            /* Fenster wie im Original: schnelles Durchziehen wird abgelehnt,
+               zu langsames ebenfalls. */
+            if (dauer < 420) { meldung = "Zu schnell."; anteil = 0; }
+            else if (dauer > 1500) { meldung = "Zu langsam."; anteil = 0; }
+            else { fertig = true; onFertig(); }
+          } else {
+            meldung = "Nicht ganz durch.";
+            anteil = 0;
+          }
+        }
+        if (!finger && zieht) { zieht = false; anteil = 0; }
+
+        ui.fuelleRund(kx, ky, kb, kh, 6, fertig ? GUT : "#e2e8f0");
+        ui.schreibe("💳", kx + kb / 2, ky + kh / 2, { groesse: 20, ausrichtung: "center" });
+        ui.merke("swipe-karte", { x: kx, y: ky, b: kb, h: kh }, "aufgabe-griff");
+      }
+    };
+  }
+
+  /* ==================================================================== */
+  /*  Reparaturen (keine Aufgaben aus Michels Liste)                      */
+  /* ==================================================================== */
+
+  /* Sicherungskasten: alle Schalter nach oben. */
+  function reparaturLicht(optionen, onFertig) {
+    const ANZAHL = 5;
+    const an = [];
+    for (let i = 0; i < ANZAHL; i++) an.push(false);
+    let fertig = false;
+
+    return {
+      hoehe: 230,
+      zeichne: function (r) {
+        const offen = an.filter(a => !a).length;
+        const innen = rahmen(r, "Alle Sicherungen wieder einschalten.",
+          fertig ? "Licht ist an." : offen + " offen");
+        pult(innen);
+
+        const luecke = 10;
+        const tb = (innen.b - 2 * 16 - (ANZAHL - 1) * luecke) / ANZAHL;
+        const th = Math.min(96, innen.h - 24);
+        const ty = innen.y + (innen.h - th) / 2;
+        for (let i = 0; i < ANZAHL; i++) {
+          const tr = { x: innen.x + 16 + i * (tb + luecke), y: ty, b: tb, h: th };
+          ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 8, "#0f1726");
+          ui.fuelleRund(tr.x + 5, an[i] ? tr.y + 6 : tr.y + th / 2 + 2, tb - 10, th / 2 - 8, 5,
+                        an[i] ? GELB : "#64748b");
+          ui.merke("sicherung-" + i, tr, "aufgabe-taste");
+          if (!fertig && !an[i] && ui.geklickt(tr)) {
+            an[i] = true;
+            if (an.every(a => a)) { fertig = true; onFertig(); }
+          }
+        }
+      }
+    };
+  }
+
+  /* Kühlventil: gehalten wird hier nur die eigene Seite — die Gleichzeitigkeit
+     prüft das Spiel, weil die beiden Ventile an entgegengesetzten Enden der
+     Karte liegen. */
+  function reparaturKuehlung(optionen) {
+    const beiHalten = (optionen && optionen.beiHalten) || function () {};
+    const beiLoslassen = (optionen && optionen.beiLoslassen) || function () {};
+    let haelt = false;
+
+    return {
+      hoehe: 230,
+      aufraeumen: function () { if (haelt) { haelt = false; beiLoslassen(); } },
+      zeichne: function (r) {
+        const innen = rahmen(r, "Ventil gedrückt halten. Beide Ventile müssen gleichzeitig gehalten werden.",
+          haelt ? "Wird gehalten …" : "Nicht gehalten");
+        pult(innen);
+
+        const b = 132, h = Math.min(112, innen.h - 16);
+        const vr = { x: innen.x + innen.b / 2 - b / 2, y: innen.y + (innen.h - h) / 2, b: b, h: h };
+        const finger = ui.beanspruche(vr, "kuehlventil");
+        const jetztHaelt = !!finger;
+        if (jetztHaelt !== haelt) {
+          haelt = jetztHaelt;
+          if (haelt) beiHalten(); else beiLoslassen();
+        }
+        ui.ctx.beginPath();
+        ui.ctx.arc(vr.x + b / 2, vr.y + h / 2, Math.min(b, h) / 2 - 4, 0, Math.PI * 2);
+        ui.ctx.fillStyle = haelt ? "rgba(34,197,94,0.35)" : PULT_HELL;
+        ui.ctx.fill();
+        ui.ctx.strokeStyle = haelt ? GUT : LINIE;
+        ui.ctx.lineWidth = 3;
+        ui.ctx.stroke();
+        ui.schreibe("❄️", vr.x + b / 2, vr.y + h / 2, { groesse: 30, ausrichtung: "center" });
+        ui.merke("kuehl-ventil", vr, "aufgabe-halten");
+        if (haelt) ui.anfordern();
+      }
+    };
+  }
+
+  /* ==================================================================== */
+  /*  Registry                                                            */
+  /* ==================================================================== */
+
+  // Zusatzfelder steuern, wie das Spiel die Aufgabe verteilt:
+  //   sichtbar: "…"      — sichtbare Aufgabe (visual task), hinterlässt eine Spur für alle
+  //   teile: 3            — drei Standorte in drei verschiedenen Räumen, Reihenfolge egal
+  //   kette: [a, b]       — feste Reihenfolge; "*" heißt "beliebiger anderer Raum"
+  //   wartenSek           — die Aufgabe hat eine Pause, in der man weggehen kann
+  // waehleAufgaben() in game-service.js liest diese Felder; wer hier eins ergänzt, muss die
+  // Standorte in STATIONS_TABELLE passend vorhalten.
+  const AUFGABEN_TYPEN = {
+    // Reaktoren, Zahlen & Muster
+    reaktor:      { name: "Reaktor starten",       start: aufgabeReaktor },
+    manifold:     { name: "Manifold entsperren",   start: aufgabeManifold },
+    proben:       { name: "Proben analysieren",    start: aufgabeProben, wartenSek: WARTEZEIT_SEK },
+    scan:         { name: "Scan durchführen",      start: aufgabeScan, sichtbar: "🩺" },
+    // Strom & Verkabelung
+    kabel:        { name: "Kabel reparieren",      start: aufgabeKabel, teile: 3 },
+    strom:        { name: "Strom umleiten",        start: aufgabeStrom, kette: ["electrical", "*"] },
+    verteiler:    { name: "Verteiler kalibrieren", start: aufgabeVerteiler },
+    // Antrieb & Navigation
+    triebwerk:    { name: "Triebwerke ausrichten", start: aufgabeTriebwerk },
+    betanken:     { name: "Triebwerk betanken",    start: aufgabeBetanken, kette: ["storage", "*"], sichtbar: "⛽" },
+    kurs:         { name: "Kurs stabilisieren",    start: aufgabeKurs },
+    lenkung:      { name: "Lenkung ausrichten",    start: aufgabeLenkung },
+    asteroiden:   { name: "Asteroiden zerstören",  start: aufgabeAsteroiden, sichtbar: "💥" },
+    schilde:      { name: "Schilde aktivieren",    start: aufgabeSchilde, sichtbar: "🛡️" },
+    // Versorgung & Daten
+    muell:        { name: "Müll entsorgen",        start: aufgabeMuell, sichtbar: "🗑️" },
+    filter:       { name: "Filter reinigen",       start: aufgabeFilter },
+    daten:        { name: "Daten übertragen",      start: aufgabeDaten, kette: ["*", "admin"] },
+    swipe:        { name: "Karte durchziehen",     start: aufgabeSwipe }
+  };
+
+  return {
+    AUFGABEN_TYPEN: AUFGABEN_TYPEN,
+    reparaturLicht: reparaturLicht,
+    reparaturKuehlung: reparaturKuehlung,
+    mischen: mischen,
+    WARTEZEIT_SEK: WARTEZEIT_SEK
+  };
+})();
 
 if (typeof module !== "undefined" && module.exports) module.exports = aufgabenModul;
