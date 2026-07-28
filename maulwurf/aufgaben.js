@@ -42,14 +42,17 @@ const aufgabenModul = (function () {
 
   const F = ui.F;
 
-  /* Farben der Minispiele — dunkles Gerätepult, damit sich die Aufgabe vom hellen
-     Dialog absetzt und wie ein Bedienfeld wirkt. */
-  const PULT = "#1b2536";
-  const PULT_HELL = "#26334a";
-  const LINIE = "#3d4f6d";
-  const GUT = "#22c55e";
-  const SCHLECHT = "#ef4444";
-  const GELB = "#facc15";
+  /* Farben der Minispiele: ein Gerätepult, das im Dialog eingelassen wirkt.
+     Die Töne folgen der Palette in ui.js — GUT/SCHLECHT/GELB sind bewusst
+     dieselben Farben wie überall sonst, damit „geschafft" und „daneben" im
+     ganzen Spiel gleich aussehen. */
+  const PULT = "#131d38";
+  const PULT_HELL = "#243257";
+  const LINIE = "#3a4a78";
+  const VERTIEFT = "#0a1020";      // Schlitze, Bahnen, Balkengrund
+  const GUT = F.erfolg;
+  const SCHLECHT = F.gefahr;
+  const GELB = F.warnung;
 
   /* ==================================================================== */
   /*  Helfer                                                              */
@@ -101,12 +104,12 @@ const aufgabenModul = (function () {
     const gedrueckt = !aus && ui.gedruecktAuf(r);
     const treffer = !aus && ui.geklickt(r);
     ui.fuelleRund(r.x, r.y, r.b, r.h, o.radius === undefined ? 8 : o.radius,
-      o.farbe || (aus ? "#33405a" : gedrueckt ? "#4a5f85" : PULT_HELL));
+      o.farbe || (aus ? "#1d2947" : gedrueckt ? "#33456f" : PULT_HELL));
     if (o.rand) ui.rahmeRund(r.x, r.y, r.b, r.h, o.radius === undefined ? 8 : o.radius, o.rand, 2);
     if (beschriftung) {
       ui.schreibe(beschriftung, r.x + r.b / 2, r.y + r.h / 2, {
         groesse: o.groesse || 18, fett: "halb", ausrichtung: "center",
-        farbe: aus ? "#64748b" : (o.textFarbe || "#e2e8f0")
+        farbe: aus ? F.randStark : (o.textFarbe || F.text)
       });
     }
     ui.merke(id, r, "aufgabe-taste");
@@ -121,7 +124,7 @@ const aufgabenModul = (function () {
 
   /* Fortschrittsbalken im Pult-Stil */
   function balken(x, y, b, h, anteil, farbe) {
-    ui.fuelleRund(x, y, b, h, h / 2, "#0f1726");
+    ui.fuelleRund(x, y, b, h, h / 2, VERTIEFT);
     const a = begrenze(anteil, 0, 1);
     if (a > 0) ui.fuelleRund(x, y, Math.max(h, b * a), h, h / 2, farbe || GUT);
   }
@@ -281,7 +284,7 @@ const aufgabenModul = (function () {
           const px = innen.x + innen.b / 2 - (RUNDEN * 14) / 2 + i * 14 + 7;
           ui.ctx.beginPath();
           ui.ctx.arc(px, innen.y + innen.h - 10, 4, 0, Math.PI * 2);
-          ui.ctx.fillStyle = i < runde - 1 || fertig ? GUT : "#3d4f6d";
+          ui.ctx.fillStyle = i < runde - 1 || fertig ? GUT : LINIE;
           ui.ctx.fill();
         }
       }
@@ -321,10 +324,10 @@ const aufgabenModul = (function () {
           const erledigt = zahl < naechste;
           const istFalsch = falsch === zahl && uhr < falschBis;
           ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 8,
-            erledigt ? "#14532d" : istFalsch ? "#7f1d1d" : PULT_HELL);
+            erledigt ? "#0d5344" : istFalsch ? "#7a1730" : PULT_HELL);
           ui.schreibe(String(zahl), tr.x + tr.b / 2, tr.y + tr.h / 2, {
             groesse: 20, fett: true, ausrichtung: "center",
-            farbe: erledigt ? "#4ade80" : "#e2e8f0"
+            farbe: erledigt ? "#4ade80" : F.text
           });
           ui.merke("manifold-" + zahl, tr, "aufgabe-taste");
 
@@ -371,12 +374,12 @@ const aufgabenModul = (function () {
               const tr = { x: innen.x + 14 + i * (tb + luecke), y: ty, b: tb, h: th };
               const ist = i === auffaellig;
               const zeige = geloest && ist;
-              ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 8, zeige ? "#14532d" : PULT_HELL);
+              ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 8, zeige ? "#0d5344" : PULT_HELL);
               /* Die abweichende Probe ist an ihrer Färbung zu erkennen. */
               const fuell = ist ? "#f97316" : "#38bdf8";
               ui.fuelleRund(tr.x + tb / 2 - 9, tr.y + 16, 18, th - 40, 4, fuell);
               ui.schreibe(String(i + 1), tr.x + tb / 2, tr.y + th - 12, {
-                groesse: 12, ausrichtung: "center", farbe: "#94a3b8"
+                groesse: 12, ausrichtung: "center", farbe: F.gedaempft
               });
               ui.merke("probe-" + i, tr, "aufgabe-taste");
               if (!geloest && ui.geklickt(tr)) {
@@ -398,10 +401,10 @@ const aufgabenModul = (function () {
      lösbar, nur das Symbol wäre auf dem Handy zu klein. */
   function aufgabeKabel(optionen, onFertig) {
     const ADERN = [
-      { farbe: "#ef4444", zeichen: "▲" },
-      { farbe: "#3b82f6", zeichen: "●" },
-      { farbe: "#eab308", zeichen: "■" },
-      { farbe: "#22c55e", zeichen: "◆" }
+      { farbe: "#fb7185", zeichen: "▲" },
+      { farbe: "#60a5fa", zeichen: "●" },
+      { farbe: "#facc15", zeichen: "■" },
+      { farbe: "#4ade80", zeichen: "◆" }
     ];
     const links = mischen([0, 1, 2, 3]);
     const rechts = mischen([0, 1, 2, 3]);
@@ -466,7 +469,7 @@ const aufgabenModul = (function () {
           reihe.forEach((ader, i) => {
             const p = platz(spalte, i);
             const fest = verbunden[ader];
-            ui.fuelleRund(p.x, p.y, p.b, p.h, 6, fest ? "#14532d" : PULT_HELL);
+            ui.fuelleRund(p.x, p.y, p.b, p.h, 6, fest ? "#0d5344" : PULT_HELL);
             ui.fuelleRund(spalte === 0 ? p.x + p.b - 8 : p.x, p.y, 8, p.h, 2, ADERN[ader].farbe);
             ui.schreibe(ADERN[ader].zeichen, p.x + p.b / 2 - (spalte === 0 ? 4 : -4), p.y + p.h / 2, {
               groesse: 15, ausrichtung: "center", farbe: ADERN[ader].farbe
@@ -522,8 +525,8 @@ const aufgabenModul = (function () {
         const sx = innen.x + 26, sb = innen.b - 52;
         const sy = innen.y + innen.h / 2 - 16, sh = 32;
         /* Sollbereich */
-        ui.fuelleRund(sx + sb * (soll - TOLERANZ), sy - 6, sb * TOLERANZ * 2, sh + 12, 6, "rgba(34,197,94,0.28)");
-        ui.fuelleRund(sx, sy, sb, sh, 8, "#0f1726");
+        ui.fuelleRund(sx + sb * (soll - TOLERANZ), sy - 6, sb * TOLERANZ * 2, sh + 12, 6, "rgba(52,211,153,0.28)");
+        ui.fuelleRund(sx, sy, sb, sh, 8, VERTIEFT);
 
         const griffB = 34;
         const gx = sx + (sb - griffB) * wert;
@@ -535,7 +538,7 @@ const aufgabenModul = (function () {
           ui.anfordern();
         }
         const gut = Math.abs(wert - soll) <= TOLERANZ;
-        ui.fuelleRund(gr.x, gr.y, gr.b, gr.h, 6, gut ? GUT : "#94a3b8");
+        ui.fuelleRund(gr.x, gr.y, gr.b, gr.h, 6, gut ? GUT : F.gedaempft);
         ui.merke("strom-griff", gr, "aufgabe-griff");
 
         if (!fertig && gut && ui.beanspruchungGeloest("stromregler")) { fertig = true; onFertig(); }
@@ -553,13 +556,13 @@ const aufgabenModul = (function () {
         pult(innen);
         const b = 120, h = 76;
         const tr = { x: innen.x + innen.b / 2 - b / 2, y: innen.y + innen.h / 2 - h / 2, b: b, h: h };
-        ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 10, an ? "#14532d" : PULT_HELL);
+        ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 10, an ? "#0d5344" : PULT_HELL);
         ui.rahmeRund(tr.x, tr.y, tr.b, tr.h, 10, an ? GUT : LINIE, 2);
         /* Kipphebel */
         ui.fuelleRund(tr.x + 16, an ? tr.y + 12 : tr.y + tr.h / 2 + 4, tr.b - 32, tr.h / 2 - 16, 6,
-                      an ? GUT : "#94a3b8");
+                      an ? GUT : F.gedaempft);
         ui.schreibe(an ? "AN" : "AUS", tr.x + tr.b / 2, tr.y + tr.h - 14, {
-          groesse: 13, fett: "halb", ausrichtung: "center", farbe: an ? "#bbf7d0" : "#94a3b8"
+          groesse: 13, fett: "halb", ausrichtung: "center", farbe: an ? "#bbf7d0" : F.gedaempft
         });
         ui.merke("strom-schalter", tr, "aufgabe-taste");
         if (!an && ui.geklickt(tr)) { an = true; onFertig(); }
@@ -606,12 +609,12 @@ const aufgabenModul = (function () {
           }
           const sx = innen.x + 20, sb = innen.b - 40;
           const sy = innen.y + 8 + i * hoeheJe + hoeheJe / 2 - 11;
-          ui.fuelleRund(sx, sy, sb, 22, 6, "#0f1726");
+          ui.fuelleRund(sx, sy, sb, 22, 6, VERTIEFT);
           /* Zielzone in der Mitte */
           ui.fuelleRund(sx + sb * (0.5 - TOLERANZ), sy, sb * TOLERANZ * 2, 22, 4,
-                        z.fest && z.gut ? "rgba(34,197,94,0.5)" : "rgba(34,197,94,0.25)");
+                        z.fest && z.gut ? "rgba(52,211,153,0.5)" : "rgba(52,211,153,0.25)");
           const zx = sx + sb * z.pos;
-          ui.ctx.fillStyle = z.fest ? (z.gut ? GUT : SCHLECHT) : "#e2e8f0";
+          ui.ctx.fillStyle = z.fest ? (z.gut ? GUT : SCHLECHT) : F.text;
           ui.ctx.fillRect(zx - 2.5, sy - 5, 5, 32);
 
           const feld = { x: sx - 12, y: sy - 10, b: sb + 24, h: 42 };
@@ -713,7 +716,7 @@ const aufgabenModul = (function () {
         const nx = bahnX(innen, fortschritt), ny = bahnY(innen, fortschritt);
         ui.ctx.beginPath();
         ui.ctx.arc(nx, ny, 15, 0, Math.PI * 2);
-        ui.ctx.fillStyle = zieht ? "#38bdf8" : "#e2e8f0";
+        ui.ctx.fillStyle = zieht ? "#38bdf8" : F.text;
         ui.ctx.fill();
         ui.schreibe("🚀", nx, ny, { groesse: 15, ausrichtung: "center" });
         ui.merke("kurs-schiff", { x: nx - 24, y: ny - 24, b: 48, h: 48 }, "aufgabe-griff");
@@ -746,7 +749,7 @@ const aufgabenModul = (function () {
         hebel.forEach((h, i) => {
           const sx = innen.x + breiteJe * i + breiteJe / 2;
           const sy = innen.y + 16, sh = innen.h - 44;
-          ui.fuelleRund(sx - 15, sy, 30, sh, 8, "#0f1726");
+          ui.fuelleRund(sx - 15, sy, 30, sh, 8, VERTIEFT);
           /* Sollmarke */
           const my = sy + sh * (1 - h.soll);
           ui.ctx.fillStyle = GELB;
@@ -762,7 +765,7 @@ const aufgabenModul = (function () {
             ui.anfordern();
           }
           const passt = Math.abs(h.wert - h.soll) <= TOLERANZ;
-          ui.fuelleRund(gr.x, gr.y, gr.b, gr.h, 6, passt ? GUT : "#94a3b8");
+          ui.fuelleRund(gr.x, gr.y, gr.b, gr.h, 6, passt ? GUT : F.gedaempft);
           ui.merke("triebwerk-" + i, gr, "aufgabe-griff");
         });
 
@@ -797,7 +800,7 @@ const aufgabenModul = (function () {
         const kb = 92, kh = Math.min(112, innen.h - 30);
         const kx = innen.x + innen.b / 2 - kb - 16;
         const ky = innen.y + (innen.h - kh) / 2;
-        ui.fuelleRund(kx, ky, kb, kh, 8, "#0f1726");
+        ui.fuelleRund(kx, ky, kb, kh, 8, VERTIEFT);
         const fh = kh * stand;
         if (fh > 2) ui.fuelleRund(kx + 5, ky + kh - fh + 5, kb - 10, Math.max(0, fh - 10), 5, "#f59e0b");
         ui.rahmeRund(kx, ky, kb, kh, 8, LINIE, 2);
@@ -806,10 +809,10 @@ const aufgabenModul = (function () {
         /* Hebel zum Halten */
         const hr = { x: innen.x + innen.b / 2 + 16, y: innen.y + (innen.h - 76) / 2, b: 110, h: 76 };
         const gehalten = !fertig && !!ui.beanspruche(hr, "tankhebel");
-        ui.fuelleRund(hr.x, hr.y, hr.b, hr.h, 10, gehalten ? "#166534" : PULT_HELL);
+        ui.fuelleRund(hr.x, hr.y, hr.b, hr.h, 10, gehalten ? "#0d5344" : PULT_HELL);
         ui.rahmeRund(hr.x, hr.y, hr.b, hr.h, 10, gehalten ? GUT : LINIE, 2);
         ui.schreibe(gehalten ? "hält …" : "halten", hr.x + hr.b / 2, hr.y + hr.h / 2, {
-          groesse: 14, fett: "halb", ausrichtung: "center", farbe: gehalten ? "#bbf7d0" : "#cbd5e1"
+          groesse: 14, fett: "halb", ausrichtung: "center", farbe: gehalten ? "#bbf7d0" : F.gedaempft
         });
         ui.merke("tank-hebel", hr, "aufgabe-halten");
 
@@ -843,7 +846,7 @@ const aufgabenModul = (function () {
         pult(innen);
 
         const feld = { x: innen.x + 16, y: innen.y + 8, b: innen.b - 32, h: innen.h - 34 };
-        ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, 8, "#0f1726");
+        ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, 8, VERTIEFT);
 
         const finger = ui.beanspruche(feld, "lenkung");
         const sek = ui.delta / 1000;
@@ -874,7 +877,7 @@ const aufgabenModul = (function () {
 
         /* Fadenkreuz */
         const cx = feld.x + feld.b * px, cy = feld.y + feld.h * py;
-        ui.ctx.strokeStyle = mitte ? GUT : "#e2e8f0";
+        ui.ctx.strokeStyle = mitte ? GUT : F.text;
         ui.ctx.lineWidth = 2;
         ui.ctx.beginPath();
         ui.ctx.moveTo(cx - 14, cy); ui.ctx.lineTo(cx + 14, cy);
@@ -923,7 +926,7 @@ const aufgabenModul = (function () {
 
         /* Fadenkreuz in der Mitte */
         ui.schreibe("+", feld.x + feld.b / 2, feld.y + feld.h / 2, {
-          groesse: 22, farbe: "rgba(226,232,240,0.25)", ausrichtung: "center"
+          groesse: 22, farbe: "rgba(233,237,249,0.25)", ausrichtung: "center"
         });
 
         const lebend = brocken.filter(b => !b.weg);
@@ -980,7 +983,7 @@ const aufgabenModul = (function () {
           ui.ctx.arc(cx, cy, radius, a0, a1);
           ui.ctx.arc(cx, cy, innenR, a1, a0, true);
           ui.ctx.closePath();
-          ui.ctx.fillStyle = offen[i] ? "rgba(239,68,68,0.85)" : "rgba(34,197,94,0.8)";
+          ui.ctx.fillStyle = offen[i] ? "rgba(251,113,133,0.85)" : "rgba(52,211,153,0.8)";
           ui.ctx.fill();
 
           /* Trefferfläche als Rechteck um die Segmentmitte — genau genug bei sieben
@@ -996,7 +999,7 @@ const aufgabenModul = (function () {
         }
         ui.ctx.beginPath();
         ui.ctx.arc(cx, cy, innenR - 6, 0, Math.PI * 2);
-        ui.ctx.fillStyle = fertig ? "rgba(34,197,94,0.35)" : "#0f1726";
+        ui.ctx.fillStyle = fertig ? "rgba(52,211,153,0.35)" : VERTIEFT;
         ui.ctx.fill();
         ui.schreibe("🛡️", cx, cy, { groesse: 22, ausrichtung: "center" });
       }
@@ -1021,7 +1024,7 @@ const aufgabenModul = (function () {
         /* Schacht mit Inhalt */
         const sb = innen.b * 0.5, sh = innen.h - 24;
         const sx = innen.x + 16, sy = innen.y + 12;
-        ui.fuelleRund(sx, sy, sb, sh, 8, "#0f1726");
+        ui.fuelleRund(sx, sy, sb, sh, 8, VERTIEFT);
         const fh = (sh - 12) * stand;
         if (fh > 2) {
           ui.ctx.save();
@@ -1039,14 +1042,14 @@ const aufgabenModul = (function () {
         /* Hebel: die Bahn läuft senkrecht, unten heißt „gezogen". */
         const hx = innen.x + innen.b - 74;
         const bahnY = innen.y + 16, bahnH = innen.h - 44;
-        ui.fuelleRund(hx - 9, bahnY, 18, bahnH, 8, "#0f1726");
+        ui.fuelleRund(hx - 9, bahnY, 18, bahnH, 8, VERTIEFT);
         const feld = { x: hx - 46, y: bahnY - 12, b: 92, h: bahnH + 24 };
         const finger = ui.beanspruche(feld, "muellhebel");
         const gezogen = !fertig && finger && finger.y > bahnY + bahnH * 0.55;
         const gy = gezogen ? bahnY + bahnH - 34 : bahnY + 4;
-        ui.fuelleRund(hx - 26, gy, 52, 32, 6, gezogen ? GUT : "#94a3b8");
+        ui.fuelleRund(hx - 26, gy, 52, 32, 6, gezogen ? GUT : F.gedaempft);
         ui.merke("muell-hebel", { x: hx - 26, y: gy, b: 52, h: 32 }, "aufgabe-halten");
-        ui.schreibe("↓", hx, gy + 16, { groesse: 16, fett: true, ausrichtung: "center", farbe: "#0f1726" });
+        ui.schreibe("↓", hx, gy + 16, { groesse: 16, fett: true, ausrichtung: "center", farbe: VERTIEFT });
 
         if (gezogen) {
           stand = begrenze(stand - (ui.delta / 1000) / 2.6, 0, 1);
@@ -1083,7 +1086,7 @@ const aufgabenModul = (function () {
         pult(innen);
 
         const gitter = { x: innen.x + 10, y: innen.y + 6, b: innen.b * 0.64, h: innen.h - 14 };
-        ui.fuelleRund(gitter.x, gitter.y, gitter.b, gitter.h, 8, "#0f1726");
+        ui.fuelleRund(gitter.x, gitter.y, gitter.b, gitter.h, 8, VERTIEFT);
         /* Gittermuster */
         ui.ctx.strokeStyle = "rgba(120,140,175,0.25)";
         ui.ctx.lineWidth = 1;
@@ -1094,10 +1097,10 @@ const aufgabenModul = (function () {
         const schacht = { x: innen.x + innen.b - innen.b * 0.28 - 8, y: innen.y + 14,
                           b: innen.b * 0.28, h: innen.h - 30 };
         ui.fuelleRund(schacht.x, schacht.y, schacht.b, schacht.h, 8,
-                      zieht >= 0 ? "rgba(34,197,94,0.25)" : "#132033");
+                      zieht >= 0 ? "rgba(52,211,153,0.25)" : PULT);
         ui.rahmeRund(schacht.x, schacht.y, schacht.b, schacht.h, 8, zieht >= 0 ? GUT : LINIE, 2);
         ui.schreibe("Abzug", schacht.x + schacht.b / 2, schacht.y + schacht.h - 14, {
-          groesse: 11, ausrichtung: "center", farbe: "#94a3b8"
+          groesse: 11, ausrichtung: "center", farbe: F.gedaempft
         });
 
         const finger = ui.beanspruche(innen, "filter");
@@ -1233,9 +1236,9 @@ const aufgabenModul = (function () {
 
         const schlitzY = innen.y + 28;
         const sx = innen.x + 20, sb = innen.b - 40;
-        ui.fuelleRund(sx, schlitzY, sb, 14, 7, "#0f1726");
+        ui.fuelleRund(sx, schlitzY, sb, 14, 7, VERTIEFT);
         ui.schreibe("Leser", innen.x + innen.b / 2, schlitzY - 12, {
-          groesse: 11, ausrichtung: "center", farbe: "#94a3b8"
+          groesse: 11, ausrichtung: "center", farbe: F.gedaempft
         });
 
         const kb = 96, kh = 58;
@@ -1272,7 +1275,7 @@ const aufgabenModul = (function () {
         }
         if (!finger && zieht) { zieht = false; anteil = 0; }
 
-        ui.fuelleRund(kx, ky, kb, kh, 6, fertig ? GUT : "#e2e8f0");
+        ui.fuelleRund(kx, ky, kb, kh, 6, fertig ? GUT : F.text);
         ui.schreibe("💳", kx + kb / 2, ky + kh / 2, { groesse: 20, ausrichtung: "center" });
         ui.merke("swipe-karte", { x: kx, y: ky, b: kb, h: kh }, "aufgabe-griff");
       }
@@ -1304,9 +1307,9 @@ const aufgabenModul = (function () {
         const ty = innen.y + (innen.h - th) / 2;
         for (let i = 0; i < ANZAHL; i++) {
           const tr = { x: innen.x + 16 + i * (tb + luecke), y: ty, b: tb, h: th };
-          ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 8, "#0f1726");
+          ui.fuelleRund(tr.x, tr.y, tr.b, tr.h, 8, VERTIEFT);
           ui.fuelleRund(tr.x + 5, an[i] ? tr.y + 6 : tr.y + th / 2 + 2, tb - 10, th / 2 - 8, 5,
-                        an[i] ? GELB : "#64748b");
+                        an[i] ? GELB : F.randStark);
           ui.merke("sicherung-" + i, tr, "aufgabe-taste");
           if (!fertig && !an[i] && ui.geklickt(tr)) {
             an[i] = true;
@@ -1343,7 +1346,7 @@ const aufgabenModul = (function () {
         }
         ui.ctx.beginPath();
         ui.ctx.arc(vr.x + b / 2, vr.y + h / 2, Math.min(b, h) / 2 - 4, 0, Math.PI * 2);
-        ui.ctx.fillStyle = haelt ? "rgba(34,197,94,0.35)" : PULT_HELL;
+        ui.ctx.fillStyle = haelt ? "rgba(52,211,153,0.35)" : PULT_HELL;
         ui.ctx.fill();
         ui.ctx.strokeStyle = haelt ? GUT : LINIE;
         ui.ctx.lineWidth = 3;

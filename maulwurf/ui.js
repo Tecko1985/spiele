@@ -31,22 +31,41 @@ const ui = (function () {
   "use strict";
 
   /* ---------------------------------------------------------------- Farben */
-  /* Übernommen aus style.css, damit die Zeichenfläche exakt so aussieht wie
-     die bisherige Oberfläche. Wer hier etwas ändert, ändert das ganze Spiel. */
+  /* Die Oberfläche spielt an Bord eines Raumschiffs, und das Spielfeld war
+     schon immer dunkel (#0b1220). Solange die Menüs im hellen Grau der
+     Verwaltungs-Tools standen, brach der Übergang ins Spiel jedes Mal.
+     Seit 2026-07-28 ist die ganze App dunkel gehalten: gedeckte Flächen,
+     Leuchtfarben nur da, wo etwas bedeutet oder bedienbar ist.
+
+     Wer hier etwas ändert, ändert das ganze Spiel. Zwei Regeln halten die
+     Sache zusammen:
+       · Flächen werden nach oben heller (hintergrund → karte → karteHell),
+         nie durch Schatten getrennt — Schatten sind auf Dunkel unsichtbar.
+       · Auf einer LEUCHTENDEN Fläche steht dunkle Schrift (aufFarbe), nie
+         weiße. Weiß auf Cyan ist unlesbar. */
   const F = {
-    primaer:      "#1a56a0",
-    primaerDunkel: "#123d75",
-    primaerHell:  "#2b6fc4",
-    erfolg:       "#057a55",
-    gefahr:       "#dc2626",
-    warnung:      "#b45309",
-    hintergrund:  "#eef1f6",
-    karte:        "#ffffff",
-    rand:         "#d1d5db",
-    text:         "#111827",
-    gedaempft:    "#6b7280",
+    /* Leitfarbe: das Cyan der Bordanzeigen. */
+    primaer:      "#22d3ee",
+    primaerDunkel: "#0e9cba",     // gedrückter Zustand
+    primaerHell:  "#7ce6f8",
+    erfolg:       "#34d399",
+    gefahr:       "#fb7185",
+    warnung:      "#fbbf24",
+
+    /* Flächen, von unten nach oben. */
+    hintergrund:  "#0d1424",      // Rumpf
+    kopf:         "#111c38",      // Kopfzeile und Reiter — Chrome, kein Akzent
+    karte:        "#182444",      // Karte, Dialog, Panel
+    karteHell:    "#22305a",      // hervorgehobene Zeile, gedrückte Fläche
+    rand:         "#33406b",
+    randStark:    "#4d5f95",
+
+    text:         "#e9edf9",
+    gedaempft:    "#95a1c4",
+    platzhalter:  "#6f80ad",      // zwischen Rand und gedämpft: sichtbar, aber nicht wie Inhalt
     weiss:        "#ffffff",
-    schleier:     "rgba(17, 24, 39, 0.55)"
+    aufFarbe:     "#08131f",      // Schrift auf primaer/erfolg/gefahr/warnung
+    schleier:     "rgba(5, 9, 20, 0.72)"
   };
 
   const SCHRIFT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
@@ -541,6 +560,29 @@ const ui = (function () {
     ctx.stroke();
   }
 
+  /* Welche Schriftfarbe liegt auf DIESEM Grund? Nötig, weil Spielerfarben frei
+     vergeben werden: auf Gelb muss die Initiale dunkel stehen, auf Dunkelblau
+     hell. Fest verdrahtetes Weiß verschwindet sonst auf jeder hellen Figur.
+     Gewichtet nach Wahrnehmung — Grün wirkt heller als Blau derselben Zahl. */
+  function lesbarAuf(farbe) {
+    const c = String(farbe || "");
+    let r = 0, g = 0, b = 0;
+    if (c.charAt(0) === "#") {
+      const h = c.length === 4
+        ? c.charAt(1) + c.charAt(1) + c.charAt(2) + c.charAt(2) + c.charAt(3) + c.charAt(3)
+        : c.slice(1, 7);
+      r = parseInt(h.slice(0, 2), 16);
+      g = parseInt(h.slice(2, 4), 16);
+      b = parseInt(h.slice(4, 6), 16);
+    } else {
+      const teile = c.replace(/[^0-9,.]/g, "").split(",");
+      r = parseInt(teile[0], 10) || 0;
+      g = parseInt(teile[1], 10) || 0;
+      b = parseInt(teile[2], 10) || 0;
+    }
+    return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? F.aufFarbe : F.weiss;
+  }
+
   function setzeSchrift(groesse, fett) {
     ctx.font = (fett ? (fett === "halb" ? "600 " : "700 ") : "") + groesse + "px " + SCHRIFT;
   }
@@ -599,8 +641,11 @@ const ui = (function () {
     return t + "…";
   }
 
+  /* Auf dunklem Grund trennt ein Schatten kaum noch — getrennt wird über die
+     Flächenstufen. Er bleibt trotzdem, damit ein Dialog über der Karte
+     erkennbar davor liegt; deshalb schwarz und weich statt farbig. */
   function schatten(staerke) {
-    ctx.shadowColor = "rgba(26, 86, 160, 0.25)";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
     ctx.shadowBlur = staerke || 18;
     ctx.shadowOffsetY = 6;
   }
@@ -723,16 +768,17 @@ const ui = (function () {
     if (art === "link") {
       schreibe(text, r.x + r.b / 2, r.y + h / 2, {
         groesse: o.groesse || 15, fett: "halb",
-        farbe: aus ? F.rand : (aktiv ? F.primaerDunkel : F.primaer),
+        farbe: aus ? F.randStark : (aktiv ? F.primaerDunkel : F.primaer),
         ausrichtung: "center"
       });
     } else {
-      let fuell = F.primaer, schrift = F.weiss, rand = null;
-      if (art === "zweit")  { fuell = F.karte;  schrift = F.primaer; rand = F.primaer; }
-      if (art === "gefahr") { fuell = F.gefahr; schrift = F.weiss; }
-      if (art === "erfolg") { fuell = F.erfolg; schrift = F.weiss; }
-      if (aus) { fuell = art === "zweit" ? F.karte : "#b9c2d0"; schrift = art === "zweit" ? F.rand : F.weiss; rand = art === "zweit" ? F.rand : null; }
-      else if (aktiv) { fuell = art === "zweit" ? "#e8eefa" : (art === "primaer" ? F.primaerDunkel : fuell); }
+      /* Leuchtende Fläche trägt dunkle Schrift — weiß auf Cyan liest sich nicht. */
+      let fuell = F.primaer, schrift = F.aufFarbe, rand = null;
+      if (art === "zweit")  { fuell = "transparent"; schrift = F.primaer; rand = F.primaer; }
+      if (art === "gefahr") { fuell = F.gefahr; schrift = F.aufFarbe; }
+      if (art === "erfolg") { fuell = F.erfolg; schrift = F.aufFarbe; }
+      if (aus) { fuell = art === "zweit" ? "transparent" : F.karteHell; schrift = F.gedaempft; rand = art === "zweit" ? F.rand : null; }
+      else if (aktiv) { fuell = art === "zweit" ? F.karteHell : (art === "primaer" ? F.primaerDunkel : fuell); }
 
       fuelleRund(r.x, r.y, r.b, r.h, o.radius === undefined ? RADIUS_KLEIN + 4 : o.radius, fuell);
       if (rand) rahmeRund(r.x, r.y, r.b, r.h, o.radius === undefined ? RADIUS_KLEIN + 4 : o.radius, rand, 1.5);
@@ -755,16 +801,21 @@ const ui = (function () {
 
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = aus ? "rgba(120,130,145,0.35)"
-                  : (o.farbe || (aktiv ? "rgba(26,86,160,0.95)" : "rgba(26,86,160,0.82)"));
+    /* Ausgeschaltet heißt „hier ist nichts zu holen", nicht „hier ist nichts".
+       Der Knopf bleibt sichtbar: auf dem sehr dunklen Spielfeld verschwindet er
+       sonst ganz, und man sucht ihn, statt ihn zu ignorieren. */
+    ctx.fillStyle = aus ? "rgba(54,68,108,0.62)"
+                  : (o.farbe || (aktiv ? F.primaerDunkel : F.primaer));
     ctx.fill();
     ctx.lineWidth = 2;
-    ctx.strokeStyle = aus ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.7)";
+    ctx.strokeStyle = aus ? "rgba(149,161,196,0.42)" : "rgba(255,255,255,0.55)";
     ctx.stroke();
 
+    /* Ein eingefärbter Knopf (o.farbe) leuchtet ebenfalls — auch dort dunkle
+       Schrift, sonst verschwindet das Zeichen auf Gelb oder Grün. */
     schreibe(zeichen, x, y + 1, {
       groesse: o.groesse || radius, ausrichtung: "center",
-      farbe: aus ? "rgba(255,255,255,0.45)" : F.weiss
+      farbe: aus ? "rgba(180,192,222,0.62)" : F.aufFarbe
     });
     if (o.hinweis) {
       schreibe(o.hinweis, x, y + radius + 12, { groesse: 11, fett: "halb", ausrichtung: "center", farbe: F.weiss });
@@ -772,7 +823,7 @@ const ui = (function () {
     return treffer;
   }
 
-  /* Karte mit weißem Grund — der Rahmen der meisten Abschnitte.
+  /* Karte — der Rahmen der meisten Abschnitte, eine Stufe heller als der Grund.
      Der Grund muss VOR dem Inhalt gemalt werden, seine Höhe steht aber erst
      danach fest. Auflösung: gemalt wird mit der Höhe des vorigen Bildes, und
      weicht die gemessene ab, wird sofort ein weiteres Bild angefordert.
@@ -823,7 +874,9 @@ const ui = (function () {
     const hatFokus = fokusId === id;
     merkeElement(id, r, "eingabe");
 
-    fuelleRund(r.x, r.y, r.b, r.h, RADIUS_KLEIN + 2, F.karte);
+    /* Eingabefelder liegen VERTIEFT: dunkler als die Karte, auf der sie stehen.
+       Gleicher Ton wie die Karte wäre auf dunklem Grund nicht zu erkennen. */
+    fuelleRund(r.x, r.y, r.b, r.h, RADIUS_KLEIN + 2, F.hintergrund);
     rahmeRund(r.x, r.y, r.b, r.h, RADIUS_KLEIN + 2, hatFokus ? F.primaer : F.rand, hatFokus ? 2 : 1.5);
 
     const polster = 14;
@@ -839,12 +892,12 @@ const ui = (function () {
 
     if (o.zentriert) {
       schreibe(anzeige, r.x + r.b / 2, mitte, {
-        groesse: groesse, farbe: leer ? F.rand : F.text, ausrichtung: "center",
+        groesse: groesse, farbe: leer ? F.platzhalter : F.text, ausrichtung: "center",
         fett: o.fett
       });
     } else {
       schreibe(anzeige, r.x + polster, mitte, {
-        groesse: groesse, farbe: leer ? F.rand : F.text, fett: o.fett
+        groesse: groesse, farbe: leer ? F.platzhalter : F.text, fett: o.fett
       });
     }
 
@@ -913,10 +966,10 @@ const ui = (function () {
     const beschriftung = gewaehlt ? gewaehlt.text : (o.leerText || "—");
     const aus = !!o.aus;
 
-    fuelleRund(r.x, r.y, r.b, r.h, RADIUS_KLEIN, aus ? "#f1f3f7" : F.karte);
+    fuelleRund(r.x, r.y, r.b, r.h, RADIUS_KLEIN, F.hintergrund);
     rahmeRund(r.x, r.y, r.b, r.h, RADIUS_KLEIN, z.offen ? F.primaer : F.rand, z.offen ? 2 : 1.5);
     schreibe(kuerze(beschriftung, r.b - 40, 15), r.x + 12, r.y + r.h / 2, {
-      groesse: 15, farbe: aus ? F.rand : F.text
+      groesse: 15, farbe: aus ? F.randStark : F.text
     });
     /* Pfeil */
     ctx.beginPath();
@@ -925,7 +978,7 @@ const ui = (function () {
     ctx.lineTo(px + 5, py - (z.offen ? 0 : 2));
     ctx.lineTo(px, py + (z.offen ? -6 : 5));
     ctx.closePath();
-    ctx.fillStyle = aus ? F.rand : F.gedaempft;
+    ctx.fillStyle = aus ? F.randStark : F.gedaempft;
     ctx.fill();
 
     if (!aus && geklickt(r)) {
@@ -964,9 +1017,11 @@ const ui = (function () {
       const lr = { x: l.anker.x, y: ly, b: l.anker.b, h: listeH };
 
       schatten(20);
-      fuelleRund(lr.x, lr.y, lr.b, lr.h, RADIUS_KLEIN, F.karte);
+      /* Die aufgeklappte Liste schwebt über allem — eine Stufe heller als die
+         Karte darunter, sonst verschwimmt sie damit. */
+      fuelleRund(lr.x, lr.y, lr.b, lr.h, RADIUS_KLEIN, F.karteHell);
       keinSchatten();
-      rahmeRund(lr.x, lr.y, lr.b, lr.h, RADIUS_KLEIN, F.rand, 1);
+      rahmeRund(lr.x, lr.y, lr.b, lr.h, RADIUS_KLEIN, F.randStark, 1);
 
       const z = zustand(l.id, { offen: true, rollen: 0 });
       const gesamtH = l.optionen.length * zeilenH;
@@ -984,12 +1039,12 @@ const ui = (function () {
         if (zr.y + zr.h < lr.y || zr.y > lr.y + lr.h) return;
         const istGewaehlt = String(op.wert) === String(l.wert);
         if (istGewaehlt) {
-          fuelleRund(zr.x + 4, zr.y + 2, zr.b - 8, zr.h - 4, 6, "#e8eefa");
+          fuelleRund(zr.x + 4, zr.y + 2, zr.b - 8, zr.h - 4, 6, "rgba(34,211,238,0.18)");
         } else if (inRechteck(zeiger.x, zeiger.y, zr) && zeiger.unten) {
-          fuelleRund(zr.x + 4, zr.y + 2, zr.b - 8, zr.h - 4, 6, "#f2f4f8");
+          fuelleRund(zr.x + 4, zr.y + 2, zr.b - 8, zr.h - 4, 6, "rgba(255,255,255,0.07)");
         }
         schreibe(kuerze(op.text, zr.b - 28, 15), zr.x + 12, zr.y + zr.h / 2, {
-          groesse: 15, farbe: F.text, fett: istGewaehlt ? "halb" : null
+          groesse: 15, farbe: istGewaehlt ? F.primaerHell : F.text, fett: istGewaehlt ? "halb" : null
         });
         merkeElement(l.id + ":" + op.wert, zr, "auswahl-eintrag");
         if (geklickt(zr)) {
@@ -1022,7 +1077,7 @@ const ui = (function () {
     const o = opt || {};
     const h = o.hoehe || 10;
     const r = reserviere(h, o);
-    fuelleRund(r.x, r.y, r.b, r.h, r.h / 2, o.grund || "rgba(255,255,255,0.35)");
+    fuelleRund(r.x, r.y, r.b, r.h, r.h / 2, o.grund || "rgba(0,0,0,0.32)");
     const a = Math.max(0, Math.min(1, anteil));
     if (a > 0) fuelleRund(r.x, r.y, Math.max(r.h, r.b * a), r.h, r.h / 2, o.farbe || F.erfolg);
     return r;
@@ -1088,7 +1143,7 @@ const ui = (function () {
     if (maxVersatz > 2) {
       const bh = Math.max(30, h * (h / z.inhaltH));
       const by = r.y + (h - bh) * (z.versatz / maxVersatz);
-      fuelleRund(r.x + r.b - 5, by, 4, bh, 2, "rgba(17,24,39,0.22)");
+      fuelleRund(r.x + r.b - 5, by, 4, bh, 2, "rgba(233,237,249,0.28)");
     }
     return r;
   }
@@ -1132,7 +1187,7 @@ const ui = (function () {
   /* Abdunkeln und eine Ebene höher gehen — alles danach liegt über dem Rest
      und nimmt die Klicks entgegen. */
   function abdunkeln(deckkraft) {
-    ctx.fillStyle = "rgba(17, 24, 39, " + (deckkraft === undefined ? 0.55 : deckkraft) + ")";
+    ctx.fillStyle = "rgba(5, 9, 20, " + (deckkraft === undefined ? 0.72 : deckkraft) + ")";
     ctx.fillRect(0, 0, breite, hoehe);
     ebene++;
     if (ebene > ebeneMax) ebeneMax = ebene;
@@ -1243,6 +1298,7 @@ const ui = (function () {
     rundesRechteck: rundesRechteck,
     fuelleRund: fuelleRund,
     rahmeRund: rahmeRund,
+    lesbarAuf: lesbarAuf,
     schreibe: schreibe,
     umbrich: umbrich,
     kuerze: kuerze,

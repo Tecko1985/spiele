@@ -32,6 +32,8 @@ const spielfeld = (function () {
   let kameraLetzterWrite = 0;
   let hudFehler = "";            // kurzlebige Rückmeldung, z.B. „zu früh"
   let hudFehlerBis = 0;
+  let gezeigterAnteil = 0;       // der Fortschrittsbalken zieht dem echten Wert weich nach
+  let aufleuchtenBis = 0;        // bis wann er nach einer erledigten Aufgabe leuchtet
 
   /* Maße der Bedienelemente. Der Daumen trifft im fahrenden Bus nichts
      Kleineres — deshalb großzügiger als am Schreibtisch nötig. */
@@ -47,13 +49,28 @@ const spielfeld = (function () {
     const c = ui.ctx;
     const pos = zustand.meinePosition;
 
-    /* Fortschrittsbalken ganz oben über die volle Breite */
+    /* Fortschrittsbalken ganz oben über die volle Breite.
+       Er wächst weich statt zu springen, und wenn eine Aufgabe fertig wird,
+       leuchtet er kurz auf. Das ist die einzige Rückmeldung, dass die Arbeit von
+       jemand anderem etwas gebracht hat — der Sprung allein ging im Spiel unter,
+       weil man beim Laufen nicht auf einen 6 px hohen Streifen schaut. */
     const aufgaben = zustand.aufgaben || { erledigt: 0, gesamt: 0 };
     const anteil = aufgaben.gesamt > 0 ? Math.min(aufgaben.erledigt / aufgaben.gesamt, 1) : 0;
+    if (anteil > gezeigterAnteil + 0.0005) aufleuchtenBis = zustand.jetzt + 900;
+    gezeigterAnteil += (anteil - gezeigterAnteil) * Math.min(1, ui.delta * 6);
+    if (Math.abs(anteil - gezeigterAnteil) < 0.0005) gezeigterAnteil = anteil;
+
+    const leuchtet = zustand.jetzt < aufleuchtenBis;
     c.fillStyle = "rgba(8,14,26,0.55)";
     c.fillRect(0, 0, ui.breite, 6);
-    c.fillStyle = F.erfolg;
-    c.fillRect(0, 0, ui.breite * anteil, 6);
+    c.fillStyle = leuchtet ? F.primaerHell : F.erfolg;
+    c.fillRect(0, 0, ui.breite * gezeigterAnteil, 6);
+    if (leuchtet) {
+      /* Ein heller Kamm am vorderen Ende, der mit dem Aufleuchten ausklingt. */
+      const rest = (aufleuchtenBis - zustand.jetzt) / 900;
+      c.fillStyle = "rgba(255,255,255," + (0.75 * rest).toFixed(3) + ")";
+      c.fillRect(Math.max(0, ui.breite * gezeigterAnteil - 26), 0, 26, 6);
+    }
 
     /* Zeile mit Raumname links, Rolle mittig, Vollbild rechts */
     const y = 8;
@@ -92,20 +109,36 @@ const spielfeld = (function () {
       warnung = "☢️ Reaktor überhitzt – " + rest + " s bis zur Kernschmelze. Beide Kühlventile gleichzeitig halten!";
     } else if (sab && sab.typ === "licht") {
       warnung = "💡 Licht aus – Sicherungskasten in der Elektrik.";
-      warnFarbe = "#b45309";
+      warnFarbe = F.warnung;
     } else if (sab && sab.typ === "funk") {
       warnung = "📻 Funk gestört – keine Kameras, keine Aufgabenliste. Funkpult in der Kommunikation.";
-      warnFarbe = "#b45309";
+      warnFarbe = F.warnung;
     }
     if (hudFehler && zustand.jetzt < hudFehlerBis) { warnung = hudFehler; warnFarbe = F.gefahr; }
     if (warnung) {
       const zeilen = ui.umbrich(warnung, ui.breite - 24, 13, "halb");
       const h = zeilen.length * 18 + 10;
+      /* Der Balken pulst, solange eine Sabotage läuft — bei der Kernschmelze
+         schneller, je näher das Ende rückt. Eine stehende Warnleiste übersieht
+         man nach zwanzig Sekunden; eine, die atmet, bleibt im Augenwinkel.
+         Eine EIGENE Fehlermeldung (hudFehler) pulst nicht: sie steht nur kurz
+         und soll gelesen, nicht beachtet werden. */
+      let staerke = 0;
+      if (sab && (!hudFehler || zustand.jetzt >= hudFehlerBis)) {
+        let takt = 1.6;
+        if (sab.typ === "reaktor") {
+          const restAnteil = Math.max(0, Math.min(1, (sab.endeAt - zustand.jetzt) / 30000));
+          takt = 0.9 + restAnteil * 1.6;      // je knapper die Zeit, desto hektischer
+        }
+        staerke = 0.5 + 0.5 * Math.sin((zustand.jetzt / 1000) * (Math.PI * 2 / takt));
+      }
       c.fillStyle = warnFarbe;
+      c.globalAlpha = 0.72 + 0.28 * staerke;
       c.fillRect(0, untenY, ui.breite, h);
+      c.globalAlpha = 1;
       zeilen.forEach((z, i) => {
         ui.schreibe(z, ui.breite / 2, untenY + 5 + i * 18 + 9, {
-          groesse: 13, fett: "halb", farbe: "#fff", ausrichtung: "center"
+          groesse: 13, fett: "halb", farbe: F.aufFarbe, ausrichtung: "center"
         });
       });
     }
@@ -196,7 +229,7 @@ const spielfeld = (function () {
     /* Hauptknopf unten rechts, die übrigen im Viertelkreis darüber/daneben. */
     const aktion = ermittleAktion(zustand);
     if (ui.rundKnopf("btn-interaktion", aktion ? aktion.zeichen : "✋", rechts, unten, HAUPT_R, {
-      aus: !aktion, farbe: aktion ? "rgba(5,122,85,0.9)" : null, groesse: 30
+      aus: !aktion, farbe: aktion ? F.erfolg : null, groesse: 30
     })) fuehreAktionAus();
 
     const plaetze = [];
@@ -221,7 +254,7 @@ const spielfeld = (function () {
     const leicheUid = findeMeldbareLeiche(zustand);
     if (leicheUid) {
       const p = naechster();
-      if (ui.rundKnopf("btn-melden", "📣", p.x, p.y, KNOPF_R, { farbe: "rgba(180,83,9,0.9)" })) {
+      if (ui.rundKnopf("btn-melden", "📣", p.x, p.y, KNOPF_R, { farbe: F.warnung })) {
         gameService.meldeLeiche(leicheUid);
       }
     }
@@ -250,7 +283,7 @@ const spielfeld = (function () {
       const killAus = !!zustand.schacht || gesperrt || !ziel || rest > 0;
       const p = naechster();
       if (ui.rundKnopf("btn-ausschalten", gesperrt ? "⏳" : rest > 0 ? String(rest) : "🥾",
-                       p.x, p.y, KNOPF_R, { aus: killAus, farbe: "rgba(220,38,38,0.9)" })) {
+                       p.x, p.y, KNOPF_R, { aus: killAus, farbe: F.gefahr })) {
         schalteAus(ziel);
       }
 
@@ -259,7 +292,7 @@ const spielfeld = (function () {
       if (!zustand.versteckModus) {
         const sabAus = !!zustand.schacht || (zustand.sabotageCooldownBis || 0) > zustand.jetzt;
         const p2 = naechster();
-        if (ui.rundKnopf("btn-sabotage", "💥", p2.x, p2.y, KNOPF_R, { aus: sabAus, farbe: "rgba(126,34,206,0.9)" })) {
+        if (ui.rundKnopf("btn-sabotage", "💥", p2.x, p2.y, KNOPF_R, { aus: sabAus, farbe: "#c084fc" })) {
           sabotageHinweis = "";
           offenerDialog = "sabotage";
         }
@@ -574,7 +607,7 @@ const spielfeld = (function () {
         const spalte = i % proZeile;
         if (spalte === 0) zeile++;
         const r = { x: k.x + spalte * (kb + 6), y: k.y + k.cursor + zeile * 40, b: kb, h: 34 };
-        ui.fuelleRund(r.x, r.y, r.b, r.h, 6, ui.gedruecktAuf(r) ? "#d7e2f5" : "#eef2fb");
+        ui.fuelleRund(r.x, r.y, r.b, r.h, 6, ui.gedruecktAuf(r) ? "rgba(34,211,238,0.28)" : "rgba(34,211,238,0.1)");
         ui.rahmeRund(r.x, r.y, r.b, r.h, 6, F.rand, 1);
         ui.schreibe(ui.kuerze(raum.name, kb - 8, 11, "halb"), r.x + kb / 2, r.y + 17, {
           groesse: 11, fett: "halb", farbe: F.primaer, ausrichtung: "center"
@@ -717,6 +750,10 @@ const spielfeld = (function () {
       sabotageHinweis = "";
       rollenStatus = "";
       hudFehler = "";
+      /* Sonst kröche der Balken der nächsten Partie vom Stand der letzten
+         herunter — bei 8/8 auf 0/6 sichtbar über eine halbe Sekunde. */
+      gezeigterAnteil = 0;
+      aufleuchtenBis = 0;
     }
   };
 })();

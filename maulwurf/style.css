@@ -14,7 +14,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;                 /* gerollt wird innerhalb der Zeichenfläche */
-  background: #eef1f6;
+  background: #0d1424;              /* muss zu F.hintergrund in ui.js passen */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   overscroll-behavior: none;        /* kein Gummiband beim Wischen am Rand */
 }

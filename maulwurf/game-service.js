@@ -68,10 +68,18 @@ const RAUMCODE_ZEICHEN = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ohne 0/O/1/I, le
 // die Vergabe unten auf SPIELER_FARBEN[0] zurück und zwei Leute laufen in derselben Farbe
 // herum — auf der Karte und im Kamerabild sind sie dann nicht mehr auseinanderzuhalten, und
 // genau daran hängt jede Zeugenaussage. Die letzten fünf kamen mit der Anhebung auf 15 dazu.
+//
+// Alle Töne sind hell genug für den dunklen Kartenboden (#2c3a52). Die frühere Liste stammte
+// aus der hellen Oberfläche; Vereinsblau, Tannengrün, Oliv, Braun und Grau verschwammen darauf
+// mit dem Boden — ausgerechnet die Farben, die eine Zeugin am ehesten verwechselt.
+//
+// Die REIHENFOLGE ist Absicht und nicht der Farbkreis: vergeben wird von vorn, also müssen die
+// ersten Einträge maximal weit auseinanderliegen. In einer Viererrunde spielt niemand Rot gegen
+// Orange, sondern Rot gegen Himmelblau gegen Grün gegen Bernstein.
 const SPIELER_FARBEN = [
-  "#dc2626", "#1a56a0", "#057a55", "#eab308", "#9333ea",
-  "#0891b2", "#db2777", "#fb923c", "#4d7c0f", "#57534e",
-  "#e2e8f0", "#a3e635", "#2dd4bf", "#c4b5fd", "#8b5a2b"
+  "#ff5a5f", "#38bdf8", "#3ddc84", "#ffc53d", "#b57cff",
+  "#2ee6c8", "#ff77b3", "#ff9231", "#b6e335", "#94a3b8",
+  "#eef2fb", "#e879f9", "#5b8dff", "#bb7c4e", "#8b8bff"
 ];
 const MIN_SPIELER = 4;
 const MAX_SPIELER = 15;

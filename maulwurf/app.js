@@ -11,11 +11,15 @@
 // zu wirken) und ist mit dem Umbau auf das Original-Layout von 620 mitgewachsen.
 const SICHT_KURZE_ACHSE = 893;
 
+// Die Palette der Oberfläche. Nicht `F` wie in den anderen Dateien: app.js läuft im globalen
+// Scope, und ein einbuchstabiger globaler Name kollidiert dort früher oder später mit etwas.
+const FARBEN = ui.F;
+
 // Bodenfarben der Karte. Türschwellen bekommen bewusst KEINE eigene Farbe, sondern übernehmen
 // je Hälfte die der angrenzenden Fläche – sonst stehen sie als helle Klötze in der Landschaft.
 const MAUERWERK = "#172136";
 const BODEN_GANG = "#243044";
-const BODEN_RAUM = "#2c3a52";
+const BODEN_RAUM = "#2c3a52";      // Grundton; jeder Raum tönt ihn in karte.js leicht ein
 const BODEN_GESPERRT = "#3a2230";
 const WANDLINIE = "#48597a";
 const TUERZARGE = "#63799e";   // heller als die Wand, damit Türen schon aus der Ferne auffallen
@@ -190,9 +194,11 @@ function zeichne(zustand) {
   const istGesperrt = raum => (zustand.tueren || {})[raum.id] > jetzt;
   karte.RAEUME.forEach(r => {
     const gesperrt = istGesperrt(r);
-    ctx.fillStyle = gesperrt ? BODEN_GESPERRT : BODEN_RAUM;
+    // Jeder Raum tönt den Boden leicht ein (karte.js). Gesperrt schlägt die Tönung: dass eine
+    // Tür zu ist, muss auf den ersten Blick stärker sprechen als die Frage, wo man steht.
+    ctx.fillStyle = gesperrt ? BODEN_GESPERRT : (r.farbe || BODEN_RAUM);
     ctx.fillRect(wx(r.x), wy(r.y), r.w * skala, r.h * skala);
-    ctx.strokeStyle = gesperrt ? "#dc2626" : WANDLINIE;
+    ctx.strokeStyle = gesperrt ? FARBEN.gefahr : WANDLINIE;
     ctx.lineWidth = Math.max(2.5 * skala, 2);
     ctx.strokeRect(wx(r.x), wy(r.y), r.w * skala, r.h * skala);
   });
@@ -211,7 +217,7 @@ function zeichne(zustand) {
     // dick die Wand an dieser Stelle ist.
     const raumSeiteA = karte.raumAn(waagerecht ? mx - 4 : mx, waagerecht ? my : my - 4);
     const raum = raumSeiteA || karte.raumAn(waagerecht ? mx + 4 : mx, waagerecht ? my : my + 4);
-    const raumfarbe = raum && istGesperrt(raum) ? BODEN_GESPERRT : BODEN_RAUM;
+    const raumfarbe = raum && istGesperrt(raum) ? BODEN_GESPERRT : ((raum && raum.farbe) || BODEN_RAUM);
     const farbeA = raumSeiteA ? raumfarbe : BODEN_GANG;
     const farbeB = raumSeiteA ? BODEN_GANG : raumfarbe;
 
@@ -224,7 +230,7 @@ function zeichne(zustand) {
 
     // Zargen quer zur Wand an beiden Rändern der Öffnung. In der Wandlinie liegend wären sie
     // von ihr nicht zu unterscheiden — quer gestellt lesen sie sich als Durchgang.
-    ctx.strokeStyle = raum && istGesperrt(raum) ? "#dc2626" : TUERZARGE;
+    ctx.strokeStyle = raum && istGesperrt(raum) ? FARBEN.gefahr : TUERZARGE;
     ctx.lineWidth = Math.max(2.5 * skala, 2);
     ctx.beginPath();
     if (waagerecht) {
@@ -249,15 +255,15 @@ function zeichne(zustand) {
   ctx.shadowBlur = 0;
 
   // Notfallknopf — im Verstecken-Modus gibt es keine Besprechung, also auch keinen Knopf
-  if (!zustand.versteckModus) zeichneMarker(wx(karte.NOTFALLKNOPF.x), wy(karte.NOTFALLKNOPF.y), skala, "#dc2626", "📣");
+  if (!zustand.versteckModus) zeichneMarker(wx(karte.NOTFALLKNOPF.x), wy(karte.NOTFALLKNOPF.y), skala, FARBEN.gefahr, "📣");
 
   // Reparaturstellen nur, solange die passende Sabotage läuft
   const sab = zustand.sabotage;
-  if (sab && sab.typ === "licht") zeichneMarker(wx(karte.SICHERUNGSKASTEN.x), wy(karte.SICHERUNGSKASTEN.y), skala, "#fbbf24", "💡");
-  if (sab && sab.typ === "funk") zeichneMarker(wx(karte.FUNKPULT.x), wy(karte.FUNKPULT.y), skala, "#fbbf24", "📻");
+  if (sab && sab.typ === "licht") zeichneMarker(wx(karte.SICHERUNGSKASTEN.x), wy(karte.SICHERUNGSKASTEN.y), skala, FARBEN.warnung, "💡");
+  if (sab && sab.typ === "funk") zeichneMarker(wx(karte.FUNKPULT.x), wy(karte.FUNKPULT.y), skala, FARBEN.warnung, "📻");
   if (sab && sab.typ === "reaktor") {
-    zeichneMarker(wx(karte.KUEHLUNG_A.x), wy(karte.KUEHLUNG_A.y), skala, "#fbbf24", "🔧");
-    zeichneMarker(wx(karte.KUEHLUNG_B.x), wy(karte.KUEHLUNG_B.y), skala, "#fbbf24", "🔧");
+    zeichneMarker(wx(karte.KUEHLUNG_A.x), wy(karte.KUEHLUNG_A.y), skala, FARBEN.warnung, "🔧");
+    zeichneMarker(wx(karte.KUEHLUNG_B.x), wy(karte.KUEHLUNG_B.y), skala, FARBEN.warnung, "🔧");
   }
 
   // Kamerapult
@@ -272,7 +278,7 @@ function zeichne(zustand) {
   const kameraBlinkt = zustand.kameraBeobachtet && Math.floor(jetzt / 450) % 2 === 0;
   karte.KAMERAS.forEach(k => {
     if (!istEinsehbar(mich, k, sichtweite, zustand.binGeist)) return;
-    zeichneMarker(wx(k.x), wy(k.y), skala, kameraBlinkt ? "#dc2626" : "#475569", kameraBlinkt ? "🔴" : "📹");
+    zeichneMarker(wx(k.x), wy(k.y), skala, kameraBlinkt ? FARBEN.gefahr : "#475569", kameraBlinkt ? "🔴" : "📹");
   });
 
   // Eigene Aufgabenstationen (nur die eigenen — fremde Aufgaben sieht niemand)
@@ -280,7 +286,7 @@ function zeichne(zustand) {
     if (!a.station) return;
     // Gesperrte Kettenteile bekommen ein eigenes Zeichen: sonst liefe man zu einem grünen
     // Stern, der sich nicht öffnen lässt, und hielte das für einen Fehler.
-    const farbe = a.erledigt ? "#4b5563" : (a.gesperrt ? "#94a3b8" : "#22c55e");
+    const farbe = a.erledigt ? "#4b5563" : (a.gesperrt ? FARBEN.gedaempft : FARBEN.erfolg);
     const zeichen = a.erledigt ? "✓" : (a.gesperrt ? "🔒" : "★");
     zeichneMarker(wx(a.station.x), wy(a.station.y), skala, farbe, zeichen);
   });
@@ -309,7 +315,7 @@ function zeichne(zustand) {
   Object.keys(zustand.leichen || {}).forEach(uid => {
     const leiche = zustand.leichen[uid];
     if (!istEinsehbar(mich, leiche, sichtweite, zustand.binGeist)) return;
-    ctx.fillStyle = leiche.farbe || "#dc2626";
+    ctx.fillStyle = leiche.farbe || FARBEN.gefahr;
     ctx.beginPath();
     ctx.ellipse(wx(leiche.x), wy(leiche.y), 19 * skala, 12 * skala, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -424,19 +430,19 @@ function zeichneFigur(x, y, skala, spieler, zustand) {
   // ganze Modus. Der Ring liegt außen um die Figur, damit er auch bei fremder Farbe auffällt.
   const istFaenger = zustand.versteckModus && spieler.id === zustand.faengerUid;
   if (istFaenger) {
-    ctx.strokeStyle = "#ef4444";
+    ctx.strokeStyle = FARBEN.gefahr;
     ctx.lineWidth = Math.max(3.5 * skala, 2.5);
     ctx.beginPath();
     ctx.arc(x, y, (karte.SPIELER_RADIUS + 8) * skala, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  ctx.fillStyle = spieler.farbe || "#1a56a0";
+  ctx.fillStyle = spieler.farbe || FARBEN.randStark;
   ctx.beginPath();
   ctx.arc(x, y, karte.SPIELER_RADIUS * skala, 0, Math.PI * 2);
   ctx.fill();
   ctx.lineWidth = Math.max(2.5 * skala, 2);
-  ctx.strokeStyle = istIch ? "#ffffff" : istMitMaulwurf ? "#ef4444" : "rgba(0,0,0,0.35)";
+  ctx.strokeStyle = istIch ? "#ffffff" : istMitMaulwurf ? FARBEN.gefahr : "rgba(0,0,0,0.35)";
   ctx.stroke();
 
   ctx.fillStyle = "#fff";
@@ -823,7 +829,7 @@ function zeichneKamerabild(bx, by, b, h, kamera, zustand) {
     const l = zustand.leichen[uid];
     if (!karte.imKamerabild(kamera, l.x, l.y)) return;
     const cx = kx(l.x), cy = ky(l.y), r = Math.max(karte.SPIELER_RADIUS * s, 5);
-    ctx2.strokeStyle = l.farbe || "#dc2626";
+    ctx2.strokeStyle = l.farbe || FARBEN.gefahr;
     ctx2.lineWidth = 3;
     ctx2.beginPath();
     ctx2.moveTo(cx - r, cy - r); ctx2.lineTo(cx + r, cy + r);
@@ -915,6 +921,26 @@ async function pruefeAdminStatus() {
 // ---------- Info-Tab / Versionshistorie ----------
 const APP_VERSION = "1.0";
 const APP_CHANGELOG = [
+  {
+    version: "1.3",
+    groups: [
+      { title: "Neuer Anstrich: das Spiel spielt an Bord", items: [
+          "Die ganze App ist jetzt dunkel gehalten – Menüs, Warteraum und Besprechung passen damit zum Spielfeld, das schon immer dunkel war. Vorher sprang das Bild beim Spielstart vom hellen Grau ins Dunkle.",
+          "Leuchtfarben gibt es nur noch dort, wo etwas bedeutet oder bedienbar ist: Cyan für Schaltflächen, Rot für Gefahr, Gelb für Sabotagen. Der Rest hält sich zurück.",
+          "Auf dem Handy färbt sich die Statusleiste mit."
+      ]},
+      { title: "Man erkennt am Farbton, wo man steht", items: [
+          "Jeder Raum tönt seinen Boden ein wenig ein – der Motorraum ins Rostrote, die Cafeteria ins Warme, die Krankenstation ins Grüne. Gedacht für den Augenwinkel: man weiß, wo man ist, ohne den Namen zu lesen.",
+          "Lager und Kommunikation bleiben absichtlich neutral.",
+          "Die Spielerfarben sind kräftiger und besser zu unterscheiden. Sechs der alten Farben – Vereinsblau, Tannengrün, Oliv, Braun, Grau – verschwammen auf dem dunklen Boden mit dem Untergrund. Ausgerechnet die, die man in der Besprechung am ehesten verwechselt."
+      ]},
+      { title: "Es bewegt sich etwas", items: [
+          "Der Wechsel zwischen Bildschirmen blendet auf, statt hart umzuspringen.",
+          "Der gemeinsame Aufgabenbalken wächst weich und leuchtet kurz auf, wenn jemand eine Aufgabe fertig macht – bisher sprang er nur, was beim Laufen niemand bemerkte.",
+          "Die Sabotage-Warnung pulsiert, bei der Kernschmelze umso hektischer, je knapper die Zeit wird."
+      ]}
+    ]
+  },
   {
     version: "1.2",
     groups: [

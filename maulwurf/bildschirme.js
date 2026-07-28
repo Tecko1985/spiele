@@ -52,10 +52,18 @@ const bildschirme = (function () {
     const c = ui.ctx;
     c.beginPath();
     c.arc(x, y, r, 0, Math.PI * 2);
-    c.fillStyle = farbe || "#888";
+    const grund = farbe || F.randStark;
+    c.fillStyle = grund;
     c.fill();
+    /* Ein feiner heller Ring hebt die Figur vom dunklen Grund ab — ohne ihn
+       verschwimmen dunkle Spielerfarben mit der Zeile darunter. */
+    c.lineWidth = 1.5;
+    c.strokeStyle = "rgba(255,255,255,0.22)";
+    c.stroke();
+    /* Die Schriftfarbe richtet sich nach der Figur: auf Gelb steht sie dunkel,
+       auf Violett hell. Festes Weiß wäre auf den hellen Farben nicht zu lesen. */
     ui.schreibe(initiale(name), x, y + 1, {
-      groesse: r, fett: true, farbe: "#fff", ausrichtung: "center"
+      groesse: r, fett: true, farbe: ui.lesbarAuf(grund), ausrichtung: "center"
     });
   }
 
@@ -68,7 +76,7 @@ const bildschirme = (function () {
     const r = ui.reserviere(h, o);
     const c = ui.ctx;
 
-    const grund = o.hervorgehoben ? "#e8eefa" : F.karte;
+    const grund = o.hervorgehoben ? "rgba(34,211,238,0.14)" : F.karte;
     ui.fuelleRund(r.x, r.y, r.b, r.h, ui.RADIUS_KLEIN + 2, grund);
     if (o.hervorgehoben) ui.rahmeRund(r.x, r.y, r.b, r.h, ui.RADIUS_KLEIN + 2, F.primaer, 2);
     else ui.rahmeRund(r.x, r.y, r.b, r.h, ui.RADIUS_KLEIN + 2, F.rand, 1);
@@ -103,12 +111,13 @@ const bildschirme = (function () {
     const gedrueckt = !aus && ui.gedruecktAuf(kr);
 
     ui.fuelleRund(kr.x, kr.y, kr.b, kr.h, 6,
-      aus ? "#eceff4" : (o.art === "gefahr" ? (gedrueckt ? "#b91c1c" : F.gefahr)
-                                            : (gedrueckt ? "#d7e2f5" : "#eef2fb")));
+      aus ? "rgba(255,255,255,0.05)"
+          : (o.art === "gefahr" ? (gedrueckt ? "#e94f66" : F.gefahr)
+                                : (gedrueckt ? "rgba(34,211,238,0.28)" : "rgba(34,211,238,0.12)")));
     if (!aus && o.art !== "gefahr") ui.rahmeRund(kr.x, kr.y, kr.b, kr.h, 6, F.primaer, 1);
     ui.schreibe(text, kr.x + kr.b / 2, kr.y + kr.h / 2, {
       groesse: 13, fett: "halb", ausrichtung: "center",
-      farbe: aus ? F.rand : (o.art === "gefahr" ? "#fff" : F.primaer)
+      farbe: aus ? F.randStark : (o.art === "gefahr" ? F.aufFarbe : F.primaer)
     });
     return treffer;
   }
@@ -117,7 +126,11 @@ const bildschirme = (function () {
 
   function kopfzeile(zustand) {
     const c = ui.ctx;
-    c.fillStyle = F.primaer;
+    /* Kopfzeile und Reiter sind Chrome, kein Akzent: eine zusammenhängende
+       dunkle Zone im selben Ton. Eine durchgehend leuchtende Leiste über jedem
+       Bildschirm wäre auf Dauer nicht auszuhalten — Cyan trägt hier nur der
+       aktive Reiter und die Versionsplakette. */
+    c.fillStyle = F.kopf;
     c.fillRect(0, 0, ui.breite, KOPF_HOEHE);
 
     let x = 14;
@@ -125,7 +138,7 @@ const bildschirme = (function () {
     x += 24;
     const titelBreit = ui.breite > 380;
     if (titelBreit) {
-      ui.schreibe("Der Maulwurf", x, KOPF_HOEHE / 2, { groesse: 16, fett: true, farbe: "#fff" });
+      ui.schreibe("Der Maulwurf", x, KOPF_HOEHE / 2, { groesse: 16, fett: true, farbe: F.text });
       x += ui.textBreite("Der Maulwurf", 16, true) + 10;
     }
 
@@ -134,8 +147,8 @@ const bildschirme = (function () {
     const vTxt = "v" + APP_VERSION;
     const vB = ui.textBreite(vTxt, 11, "halb") + 14;
     const vR = { x: x, y: KOPF_HOEHE / 2 - 10, b: vB, h: 20 };
-    ui.fuelleRund(vR.x, vR.y, vR.b, vR.h, 10, "rgba(255,255,255,0.2)");
-    ui.schreibe(vTxt, vR.x + vB / 2, vR.y + 10, { groesse: 11, fett: "halb", farbe: "#fff", ausrichtung: "center" });
+    ui.fuelleRund(vR.x, vR.y, vR.b, vR.h, 10, "rgba(34,211,238,0.16)");
+    ui.schreibe(vTxt, vR.x + vB / 2, vR.y + 10, { groesse: 11, fett: "halb", farbe: F.primaer, ausrichtung: "center" });
     ui.merke("version-badge", vR, "plakette");
     if (ui.geklickt(vR)) { reiter = "info"; bestenlisteOffen = false; }
     x += vB + 10;
@@ -146,9 +159,9 @@ const bildschirme = (function () {
       const t = "Verlassen";
       const b = ui.textBreite(t, 12, "halb") + 20;
       const r = { x: x, y: KOPF_HOEHE / 2 - 13, b: b, h: 26 };
-      ui.fuelleRund(r.x, r.y, r.b, r.h, 6, ui.gedruecktAuf(r) ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.15)");
-      ui.rahmeRund(r.x, r.y, r.b, r.h, 6, "rgba(255,255,255,0.5)", 1);
-      ui.schreibe(t, r.x + b / 2, r.y + 13, { groesse: 12, fett: "halb", farbe: "#fff", ausrichtung: "center" });
+      ui.fuelleRund(r.x, r.y, r.b, r.h, 6, ui.gedruecktAuf(r) ? "rgba(251,113,133,0.3)" : "rgba(251,113,133,0.12)");
+      ui.rahmeRund(r.x, r.y, r.b, r.h, 6, F.gefahr, 1);
+      ui.schreibe(t, r.x + b / 2, r.y + 13, { groesse: 12, fett: "halb", farbe: F.gefahr, ausrichtung: "center" });
       ui.merke("btn-spiel-abbrechen", r, "knopf");
       if (ui.geklickt(r)) frageVerlassen(zustand);
     }
@@ -173,7 +186,7 @@ const bildschirme = (function () {
   function reiterLeiste() {
     const c = ui.ctx;
     const y = KOPF_HOEHE;
-    c.fillStyle = F.karte;
+    c.fillStyle = F.kopf;
     c.fillRect(0, y, ui.breite, REITER_HOEHE);
     c.strokeStyle = F.rand;
     c.lineWidth = 1;
@@ -351,8 +364,8 @@ const bildschirme = (function () {
 
       /* Raumcode groß und gut ablesbar — er wird laut vorgelesen. */
       const k = ui.beginneKarte("lobby-code", { farbe: F.primaer, polster: 12 });
-        ui.absatz("Raum-Code", { groesse: 12, fett: "halb", farbe: "rgba(255,255,255,0.8)", zentriert: true, abstand: 2 });
-        ui.absatz(zustand.raumCode || "------", { groesse: 30, fett: true, farbe: "#fff", zentriert: true });
+        ui.absatz("Raum-Code", { groesse: 12, fett: "halb", farbe: "rgba(8,19,31,0.7)", zentriert: true, abstand: 2 });
+        ui.absatz(zustand.raumCode || "------", { groesse: 30, fett: true, farbe: F.aufFarbe, zentriert: true });
       ui.beendeKarte(k);
 
       if (zustand.istHost) {
@@ -510,7 +523,10 @@ const bildschirme = (function () {
 
   function revealBildschirm(zustand) {
     ui.seite("reveal", function () {
-      let farbe = "#334155", icon = "❓", rolle = "Rolle wird gezogen …";
+      /* Die Rollenkarte ist der einzige Bildschirm, der ganz von einer Farbe
+         lebt — hier steht die wichtigste Information der Partie. Rot glüht,
+         Grün beruhigt, beide dunkel genug für helle Schrift darauf. */
+      let farbe = "#2a3556", icon = "❓", rolle = "Rolle wird gezogen …";
       let text = "Dein Gerät zieht gerade verdeckt eine Rolle aus dem gemischten Stapel.";
       let team = "";
 
@@ -520,7 +536,7 @@ const bildschirme = (function () {
              Spannende ist nicht, WER der Fänger ist, sondern wo er steckt. */
           const faenger = zustand.spieler.find(s => s.id === zustand.faengerUid);
           const binFaenger = zustand.meineRolle === "maulwurf";
-          farbe = binFaenger ? "#7f1d1d" : "#14532d";
+          farbe = binFaenger ? "#8e1733" : "#0d5344";
           icon = binFaenger ? "🥅" : "🙈";
           rolle = binFaenger ? "Du bist der Fänger" : "Versteck dich!";
           text = binFaenger
@@ -530,7 +546,7 @@ const bildschirme = (function () {
             ? "Du bekommst " + zustand.einstellungen.vorsprungSek + " Sekunden Vorsprung – so lange stehst du fest."
             : faenger ? "Der Fänger ist: " + faenger.name : "Der Fänger wird gerade ausgelost …";
         } else if (zustand.meineRolle === "maulwurf") {
-          farbe = "#7f1d1d";
+          farbe = "#8e1733";
           icon = "🕵️";
           rolle = "Du bist Maulwurf";
           text = "Tu so, als würdest du arbeiten. Sabotiere, schalte Leute aus – und lass dich nicht erwischen.";
@@ -540,7 +556,7 @@ const bildschirme = (function () {
             .filter(Boolean);
           team = mit.length ? "Mit dir im Bunde: " + mit.join(", ") : "Du bist allein unterwegs.";
         } else {
-          farbe = "#14532d";
+          farbe = "#0d5344";
           icon = "⚽";
           rolle = "Du gehörst zum Team";
           text = "Erledige deine Aufgaben auf dem Gelände und finde heraus, wer sabotiert.";
@@ -592,7 +608,7 @@ const bildschirme = (function () {
       const zr = { x: kopf.x + kopf.b - zeitB, y: kopf.y + 3, b: zeitB, h: 32 };
       ui.fuelleRund(zr.x, zr.y, zr.b, zr.h, 8, rest <= 10 ? F.gefahr : F.primaer);
       ui.schreibe(String(rest), zr.x + zeitB / 2, zr.y + 16,
-                  { groesse: 16, fett: true, farbe: "#fff", ausrichtung: "center" });
+                  { groesse: 16, fett: true, farbe: F.aufFarbe, ausrichtung: "center" });
 
       ui.absatz(meeting.grund === "leiche"
         ? meeting.ausgeloestVon + " hat " + (meeting.opferName || "jemanden") + " gefunden."
@@ -676,7 +692,7 @@ const bildschirme = (function () {
     const r = ui.reserviere(gesamt, { abstand: 6 });
     rechtecke.forEach((e, i) => {
       const er = { x: r.x + e.x, y: r.y + e.y, b: e.b, h: 30 };
-      ui.fuelleRund(er.x, er.y, er.b, er.h, 15, ui.gedruecktAuf(er) ? "#d7e2f5" : "#eef2fb");
+      ui.fuelleRund(er.x, er.y, er.b, er.h, 15, ui.gedruecktAuf(er) ? "rgba(34,211,238,0.28)" : "rgba(34,211,238,0.1)");
       ui.rahmeRund(er.x, er.y, er.b, er.h, 15, F.rand, 1);
       ui.schreibe(e.text, er.x + e.b / 2, er.y + 15, { groesse: 12, fett: "halb", farbe: F.primaer, ausrichtung: "center" });
       ui.merke("schnell-" + i, er, "knopf");
@@ -853,13 +869,13 @@ const bildschirme = (function () {
     const k = ui.beginneKarte("bl-tabelle", { polster: 0 });
       const spalten = [0.46, 0.18, 0.2, 0.16];
       const kopf = ui.reserviere(38, { abstand: 0 });
-      ui.fuelleRund(kopf.x, kopf.y, kopf.b, kopf.h, 0, "#f4f6fa");
+      ui.fuelleRund(kopf.x, kopf.y, kopf.b, kopf.h, 0, "rgba(255,255,255,0.05)");
       spaltenText(kopf, spalten, ["Name", "Gespielt", "Gewonnen", "%"], 12, "halb", F.gedaempft);
 
       eintraege.forEach((e, i) => {
         const r = ui.reserviere(40, { abstand: 0 });
         if (i % 2 === 1) {
-          ui.ctx.fillStyle = "#fafbfd";
+          ui.ctx.fillStyle = "rgba(255,255,255,0.03)";
           ui.ctx.fillRect(r.x, r.y, r.b, r.h);
         }
         spaltenText(r, spalten, [e.name, String(e.gespielt), String(e.gewonnen), e.prozent + "%"],
@@ -902,6 +918,23 @@ const bildschirme = (function () {
   /*  Einstieg: eine Szene, aus der alles hervorgeht                      */
   /* ==================================================================== */
 
+  /* Welcher Bildschirm zuletzt zu sehen war, und wie weit er eingeblendet ist.
+     Ein Wechsel ohne Übergang wirkt auf einer einzigen Zeichenfläche wie ein
+     Aussetzer — es gibt ja keinen Seitenaufbau, den das Auge als Wechsel
+     lesen könnte. 160 ms genügen dafür; alles darüber fühlt sich zäh an,
+     wenn man in der Besprechung schnell hin und her tippt. */
+  let letzterBildschirm = "";
+  let einblendung = 1;
+  const EINBLENDDAUER = 0.16;
+
+  function welcherBildschirm(zustand) {
+    if (reiter === "info") return "info";
+    if (bestenlisteOffen) return "bestenliste";
+    if (!zustand || zustand.phase === "start") return zeigeNameEingabe ? "name" : "start";
+    if (zustand.phase === "laeuft" && zustand.meeting) return "meeting:" + zustand.meeting.unterphase;
+    return zustand.phase;
+  }
+
   function zeichneMenue(zustand) {
     const c = ui.ctx;
     c.fillStyle = F.hintergrund;
@@ -909,6 +942,24 @@ const bildschirme = (function () {
 
     kopfzeile(zustand);
     reiterLeiste();
+
+    const jetzigerBildschirm = welcherBildschirm(zustand);
+    if (jetzigerBildschirm !== letzterBildschirm) {
+      letzterBildschirm = jetzigerBildschirm;
+      einblendung = 0;
+    }
+
+    /* Der Inhalt blendet auf; Kopfzeile und Reiter bleiben stehen — sie sind
+       Rahmen, kein Inhalt.
+       BEWUSST nur Deckkraft, kein Hereinwandern: `ctx.translate` verschiebt die
+       Pixel, nicht die gemerkten Trefferflächen. Wer in den ersten Millisekunden
+       tippt, träfe dann einen Knopf, der sichtbar woanders steht. Bewegung gibt
+       es dort, wo es nichts zu treffen gibt — Aufgabenbalken und Sabotagewarnung. */
+    const bewegt = einblendung < 1;
+    if (bewegt) {
+      c.save();
+      c.globalAlpha = einblendung;
+    }
 
     if (reiter === "info") { infoReiter(); }
     else if (bestenlisteOffen) { bestenlisteBildschirm(); }
@@ -922,6 +973,14 @@ const bildschirme = (function () {
     else if (zustand.phase === "abgebrochen") abgebrochenBildschirm();
     else startBildschirm();
 
+    if (bewegt) {
+      c.restore();
+      einblendung = Math.min(1, einblendung + ui.delta / EINBLENDDAUER);
+      ui.anfordern();
+    }
+
+    /* Die Rückfrage liegt AUSSERHALB der Einblendung: sie erscheint über dem
+       Bildschirm, der stehen bleibt, und darf nicht mitwandern. */
     rueckfrage();
   }
 

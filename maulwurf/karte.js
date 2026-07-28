@@ -61,32 +61,50 @@ const SICHT_VERSTECKEN_FAENGER = 220;
 // Die Namen sind die des Originals in der deutschen Fassung (Cafeteria, Reaktor, Elektrik …).
 // Die ids bleiben englisch wie im Original-Grundriss — sie stehen in Stationstabelle,
 // Türliste und Schächten und sind nicht für Spieleraugen bestimmt.
+//
+// `farbe` tönt den Boden. Der Zweck ist Orientierung im Augenwinkel — man erkennt am Stich ins
+// Rostrote, dass man im Motorraum steht, ohne den Namen zu lesen. Kräftiger dürfen die Töne
+// nicht werden: der Boden liegt unter Figuren, Aufgabensternen und dem Sichtnebel, und sobald
+// er selbst Farbe behauptet, gehen die darüber unter.
+//
+// **Die Werte sind gerechnet, nicht gewählt** (Skript siehe Commit-Verlauf): alle haben 8,5 %
+// Sättigung UND dieselbe Luminanz nach Rec.709 wie der Grundton BODEN_RAUM (#2c3a52, Y≈57).
+// Der erste Versuch hatte nur dasselbe HSL-L — und die Cafeteria leuchtete senffarben über die
+// halbe Karte, während der Reaktor unauffällig blieb. Grün und Gelb ERSCHEINEN bei gleichem L
+// eben viel heller als Blau. Wer hier einen Ton ändert, rechnet ihn auf Y≈57 zurück, statt ihn
+// nach Augenmaß zu setzen; sonst kippt genau dieser eine Raum wieder heraus.
+//
+// Zwei Räume tragen bewusst KEINE eigene Tönung: Lager und Kommunikation. Sie sind Durchgang
+// und Zweckraum; mehr als zehn Töne lassen sich bei dieser Sättigung ohnehin nicht auseinander-
+// halten, und dann lieber zwei ehrlich neutrale als dreizehn, die sich ähneln.
 const RAEUME = [
   // obere Reihe
-  { id: "upper-engine", name: "Oberer Motor",  x: 219, y: 100, w: 381, h: 343 },
-  { id: "cafeteria",    name: "Cafeteria",     x: 1188, y: 100, w: 716, h: 343 },
-  { id: "weapons",      name: "Waffen",        x: 2331, y: 100, w: 381, h: 343 },
+  { id: "upper-engine", name: "Oberer Motor",  x: 219, y: 100, w: 381, h: 343, farbe: "#3e3834" },
+  { id: "cafeteria",    name: "Cafeteria",     x: 1188, y: 100, w: 716, h: 343, farbe: "#3b3932" },
+  { id: "weapons",      name: "Waffen",        x: 2331, y: 100, w: 381, h: 343, farbe: "#343a3d" },
   // mittlere Reihe
-  { id: "reactor",      name: "Reaktor",       x: 69, y: 598, w: 277, h: 344 },
-  { id: "security",     name: "Sicherheit",    x: 525, y: 598, w: 398, h: 344 },
+  { id: "reactor",      name: "Reaktor",       x: 69, y: 598, w: 277, h: 344, farbe: "#403736" },
+  { id: "security",     name: "Sicherheit",    x: 525, y: 598, w: 398, h: 344, farbe: "#40363b" },
   // Die Krankenstation ist am 2026-07-27 um 184 px nach links gerückt, damit der Stichflur aus
   // dem Oberflur in ihre NORDwand münden kann. Vorher lag sie rechts vom Längsgang und wurde
   // von Westen betreten — im Original kommt man von oben herein.
-  { id: "medbay",       name: "Krankenstation", x: 970, y: 598, w: 346, h: 344 },
+  { id: "medbay",       name: "Krankenstation", x: 970, y: 598, w: 346, h: 344, farbe: "#323b37" },
   // 46 px nach links gerückt, damit die WESTwand an den Gang Cafeteria–Lager heranreicht:
   // die Verwaltung wird von dort betreten, nicht über einen eigenen Stummel aus der Cafeteria.
-  { id: "admin",        name: "Verwaltung",    x: 1754, y: 598, w: 346, h: 344 },
-  { id: "o2",           name: "O2",            x: 2192, y: 598, w: 277, h: 344 },
-  { id: "navigation",   name: "Navigation",    x: 2654, y: 598, w: 300, h: 344 },
+  { id: "admin",        name: "Verwaltung",    x: 1754, y: 598, w: 346, h: 344, farbe: "#363a31" },
+  // O2 hebt sich über die HELLIGKEIT ab, nicht über den Farbton: der Sauerstoffraum ist der
+  // hellste an Bord. Ein zwölfter Farbton wäre von der Krankenstation nicht zu unterscheiden.
+  { id: "o2",           name: "O2",            x: 2192, y: 598, w: 277, h: 344, farbe: "#38455f" },
+  { id: "navigation",   name: "Navigation",    x: 2654, y: 598, w: 300, h: 344, farbe: "#393842" },
   // untere Reihe
-  { id: "lower-engine", name: "Unterer Motor", x: 219, y: 1097, w: 381, h: 343 },
+  { id: "lower-engine", name: "Unterer Motor", x: 219, y: 1097, w: 381, h: 343, farbe: "#3e3834" },
   // Die Elektrik ist am 2026-07-27 um 133 px nach rechts gerückt und 40 px schmaler geworden:
   // links von ihr braucht der Motorgang Platz, rechts der Lagergang. Ihre Tür liegt seitdem in
   // der SÜDwand, der Quergang läuft darunter durch — wie im Original.
-  { id: "electrical",   name: "Elektrik",      x: 779, y: 1097, w: 283, h: 343 },
+  { id: "electrical",   name: "Elektrik",      x: 779, y: 1097, w: 283, h: 343, farbe: "#3d3741" },
   { id: "storage",      name: "Lager",         x: 1246, y: 1097, w: 485, h: 343 },
   { id: "comms",        name: "Kommunikation", x: 1800, y: 1335, w: 369, h: 261 },
-  { id: "shields",      name: "Schilde",       x: 2377, y: 1097, w: 369, h: 343 }
+  { id: "shields",      name: "Schilde",       x: 2377, y: 1097, w: 369, h: 343, farbe: "#323b3b" }
 ];
 
 // Das Flurnetz. Waagerechte Verbindungsstücke oben und rechts, drei Längsgänge und ein
