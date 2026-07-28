@@ -238,11 +238,16 @@ function zeichneQuartettKarte(karte, x, y, b, opt) {
   ctx.fillRect(x, cy, b, bildH);
   const hatBild = quelle && ui.zeichneBild(quelle, x, cy, b, bildH);
   if (!hatBild) {
-    /* Ohne Bild der Anfangsbuchstabe, groß und halbdurchsichtig — das
-       entspricht dem Platzhalter-Umriss der abgelösten Oberfläche. */
-    ui.schreibe(initialeVon(karte.name), x + b / 2, cy + bildH / 2, {
-      groesse: Math.round(bildH * 0.5), fett: true,
-      farbe: "rgba(255,255,255,0.45)", ausrichtung: "center"
+    /* Ohne eigenes Foto eine generische Silhouette passend zum Typ der Karte
+       (Sportwagen, SUV, Van …). Sie ist gezeichnet, nicht geladen: keine
+       Urheberrechtsfrage, keine 500 Dateien, scharf auf jeder Auflösung.
+       Der Anfangsbuchstabe steht klein daneben, damit die Karte auch dann
+       noch zu unterscheiden ist, wenn zwei Modelle denselben Typ haben. */
+    motive.zeichne(ctx, karte.rolle, x + b * 0.06, cy + bildH * 0.12,
+                   b * 0.88, bildH * 0.72, "#ffffff", 0.55);
+    ui.schreibe(initialeVon(karte.name), x + b / 2, cy + bildH * 0.92, {
+      groesse: Math.round(bildH * 0.16), fett: true,
+      farbe: "rgba(255,255,255,0.5)", ausrichtung: "center"
     });
   }
   ctx.restore();
@@ -789,6 +794,15 @@ function szene() {
 
 const APP_VERSION = "1.0";
 const APP_CHANGELOG = [
+  {
+    version: "1.2",
+    groups: [
+      { title: "Karten", items: [
+          "Karten ohne eigenes Foto zeigen jetzt eine Silhouette passend zum Typ — Sportwagen, SUV, Van, Pickup, Oldtimer und sieben weitere.",
+          "Die Silhouetten sind gezeichnet, nicht geladen: nichts wird nachgeladen, und sie sind auf jedem Display scharf."
+      ]}
+    ]
+  },
   {
     version: "1.1",
     groups: [
