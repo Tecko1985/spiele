@@ -339,6 +339,19 @@ const ui = (function () {
       window.addEventListener("pointermove", bewegt);
       window.addEventListener("pointerup", hoch);
       window.addEventListener("pointercancel", hoch);
+
+      /* MIT MAUS UNVERZICHTBAR: `mousedown` folgt auf `pointerdown` und setzt
+         den Fokus auf das angeklickte Element. Das Canvas ist nicht
+         fokussierbar, also landet der Fokus auf `body` — und nimmt ihn dem
+         Tastatur-Stellvertreter wieder weg, den `runter()` gerade gesetzt hat.
+         Ergebnis: Am Rechner ließ sich in kein Feld tippen, am Handy schon,
+         weil es dort kein `mousedown` gibt.
+         `preventDefault` unterbindet genau diese Fokusverschiebung (und
+         nebenbei das Aufziehen einer Textmarkierung). Auf `click` verlässt
+         sich hier nichts, der Verlust ist folgenlos.
+         Nicht testbar mit synthetischen Ereignissen: die lösen kein
+         Standardverhalten aus, deshalb fiel es erst am echten Gerät auf. */
+      leinwand.addEventListener("mousedown", e => e.preventDefault());
     } else {
       /* Notfallweg für alte Geräte ohne Pointer-Events */
       leinwand.addEventListener("touchstart", e => { runter(e.changedTouches[0]); }, { passive: true });
@@ -385,6 +398,19 @@ const ui = (function () {
     proxy.focus();
     /* Caret ans Ende */
     try { proxy.setSelectionRange(proxy.value.length, proxy.value.length); } catch (e) {}
+
+    /* Zweite Sicherung gegen den Fokusklau durch `mousedown` (siehe dort).
+       Sollte irgendein Browser den Fokus trotz `preventDefault` verschieben,
+       holen wir ihn im nächsten Durchlauf zurück — dann ist das Standard-
+       verhalten bereits gelaufen. Greift nur, wenn wirklich etwas schiefging,
+       und kann nicht kreisen: `fokusId` wird ausschließlich durch einen Tipp
+       daneben oder `loeseFokus()` zurückgesetzt. */
+    setTimeout(function () {
+      if (fokusId !== null && document.activeElement !== proxy) {
+        proxy.focus();
+        anfordern();
+      }
+    }, 0);
   }
 
   function verdrahteTastatur() {
