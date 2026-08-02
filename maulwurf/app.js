@@ -920,94 +920,31 @@ async function pruefeAdminStatus() {
 
 // ---------- Info-Tab / Versionshistorie ----------
 const APP_VERSION = "1.0";
-const APP_CHANGELOG = [
-  {
-    version: "1.3",
-    groups: [
-      { title: "Neuer Anstrich: das Spiel spielt an Bord", items: [
-          "Die ganze App ist jetzt dunkel gehalten – Menüs, Warteraum und Besprechung passen damit zum Spielfeld, das schon immer dunkel war. Vorher sprang das Bild beim Spielstart vom hellen Grau ins Dunkle.",
-          "Leuchtfarben gibt es nur noch dort, wo etwas bedeutet oder bedienbar ist: Cyan für Schaltflächen, Rot für Gefahr, Gelb für Sabotagen. Der Rest hält sich zurück.",
-          "Auf dem Handy färbt sich die Statusleiste mit."
-      ]},
-      { title: "Man erkennt am Farbton, wo man steht", items: [
-          "Jeder Raum tönt seinen Boden ein wenig ein – der Motorraum ins Rostrote, die Cafeteria ins Warme, die Krankenstation ins Grüne. Gedacht für den Augenwinkel: man weiß, wo man ist, ohne den Namen zu lesen.",
-          "Lager und Kommunikation bleiben absichtlich neutral.",
-          "Die Spielerfarben sind kräftiger und besser zu unterscheiden. Sechs der alten Farben – Vereinsblau, Tannengrün, Oliv, Braun, Grau – verschwammen auf dem dunklen Boden mit dem Untergrund. Ausgerechnet die, die man in der Besprechung am ehesten verwechselt."
-      ]},
-      { title: "Es bewegt sich etwas", items: [
-          "Der Wechsel zwischen Bildschirmen blendet auf, statt hart umzuspringen.",
-          "Der gemeinsame Aufgabenbalken wächst weich und leuchtet kurz auf, wenn jemand eine Aufgabe fertig macht – bisher sprang er nur, was beim Laufen niemand bemerkte.",
-          "Die Sabotage-Warnung pulsiert, bei der Kernschmelze umso hektischer, je knapper die Zeit wird."
-      ]}
-    ]
-  },
-  {
-    version: "1.2",
-    groups: [
-      { title: "Die ganze Oberfläche wird jetzt gezeichnet", items: [
-          "Menüs, Warteraum, Besprechung, Aufgaben und Bestenliste laufen auf derselben Zeichenfläche wie das Spielfeld. Das Spiel sieht dadurch überall gleich aus – vorher war alles außerhalb der Karte eine gewöhnliche Webseite mit eigenen Schaltflächen.",
-          "Das Steuerkreuz und die Aktionsknöpfe lassen sich gleichzeitig bedienen: ein Daumen läuft, der andere tippt. Vorher konnte immer nur eines von beidem den Finger haben.",
-          "Nachfragen wie „Partie wirklich beenden?\" erscheinen als Fenster im Spiel statt als Browser-Hinweis, der die Seite einfriert und im Vollbild wie ein Absturz aussah.",
-          "Die Warteräume und Listen rollen sanft mit Schwung, und ein Wisch darüber löst keine Schaltfläche mehr versehentlich aus."
-      ]},
-      { title: "Aufgaben", items: [
-          "Alle 17 Minispiele und die beiden Reparaturen sind neu gebaut und sitzen jetzt im dunklen Pult-Look – besser lesbar im Querformat und mit größeren Bedienflächen für den Daumen.",
-          "„Verteiler kalibrieren\" blieb hängen, wenn man einen Zeiger daneben stoppte: Der Zeiger lief erst nach langer Zeit wieder an, wenn das Spiel im Hintergrund lag. Er läuft jetzt zuverlässig nach einer halben Sekunde weiter."
-      ]},
-      { title: "Behoben", items: [
-          "Beim Ziehen – Kabel verbinden, Blätter in den Schacht – wurde der Endpunkt nicht immer erkannt, wenn man zügig losließ.",
-          "Auf manchen Geräten konnte die Spielfläche nach dem Drehen ins Unermessliche wachsen, bis nichts mehr zu treffen war."
-      ]}
-    ]
-  },
-  {
-    version: "1.1",
-    groups: [
-      { title: "Gelände nach dem Original-Grundriss", items: [
-          "Das Layout ist Raum für Raum, Flur für Flur an die Vorlage angeglichen: 14 Räume, 10 Flure, 25 Türen – und vor allem sitzt jede Tür jetzt an der richtigen Wandseite. Die Elektrik wird von unten betreten, die Krankenstation von oben, der Untere Motor nach Osten, das Lager nach Westen.",
-          "Der untere Quergang läuft in Stufen um die Elektrik herum statt als gerader Balken unter drei Räumen hindurch – vorher lief er an der Elektrik vorbei, ohne sie überhaupt zu erschließen.",
-          "Fünf Sackgassen mit nur einer Tür: Sicherheit, Krankenstation, Elektrik, Kommunikation und neu die Verwaltung. Wer dort hineingeht, kommt nur auf demselben Weg wieder heraus. Die Verwaltung ist die einzige davon mit Aufgaben darin – und mit einer Abkürzung.",
-          "Der durchgehende Mittelgang ist weg. Von der Cafeteria kommt man nicht mehr geradewegs nach unten; zur Elektrik geht es über das Lager oder den Unteren Motor."
-      ]},
-      { title: "Neu im Spiel", items: [
-          "Bis zu 15 Mitspielende statt bisher 10 – mit fünf zusätzlichen Farben, damit niemand doppelt läuft.",
-          "↧ In den Abkürzungen hält man sich jetzt auf, statt nur durchzuspringen: drinnen ist man für alle unsichtbar, kann zwischen den Enden eines Netzes wechseln und sieht bei jedem erst die Umgebung – ausgestiegen wird per Knopf, wenn die Luft rein ist. Ausschalten und Sabotieren gehen aus dem Schacht heraus nicht.",
-          "Die ersten 10 Sekunden einer Runde ist der Ausschalten-Knopf gesperrt und zählt sichtbar herunter. So kommen alle erst einmal aus der Cafeteria heraus, statt dass die Partie in der ersten Sekunde entschieden wird.",
-          "📹 Die vier Kameras hängen jetzt an den Stellen des Originals – vor Navigation, Verwaltung, Krankenstation und Reaktor, alle im Flur. Drei davon bewachen den Zugang zu einer Sackgasse.",
-          "Jede Sonderrolle nennt im Info-Tab nicht nur, was sie kann, sondern auch, was sie kostet."
-      ]},
-      { title: "Behoben", items: [
-          "Die KI blieb im Laufe einer Partie stehen. Drei Ursachen: sie sprang über ihre Wegpunkte hinweg und pendelte darum herum, sie blieb an Türpfosten kleben, weil sie beide Richtungen anteilig statt nacheinander ging, und die Wegfindung dampfte gerade Strecken so weit ein, dass sie Türöffnungen um wenige Pixel verfehlte.",
-          "Die KI bewegt sich flüssig statt ruckartig – sie rechnet jetzt viermal so oft, ohne mehr Daten zu senden.",
-          "Das Lauftempo ist um ein Fünftel gesenkt. Vorher waren Räume im Vorbeilaufen abgehakt, statt dass Wege etwas kosten.",
-          "An einer Stelle im Flur konnte man mit der Figur hängenbleiben und kam weder vor noch zurück."
-      ]}
-    ]
-  },
+const CHANGELOG = [
   {
     version: "1.0",
     groups: [
       { title: "Spielen", items: [
-          "Verräterspiel für 4 bis 10 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
-          "Das Gelände ist dem Original-Grundriss von Among Us nachempfunden: 14 Räume, ein Drehkreuz in der Mitte, ein Rundlauf außen herum – und Sackgassen mit nur einer Tür. Wer dort hineingeht, kommt nur auf demselben Weg wieder heraus.",
-          "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen – nur durch offene Türen fällt Licht in den Nachbarraum. Die Räume selbst bleiben schwach angedeutet, damit man sich zurechtfindet; Mitspielende sieht man aber wirklich nur in direkter Sichtlinie. Auch ein Foulspiel quer durch die Wand geht nicht mehr.",
-          "17 verschiedene Aufgaben-Minispiele an 35 Stationen – jede Runde ist anders zusammengesetzt.",
-          "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde – bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
+          "Verräterspiel für 4 bis 15 Mitspielende auf dem Vereinsgelände, live auf allen Handys.",
+          "Das Gelände folgt dem Original-Grundriss von Among Us: 14 Räume, 10 Flure, 25 Türen — jede Tür an der richtigen Wandseite. Die Elektrik wird von unten betreten, die Krankenstation von oben, der Untere Motor nach Osten, das Lager nach Westen.",
+          "Fünf Sackgassen mit nur einer Tür: Sicherheit, Krankenstation, Elektrik, Kommunikation und Verwaltung. Wer dort hineingeht, kommt nur auf demselben Weg wieder heraus. Die Verwaltung ist die einzige davon mit Aufgaben darin — und mit einer Abkürzung.",
+          "Es gibt keinen durchgehenden Mittelgang: Von der Cafeteria geht es nicht geradewegs nach unten, zur Elektrik führt der Weg über das Lager oder den Unteren Motor. Der untere Quergang läuft in Stufen um die Elektrik herum und erschließt sie dabei.",
+          "Wände nehmen die Sicht: Wer hinter einer Mauer steht, ist nicht zu sehen — nur durch offene Türen fällt Licht in den Nachbarraum. Die Räume bleiben schwach angedeutet, damit man sich zurechtfindet; Mitspielende sieht man aber wirklich nur in direkter Sichtlinie. Auch ein Foulspiel quer durch die Wand geht nicht.",
+          "17 verschiedene Aufgaben-Minispiele an 35 Stationen — jede Runde ist anders zusammengesetzt.",
+          "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde — bei Maulwürfen passiert nichts. Das einzige harte Alibi im Spiel.",
           "Maulwürfe können Leute ausschalten, Abkürzungen nehmen, das Licht kappen, den Reaktor überhitzen, den Funk stören und Räume verriegeln.",
-          "📹 Kameras am Pult in der Sicherheit zeigen vier feste Bereiche des Geländes, mit Namen und Spielerfarben. Wer zusieht, wird verraten: die Kameras blinken dann rot für jeden, der davorsteht.",
+          "↧ In den Abkürzungen hält man sich auf, statt nur durchzuspringen: drinnen ist man für alle unsichtbar, kann zwischen den Enden eines Netzes wechseln und sieht bei jedem Ende erst die Umgebung. Ausgestiegen wird per Knopf, wenn die Luft rein ist. Ausschalten und Sabotieren gehen aus dem Schacht heraus nicht.",
+          "Die ersten 10 Sekunden einer Runde ist der Ausschalten-Knopf gesperrt und zählt sichtbar herunter — so kommen alle erst einmal aus der Cafeteria heraus, statt dass die Partie in der ersten Sekunde entschieden wird.",
+          "📹 Vier Kameras hängen an den Stellen des Originals: vor Navigation, Verwaltung, Krankenstation und Reaktor, alle im Flur. Drei davon bewachen den Zugang zu einer Sackgasse. Am Pult in der Sicherheit zeigen sie die Bereiche mit Namen und Spielerfarben — und wer zusieht, wird verraten: die Kameras blinken dann rot für jeden, der davorsteht.",
           "📻 Ist der Funk gestört, fallen Kameras und Aufgabenliste aus, bis jemand am Funkpult in der Kommunikation war.",
-          "Besprechung per Chat mit Schnellphrasen, danach Abstimmung – Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende.",
+          "Besprechung per Chat mit Schnellphrasen, danach Abstimmung — Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende.",
           "Einstellbar, ob nach einem Rauswurf verraten wird, ob es wirklich ein Maulwurf war."
       ]},
       { title: "Zwei Spielmodi", items: [
-          "🕵️ Klassisch: verdeckte Maulwürfe, Leiche melden, Besprechung und Abstimmung – das volle Spiel.",
+          "🕵️ Klassisch: verdeckte Maulwürfe, Leiche melden, Besprechung und Abstimmung — das volle Spiel.",
           "🥅 Verstecken: genau ein Fänger, von Beginn an für alle sichtbar. Keine Besprechung, keine Abstimmung, keine Sabotage.",
           "Im Verstecken-Modus dreht sich die Sicht um: Der Fänger sieht am wenigsten und tastet sich an einer Nähe-Anzeige entlang, die nur die Entfernung verrät, nie die Richtung.",
           "Das Team gewinnt durch alle Aufgaben oder indem es die Zeit übersteht; der Fänger, wenn er alle erwischt hat. Vorsprung und Zeitlimit sind einstellbar."
-      ]},
-      { title: "Am Handy", items: [
-          "Quer halten: Das Spielfeld läuft formatfüllend über den ganzen Bildschirm.",
-          "Vollbild lässt sich jederzeit über das Symbol oben rechts ein- und ausschalten."
       ]},
       // **Aus rollen.js erzeugt, nicht abgeschrieben.** Die Beschreibungen standen hier
       // doppelt und liefen bei jeder Rollenänderung auseinander — im Info-Tab stand dann
@@ -1023,6 +960,21 @@ const APP_CHANGELOG = [
       { title: "Fair verteilt", items: [
           "Die Rollen zieht jedes Handy selbst aus einem anonym gemischten Stapel – auch das Gerät der Gastgeberin oder des Gastgebers erfährt nichts.",
           "Fremde Rollen sind serverseitig gesperrt, nicht nur ausgeblendet."
+      ]},
+      { title: "Aussehen und Bedienung", items: [
+          "Die ganze Oberfläche wird gezeichnet: Menüs, Warteraum, Besprechung, Aufgaben und Bestenliste laufen auf derselben Fläche wie das Spielfeld. Das Spiel sieht dadurch überall gleich aus.",
+          "Alles ist dunkel gehalten, passend zum Spielfeld. Leuchtfarben gibt es nur, wo etwas bedeutet oder bedienbar ist: Cyan für Schaltflächen, Rot für Gefahr, Gelb für Sabotagen. Auf dem Handy färbt sich die Statusleiste mit.",
+          "Jeder Raum tönt seinen Boden ein wenig ein — der Motorraum ins Rostrote, die Cafeteria ins Warme, die Krankenstation ins Grüne. Gedacht für den Augenwinkel: man weiß, wo man ist, ohne den Namen zu lesen. Lager und Kommunikation bleiben absichtlich neutral.",
+          "Die Spielerfarben sind kräftig und gut zu unterscheiden, auch auf dem dunklen Boden.",
+          "Steuerkreuz und Aktionsknöpfe lassen sich gleichzeitig bedienen: ein Daumen läuft, der andere tippt.",
+          "Rückfragen wie „Partie wirklich beenden?“ erscheinen als Fenster im Spiel statt als Browser-Hinweis, der die Seite einfriert.",
+          "Warteräume und Listen rollen mit Schwung, und ein Wisch darüber löst keine Schaltfläche versehentlich aus.",
+          "Der Wechsel zwischen Bildschirmen blendet auf. Der gemeinsame Aufgabenbalken wächst weich und leuchtet kurz auf, wenn jemand eine Aufgabe fertig macht. Die Sabotage-Warnung pulsiert, bei der Kernschmelze umso hektischer, je knapper die Zeit wird."
+      ]},
+      { title: "Am Handy", items: [
+          "Quer halten: Das Spielfeld läuft formatfüllend über den ganzen Bildschirm.",
+          "Vollbild lässt sich jederzeit über das Symbol oben rechts ein- und ausschalten.",
+          "Die Aufgaben-Minispiele sitzen im dunklen Pult-Look, im Querformat gut lesbar und mit großen Bedienflächen für den Daumen."
       ]},
       { title: "Drumherum", items: [
           "Bestenliste über alle Partien.",

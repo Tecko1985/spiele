@@ -793,38 +793,28 @@ function szene() {
 -------------------------------------------------------------------------- */
 
 const APP_VERSION = "1.0";
-const APP_CHANGELOG = [
-  {
-    version: "1.2",
-    groups: [
-      { title: "Karten", items: [
-          "Karten ohne eigenes Foto zeigen jetzt eine Silhouette passend zum Typ — Sportwagen, SUV, Van, Pickup, Oldtimer und sieben weitere.",
-          "Die Silhouetten sind gezeichnet, nicht geladen: nichts wird nachgeladen, und sie sind auf jedem Display scharf."
-      ]}
-    ]
-  },
-  {
-    version: "1.1",
-    groups: [
-      { title: "Oberfläche", items: [
-          "Das ganze Spiel läuft jetzt auf einer einzigen Zeichenfläche statt auf HTML-Bildschirmen — flüssiger auf dem Handy und überall gleich.",
-          "Die Karte ist größer und lesbarer, Werte stehen mit Tausenderpunkten.",
-          "Karten- und Kriterienverwaltung, Bestenliste und Info sind mitgewandert; Sicherheitsabfragen erscheinen als Dialog statt als Systemfenster."
-      ]}
-    ]
-  },
+const CHANGELOG = [
   {
     version: "1.0",
     groups: [
       { title: "Spielen", items: [
           "Quartett auf mehreren Geräten gleichzeitig — ein Gerät eröffnet den Raum, die anderen treten mit dem Raumcode bei.",
           "Bis zu 8 Mitspielende, die eigene Hand sieht nur man selbst.",
-          "Bockrunde bei Gleichstand: der Pott geht an die nächste gewonnene Runde."
+          "Bockrunde bei Gleichstand: der Pott geht an die nächste gewonnene Runde.",
+          "Gegen eine einfache KI spielen, wenn gerade niemand sonst da ist."
+      ]},
+      { title: "Karten", items: [
+          "Karten ohne eigenes Foto zeigen eine Silhouette passend zum Typ — Sportwagen, SUV, Van, Pickup, Oldtimer und sieben weitere.",
+          "Die Silhouetten sind gezeichnet, nicht geladen: es wird nichts nachgeladen, und sie sind auf jedem Display scharf.",
+          "Kartenverwaltung und Kriterien pflegen Administratoren."
+      ]},
+      { title: "Oberfläche", items: [
+          "Das ganze Spiel läuft auf einer einzigen Zeichenfläche statt auf HTML-Bildschirmen — flüssig auf dem Handy und überall gleich.",
+          "Die Karte ist groß und gut lesbar, Werte stehen mit Tausenderpunkten.",
+          "Kartenverwaltung, Bestenliste und Info laufen auf derselben Fläche; Sicherheitsabfragen erscheinen als Dialog im Spiel statt als Systemfenster."
       ]},
       { title: "Drumherum", items: [
-          "Bestenliste über alle bisherigen Partien.",
-          "Gegen eine einfache KI spielen, wenn gerade niemand sonst da ist.",
-          "Kartenverwaltung für Admins."
+          "Bestenliste über alle bisherigen Partien."
       ]}
     ]
   }
