@@ -41,6 +41,12 @@ const spielfeld = (function () {
   const HAUPT_R = 40;
   const KREUZ_R = 62;
 
+  /* Untergrenze der Minispielfläche. Sie greift erst unterhalb von rund
+     316 px Bildhöhe — dort ist ein Minispiel zwar gedrängt, aber noch
+     bedienbar, und der Schließen-Knopf bleibt erreichbar. Ohne Untergrenze
+     würde die Fläche auf einem sehr flachen Fenster gegen null gehen. */
+  const MINISPIEL_MIN_HOEHE = 150;
+
   /* ==================================================================== */
   /*  Kopfleiste                                                          */
   /* ==================================================================== */
@@ -438,15 +444,31 @@ const spielfeld = (function () {
 
   function aufgabenDialog(zustand) {
     const d = ui.beginneDialog("aufgabe", { breite: 460 });
-      ui.titel(aufgabeTitel, { groesse: 19 });
+      const kopf = ui.titel(aufgabeTitel, { groesse: 19 });
       if (aufgabeGesperrt) {
         ui.absatz("Diese Aufgabe hat mehrere Schritte.", { groesse: 14, farbe: F.text });
         ui.absatz("Erst der vorherige Schritt – dann geht es hier weiter.", { groesse: 14 });
       } else if (aktivesMinispiel) {
-        /* Das Minispiel bekommt eine feste Fläche und zeichnet sich darin
-           selbst. Es holt seine Eingaben über dieselben Treffer-Prüfungen wie
-           jedes andere Bedienelement. */
-        const hoehe = aktivesMinispiel.hoehe || 260;
+        /* Das Minispiel bekommt den Platz, der nach Titel und Schließen-Knopf
+           übrig bleibt — NICHT seine Wunschhöhe. Die 220–260 px aus
+           `aufgaben.js` sind für einen Desktop gedacht; ein iPhone im
+           Querformat hat je nach Gerät und Safari-Leiste nur 320–390 px
+           Bildhöhe, und dann stand der Knopf unter dem Bildrand: die Aufgabe
+           ließ sich öffnen, aber nicht mehr schließen (gemeldet 2026-08-02,
+           betroffen waren die drei Minispiele mit 260 px — scan, triebwerk,
+           lenkung — schon bei 375 px Bildhöhe, bei 330 px dann sechzehn von
+           siebzehn).
+           Dass sie kleiner dürfen, ist kein Zufall: alle Minispiele zeichnen
+           sich relativ zu dem Rechteck, das sie hier bekommen.
+           Der Abzug ist die Summe der festen Anteile — 16+16 Bildrand,
+           2×`polster`, der Abstand unter dem Titel, der Abstand über dem
+           Knopf, der Knopf selbst und der Abstand darunter. Die Titelhöhe
+           kommt gemessen dazu, weil ein langer Stationsname im Hochformat
+           umbricht. */
+        const abzug = 32 + d.polster * 2 + kopf.h + 12 + 10 + 40 + 12;
+        const platz = ui.hoehe - abzug;
+        const hoehe = Math.max(MINISPIEL_MIN_HOEHE,
+                               Math.min(aktivesMinispiel.hoehe || 260, platz));
         const r = ui.reserviere(hoehe, { abstand: 10 });
         aktivesMinispiel.zeichne(r);
       }
@@ -632,6 +654,45 @@ const spielfeld = (function () {
 
   /* ---------------------------------------------------------- Kameras */
 
+  const KAMERA_HINWEIS = "Solange du zusiehst, blinken die Kameras auf der Karte – für alle, die davorstehen.";
+  const STOERUNGSTEXT = "📻 Kein Signal – der Funk ist gestört.";
+  const SPALTEN_LUECKE = 8;
+  const BESCHRIFTUNG_H = 26;   // Zeile mit dem Kameranamen unter jedem Bild
+
+  /* Sucht die Aufteilung, die die größten Bilder ergibt und dabei im
+     Höhenbudget bleibt. Vorher standen zwei Spalten fest im Code — bei vier
+     Kameras also immer zwei Zeilen, unabhängig davon, ob dafür Platz war.
+     Auf einem iPhone im Querformat ist das Bild flacher als hoch: dort sind
+     vier Bilder nebeneinander nicht nur die einzige Aufteilung, die passt,
+     sondern auch die mit der größeren Bildfläche.
+     Nur Teiler der Kameraanzahl werden probiert, sonst bliebe in der letzten
+     Zeile eine Lücke. */
+  function waehleKameraAnordnung(innenB, budget) {
+    const anzahl = karte.KAMERAS.length;
+    const verh = karte.KAMERAS[0].hoehe / karte.KAMERAS[0].breite;
+    let beste = null;
+    for (let spalten = 1; spalten <= anzahl; spalten++) {
+      if (anzahl % spalten !== 0) continue;
+      const zeilen = anzahl / spalten;
+      const spaltenB = (innenB - (spalten - 1) * SPALTEN_LUECKE) / spalten;
+      if (spaltenB <= 0) continue;
+      /* Begrenzend ist entweder die Spaltenbreite oder das Höhenbudget. */
+      const bildH = Math.min(spaltenB * verh, budget / zeilen - BESCHRIFTUNG_H);
+      if (bildH <= 0) continue;
+      const flaeche = bildH * (bildH / verh);
+      if (!beste || flaeche > beste.flaeche) {
+        beste = { spalten, zeilen, bildH, bildB: bildH / verh, flaeche };
+      }
+    }
+    /* Passt nichts (extrem flaches Fenster), lieber winzige Bilder in einer
+       Zeile als gar kein Bild — der Schließen-Knopf bleibt so erreichbar. */
+    if (!beste) {
+      const bildH = 30;
+      beste = { spalten: anzahl, zeilen: 1, bildH, bildB: bildH / verh, flaeche: 0 };
+    }
+    return beste;
+  }
+
   function oeffneKameras() {
     schliesse();
     offenerDialog = "kameras";
@@ -652,35 +713,56 @@ const spielfeld = (function () {
       gameService.kameraZusehen();
     }
 
-    const d = ui.beginneDialog("kameras", { breite: Math.min(560, ui.breite - 24), polster: 14 });
-      ui.titel("📹 Kameras", { groesse: 19 });
+    /* Auf einem flachen Bild darf das Pult breiter werden: vier Bilder
+       nebeneinander brauchen eine Zeile statt zwei und passen dadurch
+       überhaupt erst aufs Bild. Am Schreibtisch bleibt es bei 560. */
+    const dialogB = Math.min(ui.hoehe < 460 ? 800 : 560, ui.breite - 24);
+    const d = ui.beginneDialog("kameras", { breite: dialogB, polster: 14 });
+      const kopf = ui.titel("📹 Kameras", { groesse: 19 });
       if (gestoert) {
-        ui.absatz("📻 Kein Signal – der Funk ist gestört.", { groesse: 13, farbe: F.gefahr, fett: "halb" });
+        ui.absatz(STOERUNGSTEXT, { groesse: 13, farbe: F.gefahr, fett: "halb" });
       }
 
       const k = ui.oben();
-      const spalten = k.b > 380 ? 2 : 1;
-      const bildB = (k.b - (spalten - 1) * 8) / spalten;
-      let hoeheGesamt = 0;
+
+      /* Höhenbudget für die Bilder: vom Bild abziehen, was fest darum
+         herum steht. Ohne diese Rechnung bekamen die vier Bilder ihre
+         Breite unabhängig von der Bildhöhe und der Dialog wurde 462 px
+         hoch — auf einem 390 px hohen iPhone-Querbild lag der
+         Schließen-Knopf 62 px unterhalb des Rands und war auf keinem Weg
+         zu erreichen (gemeldet 2026-08-02: „bei der CCTV kommt man egal
+         wie nicht an den Beenden-Button"). Im Hochformat war es noch
+         mehr. */
+      const hinweisH = ui.umbrich(KAMERA_HINWEIS, k.b, 12).length * 12 * 1.45;
+      const stoerH = gestoert
+        ? ui.umbrich(STOERUNGSTEXT, k.b, 13, "halb").length * 13 * 1.45 + 12
+        : 0;
+      const abzug = 32 + d.polster * 2 + kopf.h + 12 + stoerH + 6 + hinweisH + 12 + 40 + 12;
+      const budget = ui.hoehe - abzug;
+
+      const anordnung = waehleKameraAnordnung(k.b, budget);
+      const bildB = anordnung.bildB, bildH = anordnung.bildH;
+      /* Wird die Höhe vom Budget begrenzt, sind die Bilder schmaler als die
+         Spalte — dann sitzt der Block mittig statt links zu kleben. */
+      const blockB = anordnung.spalten * bildB + (anordnung.spalten - 1) * SPALTEN_LUECKE;
+      const startX = k.x + Math.max(0, (k.b - blockB) / 2);
+
       karte.KAMERAS.forEach((kamera, i) => {
-        const bildH = bildB * (kamera.hoehe / kamera.breite);
-        const spalte = i % spalten;
-        const zeile = Math.floor(i / spalten);
-        const x = k.x + spalte * (bildB + 8);
-        const y = k.y + k.cursor + zeile * (bildH + 26);
-        hoeheGesamt = Math.max(hoeheGesamt, (zeile + 1) * (bildH + 26));
+        const spalte = i % anordnung.spalten;
+        const zeile = Math.floor(i / anordnung.spalten);
+        const x = startX + spalte * (bildB + SPALTEN_LUECKE);
+        const y = k.y + k.cursor + zeile * (bildH + BESCHRIFTUNG_H);
 
         if (gestoert) rauschen(x, y, bildB, bildH);
         else zeichneKamerabild(x, y, bildB, bildH, kamera, zustand);
 
-        ui.schreibe(kamera.name, x + bildB / 2, y + bildH + 12, {
+        ui.schreibe(ui.kuerze(kamera.name, bildB, 12, "halb"), x + bildB / 2, y + bildH + 12, {
           groesse: 12, fett: "halb", farbe: F.gedaempft, ausrichtung: "center"
         });
       });
-      ui.luecke(hoeheGesamt + 6);
+      ui.luecke(anordnung.zeilen * (bildH + BESCHRIFTUNG_H) + 6);
 
-      ui.absatz("Solange du zusiehst, blinken die Kameras auf der Karte – für alle, die davorstehen.",
-                { groesse: 12 });
+      ui.absatz(KAMERA_HINWEIS, { groesse: 12 });
       if (ui.knopf("btn-kameras-schliessen", "Schließen", { art: "link" })) schliesse();
     ui.beendeDialog(d);
 

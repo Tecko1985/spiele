@@ -261,6 +261,7 @@ let letzterRaum = null;
 let listener = null;
 
 let meineRolle = null;         // "team" | "maulwurf" | null
+let meineRolleRunde = null;    // zu welcher Runde die obige Rolle gehört
 let meineSonderrolle = null;   // "ingenieur" | "wissenschaftler" | "schutzengel" | "gestaltwandler" | null
 let meineAufgaben = [];        // Stations-Ids
 let meineErledigten = [];      // Stations-Ids
@@ -440,27 +441,37 @@ function loeseListenerAb() {
   if (teamRef) teamRef.off();
   roomRef = positionenRef = chatRef = teamRef = null;
   letzterRaum = null;
-  meineRolle = null;
-  meineSonderrolle = null;
-  meineAufgaben = [];
-  meineErledigten = [];
-  meineWartezeiten = {};
-  maulwurfTeamRoh = {};
+  verwerfeRundendaten();
   positionen = {};
   chatVerlauf = [];
   meinePosition = null;
-  zuteilungLaeuft = false;
-  botZuteilungLaeuft = false;
-  rollenNachladenLaeuft = false;
-  revealTimerFuerRunde = null;
   meetingUebergangGeplantFuer = null;
-  ausgangGemeldetFuerRunde = null;
-  aufdeckungGeschriebenFuerRunde = null;
   aufdeckungListenerAktiv = false;
   Object.keys(botZustand).forEach(k => delete botZustand[k]);
   if (botTimer) { clearInterval(botTimer); botTimer = null; }
   if (positionTimer) { clearInterval(positionTimer); positionTimer = null; }
   if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+}
+
+// Alles, was genau EINER Runde gehört. Wird beim Rundenwechsel auf JEDEM Gerät fällig, nicht
+// nur auf dem des Hosts — siehe die Prüfung am Kopf von verarbeiteRaumZustand.
+function verwerfeRundendaten() {
+  meineRolle = null;
+  meineRolleRunde = null;
+  meineSonderrolle = null;
+  meineAufgaben = [];
+  meineErledigten = [];
+  meineWartezeiten = {};
+  maulwurfTeamRoh = {};
+  // Der Listener der Vorrunde muss mit weg: uebernehmeEigeneRolle hängt ihn nur an, wenn noch
+  // keiner steht, und würde ihn sonst nie erneuern.
+  if (teamRef) { teamRef.off(); teamRef = null; }
+  ausgangGemeldetFuerRunde = null;
+  aufdeckungGeschriebenFuerRunde = null;
+  revealTimerFuerRunde = null;
+  zuteilungLaeuft = false;
+  botZuteilungLaeuft = false;
+  rollenNachladenLaeuft = false;
 }
 
 function betretRaumLokal(code) {
@@ -515,6 +526,7 @@ function betretRaumLokal(code) {
 
 function uebernehmeEigeneRolle(daten) {
   meineRolle = daten.rolle || null;
+  meineRolleRunde = rundeVon(daten);
   meineSonderrolle = daten.sonder || null;
   meineAufgaben = daten.aufgaben || [];
   meineErledigten = daten.erledigt || [];
@@ -888,6 +900,22 @@ async function zieheBotRollen(raum) {
 function verarbeiteRaumZustand(raum) {
   const code = aktuellerRaumCode;
   if (!code) return;
+
+  // Ein Rundenwechsel entwertet die lokal gehaltene Rolle — auf JEDEM Gerät.
+  //
+  // neueRunde() räumt sie weg, läuft aber nur beim Host (ganz oben steht ein return für alle
+  // anderen). Ein GAST behielt seine Rolle deshalb aus der Vorrunde, und weil zieheEigeneRolle()
+  // bei gesetzter Rolle sofort zurückkehrt, zog sein Gerät in der neuen Runde nicht mehr. Der
+  // zuteilungZaehler erreichte die Spielerzahl dadurch nie, revealBis wurde nie gesetzt und die
+  // Partie stand still im Zuteilungsbild — gemeldet als „der Start friert nach zwei, drei
+  // Partien nacheinander ein" (2026-08-02). Betroffen war jede Runde ab der zweiten, sobald
+  // mindestens eine Person nicht der Host war; wer zwischendurch neu lud, kam frei, weil
+  // betretRaumLokal() den Zustand ohnehin leert. Genau daher das sporadische Bild.
+  //
+  // Gebunden wird an die mitgeschriebene Rundennummer, nicht an die Phase: dieselbe Regel, die
+  // für geheime_rollen und maulwurf_team schon gilt — Korrektheit hängt am Lesen, nicht am
+  // Aufräumen.
+  if (meineRolleRunde !== null && meineRolleRunde !== rundeVon(raum)) verwerfeRundendaten();
 
   if (raum.phase === "zuteilung") {
     zieheEigeneRolle(raum);
@@ -1931,19 +1959,9 @@ async function neueRunde() {
   await db.ref(`${ROLLEN_PFAD}/${code}`).remove().catch(() => {});
   await db.ref(`${TEAM_PFAD}/${code}`).remove().catch(() => {});
   await db.ref(`${CHAT_PFAD}/${code}`).remove().catch(() => {});
-  meineRolle = null;
-  meineSonderrolle = null;
-  meineAufgaben = [];
-  meineErledigten = [];
-  meineWartezeiten = {};
-  maulwurfTeamRoh = {};
-  if (teamRef) { teamRef.off(); teamRef = null; }
-  ausgangGemeldetFuerRunde = null;
-  aufdeckungGeschriebenFuerRunde = null;
-  revealTimerFuerRunde = null;
-  zuteilungLaeuft = false;
-  botZuteilungLaeuft = false;
-  rollenNachladenLaeuft = false;
+  // Auf dem Host wirkt das sofort; die Gäste erledigen dasselbe, sobald ihr Raum-Update die
+  // neue Rundennummer bringt (Prüfung am Kopf von verarbeiteRaumZustand).
+  verwerfeRundendaten();
   // Der Bot-Zustand ist strikt rundengebunden: er hält neben der Rolle auch den Zähler
   // aufgabenErledigt. Ohne dieses Leeren startete jeder Bot im Rematch mit dem vollen
   // Zähler der Vorrunde und erledigte keine einzige Aufgabe mehr — die Siegbedingung
