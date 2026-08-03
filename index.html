@@ -97,8 +97,6 @@
     padding: 2px 8px;
     vertical-align: middle;
   }
-  .version-badge-link { cursor: pointer; }
-  .version-badge-link:hover, .version-badge-link:focus-visible { background: rgba(255, 255, 255, 0.32); }
   nav {
     display: flex;
     gap: 4px;
@@ -143,7 +141,6 @@
 <header class="kopfzeile">
   <div class="kopfzeile-left">
     <span class="kopfzeile-titel">🎮 Spiele</span>
-    <span class="version-badge version-badge-link" id="version-badge" role="button" tabindex="0" title="Versionshistorie ansehen"></span>
   </div>
   <a href="https://sc1911heiligenstadt.github.io/ToolsUebersicht/" class="back-to-dashboard">← Zurück zum Dashboard</a>
   <div class="kopfzeile-right">
@@ -267,11 +264,6 @@
 
   document.querySelectorAll("nav button[data-tab]").forEach((b) => {
     b.addEventListener("click", () => activateTab(b.dataset.tab));
-  });
-  const badge = document.getElementById("version-badge");
-  badge.addEventListener("click", () => activateTab("info"));
-  badge.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activateTab("info"); }
   });
   renderVersionInfo();
 </script>
