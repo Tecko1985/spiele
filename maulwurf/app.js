@@ -890,7 +890,7 @@ function render(zustand) {
 }
 
 // Nutzt dieselbe Anmeldung wie die ToolsUebersicht-Landingpage (gleicher Origin
-// tecko1985.github.io, localStorage-Key "tu_session_token") — kein eigenes Login hier.
+// sc1911heiligenstadt.github.io, localStorage-Key "tu_session_token") — kein eigenes Login hier.
 // Reiner UI-Gate ohne Backend-Durchsetzung, fail-closed bei jedem Fehler.
 const TU_WORKER_URL = "https://landingpage.michel-brunner.workers.dev";
 const TU_TOKEN_KEY = "tu_session_token";

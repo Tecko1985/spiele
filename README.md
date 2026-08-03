@@ -2,9 +2,9 @@
 
 Kleine Spiele-Sammlung fürs Team – ideal, um auf der Busfahrt zum Auswärtsspiel ein bisschen Zeit zu überbrücken. Startet mit **Auto-Quartett**, **Fußball-Quartett** und **Fußball-Vereine-Quartett**, weitere Spiele folgen.
 
-Die Kartenverwaltung (✏️ Karten bearbeiten) ist in allen Spielen nur für Admins der [ToolsUebersicht](https://tecko1985.github.io/ToolsUebersicht/) sichtbar — kein eigenes Login hier, wer dort im selben Browser als Admin angemeldet ist, sieht den Button automatisch.
+Die Kartenverwaltung (✏️ Karten bearbeiten) ist in allen Spielen nur für Admins der [ToolsUebersicht](https://sc1911heiligenstadt.github.io/ToolsUebersicht/) sichtbar — kein eigenes Login hier, wer dort im selben Browser als Admin angemeldet ist, sieht den Button automatisch.
 
-**Live:** https://tecko1985.github.io/spiele/
+**Live:** https://sc1911heiligenstadt.github.io/spiele/
 
 ## Auto-Quartett
 

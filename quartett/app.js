@@ -367,7 +367,7 @@ function zeichneKopfzeile(zustand) {
     ui.rahmeRund(r.x, r.y, r.b, r.h, 14, "rgba(255,255,255,0.3)", 1);
     ui.schreibe(text, r.x + r.b / 2, mitte, { groesse: 13, fett: "halb", farbe: ui.F.weiss, ausrichtung: "center" });
     ui.merke("btn-dashboard", r, "knopf");
-    if (ui.geklickt(r)) window.location.href = "https://tecko1985.github.io/ToolsUebersicht/";
+    if (ui.geklickt(r)) window.location.href = "https://sc1911heiligenstadt.github.io/ToolsUebersicht/";
   }
 
   return h;
@@ -688,7 +688,7 @@ function speichereKriterien() {
 /* --------------------------------------------------------------------------
    Admin-Prüfung (Kartenverwaltung nur für ToolsUebersicht-Admins)
    Nutzt dieselbe Anmeldung wie die ToolsUebersicht-Landingpage (gleicher
-   Origin tecko1985.github.io, localStorage-Schlüssel "tu_session_token") —
+   Origin sc1911heiligenstadt.github.io, localStorage-Schlüssel "tu_session_token") —
    kein eigenes Login hier. Ohne Token oder bei jedem Fehler bleibt der Knopf
    verborgen (fail-closed).
 -------------------------------------------------------------------------- */
