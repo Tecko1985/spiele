@@ -167,7 +167,7 @@ const bildschirme = (function () {
     }
 
     /* Vereinslogo rechts */
-    ui.zeichneBild("logo.png", ui.breite - 74, 10, 60, KOPF_HOEHE - 20);
+    ui.zeichneBild("https://sc1911heiligenstadt.github.io/logo.svg", ui.breite - 74, 10, 60, KOPF_HOEHE - 20);
   }
 
   function frageVerlassen(zustand) {

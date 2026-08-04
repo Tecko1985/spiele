@@ -32,7 +32,7 @@ Die drei Quartetts waren bis auf ihr Kartendeck, ihren Firebase-Namensraum und v
 - `quartett/app.js` — Zustand der Ansicht, Kopfzeile, Reiter, Kartenzeichnung, Dialoge, Admin-Prüfung. Wird **zuletzt** geladen.
 - `quartett/style.css` — nur noch das Nötigste fürs Dokument (Zeichenfläche formatfüllend, versteckte Felder).
 
-Je Spiel bleiben: `index.html`, `spiel-config.js` (Titel, Zeichen, Beschreibungen), `game-service.js` (Namensraum!), `mock-data.js` (Deck), `firebase-config.js`, `manifest.json`, `sw.js`, `icon.svg`, `logo.png`.
+Je Spiel bleiben: `index.html`, `spiel-config.js` (Titel, Zeichen, Beschreibungen), `game-service.js` (Namensraum!), `mock-data.js` (Deck), `firebase-config.js`, `manifest.json`, `sw.js`, `icon.svg`. Das Vereinswappen in der Kopfzeile kommt als Vektor vom Wurzelverzeichnis (`https://sc1911heiligenstadt.github.io/logo.svg`), liegt also nicht mehr je Spiel als Datei vor.
 
 **Im Dokument steht nur noch** eine `<canvas>`, ein unsichtbares Eingabefeld (ohne das öffnet iOS keine Bildschirmtastatur) und ein verstecktes Dateifeld fürs Kartenfoto — eine Dateiauswahl lässt sich nicht zeichnen. `escapeHtml` ist damit entfallen: fremde Namen werden gezeichnet, nicht in Markup eingesetzt.
 

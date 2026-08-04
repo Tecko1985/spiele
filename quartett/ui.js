@@ -1264,6 +1264,12 @@ const ui = (function () {
       eintrag = { bild: new Image(), fertig: false, fehler: false, zuletzt: bildUhr++ };
       eintrag.bild.onload  = () => { eintrag.fertig = true;  anfordern(); };
       eintrag.bild.onerror = () => { eintrag.fehler = true;  anfordern(); };
+      /* Das Vereinswappen kommt als absolute URL vom Wurzelverzeichnis. Live ist
+         das derselbe Ursprung, in der lokalen Vorschau (localhost:8782) aber ein
+         fremder — ohne diese Zeile würde die Zeichenfläche dort „vergiftet" und
+         `getImageData()` wirft, worüber die Canvas-Prüfungen laufen. Bei
+         Daten-URLs und relativen Pfaden bleibt es unberührt. */
+      if (/^https?:/.test(pfad)) eintrag.bild.crossOrigin = "anonymous";
       eintrag.bild.src = pfad;
       bilder.set(pfad, eintrag);
     }

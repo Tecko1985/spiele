@@ -1247,6 +1247,11 @@ const ui = (function () {
     if (!eintrag) {
       eintrag = { bild: new Image(), fertig: false };
       eintrag.bild.onload = () => { eintrag.fertig = true; anfordern(); };
+      /* Absolute URL (Vereinswappen vom Wurzelverzeichnis): live derselbe
+         Ursprung, in der lokalen Vorschau ein fremder. Ohne diese Zeile wäre
+         die Zeichenfläche dort „vergiftet" und `getImageData()` würde werfen —
+         genau der Weg, über den die Prüfungen dieses Spiels laufen. */
+      if (/^https?:/.test(pfad)) eintrag.bild.crossOrigin = "anonymous";
       eintrag.bild.src = pfad;
       bilder.set(pfad, eintrag);
     }

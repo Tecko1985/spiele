@@ -334,7 +334,7 @@ function zeichneKopfzeile(zustand) {
   /* Rechte Seite: Logo, dann von rechts nach links die Knöpfe */
   let rx = ui.breite - 14;
   const logoB = 34, logoH = 26;
-  if (ui.zeichneBild("logo.png", rx - logoB, mitte - logoH / 2, logoB, logoH)) rx -= logoB + 10;
+  if (ui.zeichneBild("https://sc1911heiligenstadt.github.io/logo.svg", rx - logoB, mitte - logoH / 2, logoB, logoH)) rx -= logoB + 10;
 
   /* Spiel abbrechen / verlassen */
   if (PHASEN_MIT_ABBRUCH.indexOf(zustand.phase) !== -1) {
