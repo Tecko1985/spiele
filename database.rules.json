@@ -7,7 +7,19 @@
       ".read": true,
 
       "raeume": {
-        "$code": { ".write": "auth != null" }
+        "$code": {
+          "//": "Feldweise statt pauschal. Mit einem offenen .write auf Raumebene koennte JEDER Mitspieler die 'saat' aendern - und da die komplette Kursentwicklung aus ihr entsteht, wuerde damit mitten im Spiel eine voellig andere Partie gerechnet und jeder bisherige Kauf zu fremden Kursen bewertet. Auf $code-Ebene bleibt daher nur Anlegen (als Host) und Loeschen (als Host, bei beendeter Partie); alles andere braucht eine eigene Regel darunter.",
+          ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid) || (!newData.exists() && data.child('hostId').val() === auth.uid && data.child('phase').val() === 'beendet'))",
+          "phase": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "startZeit": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "abgebrochen": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "spieler": {
+            "$uid": {
+              "//": "Jeder pflegt nur seinen eigenen Eintrag. Sonst koennte man einen Mitspieler auf 'raus' setzen und ihn damit aus der Rundenfreigabe draengen - die Partie liefe ohne ihn weiter.",
+              ".write": "auth != null && ($uid === auth.uid || root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid)"
+            }
+          }
+        }
       },
 
       "trades": {
@@ -19,6 +31,30 @@
               ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists()",
               ".validate": "newData.hasChildren(['art','id','stueck','zeit']) && (newData.child('art').val() === 'kauf' || newData.child('art').val() === 'verkauf') && newData.child('stueck').isNumber() && newData.child('stueck').val() > 0 && newData.child('zeit').val() === now"
             }
+          }
+        }
+      },
+
+      "bereit": {
+        "$code": {
+          "//": "Zustimmung zur naechsten Runde. Unveraenderlich und nicht zurueckzunehmen: waere sie loeschbar, koennte man abwarten bis alle fertig sind, die eigene Zustimmung zurueckziehen und als Einziger noch handeln - zu Kursen, auf die niemand mehr reagieren kann. Abraeumen nur wie bei den Trades.",
+          ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'beendet'",
+          "$runde": {
+            "$uid": {
+              ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists()",
+              ".validate": "newData.hasChild('zeit') && newData.child('zeit').val() === now"
+            }
+          }
+        }
+      },
+
+      "weiter": {
+        "$code": {
+          "//": "Der Host schaltet weiter, ohne auf alle zu warten. Ebenfalls unveraenderlich - der Zeitstempel entscheidet mit darueber, zu welcher Runde ein Kauf gehoert.",
+          ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'beendet'",
+          "$runde": {
+            ".write": "auth != null && !data.exists() && newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid",
+            ".validate": "newData.hasChildren(['zeit','von']) && newData.child('zeit').val() === now && newData.child('von').val() === auth.uid"
           }
         }
       },

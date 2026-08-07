@@ -43,27 +43,27 @@ const depot = (function () {
      die Dividende von der Stückzahl abhängt, die zum Zahltag gehalten wurde
      — wer erst danach kauft, bekommt sie nicht.
      ---------------------------------------------------------------------- */
-  function berechne(trades, lauf, bisTick, werteNachId) {
+  function berechne(trades, lauf, bisRunde, werteNachId) {
     let cash = STARTBUDGET;
     let gebuehrenGesamt = 0;
     let dividendenGesamt = 0;
     const bestand = {};   // id -> { stueck, einstand }
 
     const sortiert = (trades || []).slice().sort(function (a, b) {
-      if (a.tick !== b.tick) return a.tick - b.tick;
+      if (a.runde !== b.runde) return a.runde - b.runde;
       return (a.zeit || 0) - (b.zeit || 0);
     });
 
     let idx = 0;
-    const bis = Math.max(0, Math.min(bisTick, markt.TICKS));
+    const bis = Math.max(0, Math.min(bisRunde, lauf.runden));
 
     for (let t = 0; t <= bis; t++) {
-      while (idx < sortiert.length && sortiert[idx].tick <= t) {
+      while (idx < sortiert.length && sortiert[idx].runde <= t) {
         const h = sortiert[idx];
         idx++;
         const w = werteNachId[h.id];
         if (!w) continue;
-        const kurs = markt.kurs(lauf, h.id, h.tick);
+        const kurs = markt.kurs(lauf, h.id, h.runde);
         if (!(kurs > 0)) continue;
 
         if (h.art === 'kauf') {
@@ -97,7 +97,7 @@ const depot = (function () {
       /* Dividenden einmal je simuliertem Jahr auf den dann gehaltenen
          Bestand. Ohne sie wäre die Dividendenrendite eine reine Zierzahl
          und Dividendenwerte im Spiel sinnlos. */
-      if (t > 0 && t % markt.TICKS_JE_JAHR === 0) {
+      if (t > 0 && t % lauf.rundenJeJahr === 0) {
         for (const id in bestand) {
           const w = werteNachId[id];
           if (w && w.dividende > 0) {
@@ -143,7 +143,7 @@ const depot = (function () {
       positionen: positionen,
       gebuehren: gebuehrenGesamt,
       dividenden: dividendenGesamt,
-      anzahlTrades: sortiert.filter(function (h) { return h.tick <= bis; }).length,
+      anzahlTrades: sortiert.filter(function (h) { return h.runde <= bis; }).length,
     };
   }
 
@@ -151,18 +151,18 @@ const depot = (function () {
      Zwischenspeicher
 
      Rangliste und Depotansicht fragen denselben Stand mehrfach je Bild ab.
-     Der Tick ändert sich aber nur alle 2 bis 12 Sekunden — ohne Speicher
+     Die Runde wechselt aber nur, wenn alle zugestimmt haben — ohne Speicher
      würde bei acht Mitspielenden jedes Bild achtmal die volle Partie
      durchgerechnet.
      ---------------------------------------------------------------------- */
   const speicher = new Map();
 
-  function stand(schluessel, trades, lauf, bisTick, werteNachId) {
-    const kennung = schluessel + '|' + bisTick + '|' + (trades ? trades.length : 0) + '|' + lauf.saat;
+  function stand(schluessel, trades, lauf, bisRunde, werteNachId) {
+    const kennung = schluessel + '|' + bisRunde + '|' + (trades ? trades.length : 0) + '|' + lauf.saat;
     const treffer = speicher.get(kennung);
     if (treffer) return treffer;
-    const ergebnis = berechne(trades, lauf, bisTick, werteNachId);
-    /* Klein halten: bei jedem Tick kommt je Mitspieler ein Eintrag dazu. */
+    const ergebnis = berechne(trades, lauf, bisRunde, werteNachId);
+    /* Klein halten: bei jeder Runde kommt je Mitspieler ein Eintrag dazu. */
     if (speicher.size > 400) speicher.clear();
     speicher.set(kennung, ergebnis);
     return ergebnis;

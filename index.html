@@ -195,7 +195,7 @@
       <span class="spiel-icon">📈</span>
       <span>
         <p class="spiel-name">Depot-Duell</p>
-        <p class="spiel-beschreibung">Börsenspiel mit Spielgeld: 141 echte Aktien, ETFs und Kryptowährungen, fünf Börsenjahre in einer halben Stunde. Auch allein gegen die KI.</p>
+        <p class="spiel-beschreibung">Börsenspiel mit Spielgeld: 141 echte Aktien, ETFs und Kryptowährungen. Rundenbasiert — die Kurse ziehen erst weiter, wenn alle so weit sind. Auch allein gegen die KI.</p>
       </span>
     </a>
   </div>
@@ -243,6 +243,22 @@
   const APP_VERSION = "1.0";
   const APP_CHANGELOG = [
     {
+      version: "1.2",
+      groups: [
+        {
+          title: "Depot-Duell läuft jetzt in Runden",
+          items: [
+            "Statt einer mitlaufenden Uhr wird in 20, 50 oder 100 Runden gespielt — zehn Runden sind ein Börsenjahr.",
+            "Die Kurse bewegen sich erst, wenn alle Mitspieler ihre Runde abgeschlossen haben. Wer noch fehlt, steht auf dem Knopf; der Eröffner kann weiterschalten, wenn jemand nicht mehr reagiert.",
+            "Die Nachrichten der laufenden Runde stehen jetzt ganz oben und sind durchblätterbar. Sie wirken erst auf den nächsten Kursschritt — man hat also Zeit, darauf zu reagieren.",
+            "Das freie Guthaben steht in der Kopfzeile, man muss für eine Kaufentscheidung nicht mehr ins Depot wechseln.",
+            "Sortierknöpfe drehen beim zweiten Antippen die Richtung um; ETFs und Kryptowährungen haben eigene Kriterien statt der bei ihnen leeren KGV- und Dividendenspalten.",
+            "Der Eröffner kann die Partie abbrechen, alle anderen können aussteigen — beides mit Rückfrage.",
+          ],
+        },
+      ],
+    },
+    {
       version: "1.1",
       groups: [
         {
@@ -250,7 +266,6 @@
           items: [
             "Neues Spiel: Börsenspiel mit Spielgeld gegen die Mannschaft.",
             "141 echte Werte — 106 Aktien, 25 ETFs und 10 Kryptowährungen mit echten Startkursen und Kennzahlen.",
-            "In einer Partie vergehen fünf Börsenjahre, wahlweise in 10, 30 oder 60 Minuten.",
             "Nachrichten bewegen die Kurse — wer schnell liest und handelt, fährt die Bewegung mit. Gerüchte können sich als falsch herausstellen.",
             "Bis zu fünf KI-Mitspieler mit erkennbaren Anlagestilen, dadurch auch allein spielbar."
           ]

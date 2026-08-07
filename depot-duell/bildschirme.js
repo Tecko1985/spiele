@@ -60,15 +60,16 @@ const bildschirme = (function () {
   }
 
   function kursText(kurs) {
-    if (kurs >= 100) return euro(kurs, 2);
     if (kurs >= 1) return euro(kurs, 2);
     return euro(kurs, 4);
   }
 
-  function zeitText(sekunden) {
-    const m = Math.floor(sekunden / 60);
-    const s = sekunden % 60;
-    return m + ':' + (s < 10 ? '0' : '') + s;
+  /* Aufzählung von Namen, wie man sie sprechen würde. */
+  function namenListe(namen) {
+    if (namen.length === 1) return namen[0];
+    if (namen.length === 2) return namen[0] + ' und ' + namen[1];
+    if (namen.length <= 4) return namen.slice(0, -1).join(', ') + ' und ' + namen[namen.length - 1];
+    return namen.slice(0, 3).join(', ') + ' und ' + (namen.length - 3) + ' weitere';
   }
 
   /* ----------------------------------------------------------------------
@@ -93,16 +94,21 @@ const bildschirme = (function () {
         farbe: stand.rendite >= 0 ? '#a7f3d0' : '#fecaca',
       });
 
-      /* Fortschritt und Restzeit rechts. */
-      const jahr = markt.spieljahr(app.tick());
-      ui.schreibe('Jahr ' + (Math.floor(jahr) + 1) + ' von ' + markt.JAHRE, r.x + r.b - 16, r.y + 22, {
+      /* Rechts: Rundenstand und das freie Geld. Ohne das freie Geld musste
+         man für jede Kaufentscheidung erst in den Depot-Reiter wechseln —
+         und das genau in dem Moment, in dem man vor der Kaufentscheidung
+         steht. */
+      const runde = app.runde();
+      const gesamtRunden = z.runden || markt.STANDARD_RUNDEN;
+      const angezeigt = Math.min(runde + 1, gesamtRunden);
+      ui.schreibe('Runde ' + angezeigt + ' / ' + gesamtRunden, r.x + r.b - 16, r.y + 22, {
         groesse: 13, farbe: 'rgba(255,255,255,0.8)', ausrichtung: 'right',
       });
-      ui.schreibe('noch ' + zeitText(z.restSekunden), r.x + r.b - 16, r.y + 44, {
+      ui.schreibe('frei ' + euro(stand.cash, 0), r.x + r.b - 16, r.y + 45, {
         groesse: 15, fett: true, farbe: F.weiss, ausrichtung: 'right',
       });
 
-      const anteil = app.tick() / markt.TICKS;
+      const anteil = runde / gesamtRunden;
       ui.fuelleRund(r.x + 12, r.y + r.h - 9, r.b - 24, 4, 2, 'rgba(255,255,255,0.25)');
       if (anteil > 0) ui.fuelleRund(r.x + 12, r.y + r.h - 9, Math.max(4, (r.b - 24) * anteil), 4, 2, F.weiss);
     } else {
@@ -116,11 +122,177 @@ const bildschirme = (function () {
   }
 
   /* ----------------------------------------------------------------------
+     Nachrichtenblock — steht über allem anderen
+
+     Die Meldungen dieser Runde sind die eigentliche Spielinformation: sie
+     bewegen den Kurs erst beim nächsten Rundenwechsel, wer sie richtig
+     deutet, verdient daran. Deshalb stehen sie ganz oben und nicht in einem
+     Reiter, den man erst suchen muss.
+     ---------------------------------------------------------------------- */
+
+  function markeFuer(m) {
+    if (m.geruecht) return { text: '🗣️ Gerücht', farbe: '#b45309' };
+    if (m.aufloesung === 'bestaetigt') return { text: '✅ Bestätigt', farbe: GRUEN };
+    if (m.aufloesung === 'dementiert') return { text: '❌ Dementiert', farbe: ROT };
+    return m.richtung > 0
+      ? { text: '▲ Gute Nachricht', farbe: GRUEN }
+      : { text: '▼ Schlechte Nachricht', farbe: ROT };
+  }
+
+  function newsBlock(app) {
+    const liste = markt.meldungenIn(app.lauf, app.runde());
+    if (!liste.length) return;
+
+    /* Zugeklappt bleibt eine einzige Zeile stehen. Auf einem kleinen
+       Bildschirm ist der Platz sonst weg, bevor die Marktliste anfängt —
+       und wer schon gelesen hat, will die Werte sehen. */
+    if (!app.newsOffen) {
+      const z = ui.reserviere(34, { abstand: 8 });
+      ui.fuelleRund(z.x, z.y, z.b, z.h, ui.RADIUS_KLEIN, F.karte);
+      ui.schreibe('📰 ' + liste.length + (liste.length === 1 ? ' Meldung' : ' Meldungen') + ' in dieser Runde',
+        z.x + 12, z.y + z.h / 2, { groesse: 13, fett: 'halb', farbe: F.text });
+      ui.schreibe('anzeigen ▾', z.x + z.b - 12, z.y + z.h / 2, {
+        groesse: 12, fett: 'halb', farbe: F.primaer, ausrichtung: 'right',
+      });
+      ui.merke('news-aufklappen', z, 'knopf');
+      if (ui.geklickt(z)) app.newsOffen = true;
+      return;
+    }
+
+    let i = app.newsIndex;
+    if (i >= liste.length) i = liste.length - 1;
+    if (i < 0) i = 0;
+    app.newsIndex = i;
+    const m = liste[i];
+    const marke = markeFuer(m);
+
+    const griff = ui.beginneKarte('news-block', { polster: 12 });
+
+    /* Kopfzeile der Karte: Art der Meldung, Zähler, Blätterpfeile. */
+    const kopf = ui.reserviere(24, { abstand: 4 });
+    ui.schreibe(marke.text, kopf.x, kopf.y + 12, { groesse: 12, fett: 'halb', farbe: marke.farbe });
+
+    if (liste.length > 1) {
+      const links = { x: kopf.x + kopf.b - 92, y: kopf.y - 4, b: 30, h: 30 };
+      const rechts = { x: kopf.x + kopf.b - 30, y: kopf.y - 4, b: 30, h: 30 };
+      ui.schreibe('‹', links.x + links.b / 2, links.y + links.h / 2, {
+        groesse: 22, fett: true, farbe: i > 0 ? F.primaer : F.rand, ausrichtung: 'center',
+      });
+      ui.schreibe((i + 1) + '/' + liste.length, kopf.x + kopf.b - 46, kopf.y + 12, {
+        groesse: 12, fett: 'halb', farbe: F.gedaempft, ausrichtung: 'center',
+      });
+      ui.schreibe('›', rechts.x + rechts.b / 2, rechts.y + rechts.h / 2, {
+        groesse: 22, fett: true, farbe: i < liste.length - 1 ? F.primaer : F.rand, ausrichtung: 'center',
+      });
+      ui.merke('news-zurueck', links, 'knopf');
+      ui.merke('news-vor', rechts, 'knopf');
+      if (ui.geklickt(links) && i > 0) app.newsIndex = i - 1;
+      if (ui.geklickt(rechts) && i < liste.length - 1) app.newsIndex = i + 1;
+    } else {
+      const zu = { x: kopf.x + kopf.b - 76, y: kopf.y - 4, b: 76, h: 30 };
+      ui.schreibe('ausblenden ▴', zu.x + zu.b, kopf.y + 12, {
+        groesse: 12, fett: 'halb', farbe: F.primaer, ausrichtung: 'right',
+      });
+      ui.merke('news-zuklappen', zu, 'knopf');
+      if (ui.geklickt(zu)) app.newsOffen = false;
+    }
+
+    ui.absatz(m.text, { groesse: 15, farbe: F.text, abstand: 4 });
+
+    const unten = ui.reserviere(20, { abstand: 0 });
+    if (m.zielName) {
+      ui.schreibe('betrifft ' + ui.kuerze(m.zielName, unten.b - 90, 12), unten.x, unten.y + 10, {
+        groesse: 12, farbe: F.gedaempft,
+      });
+    }
+    if (liste.length > 1) {
+      ui.schreibe('ausblenden ▴', unten.x + unten.b, unten.y + 10, {
+        groesse: 12, fett: 'halb', farbe: F.primaer, ausrichtung: 'right',
+      });
+      const zu = { x: unten.x + unten.b - 80, y: unten.y - 4, b: 80, h: 26 };
+      ui.merke('news-zuklappen', zu, 'knopf');
+      if (ui.geklickt(zu)) app.newsOffen = false;
+    }
+
+    ui.beendeKarte(griff);
+    ui.luecke(8);
+  }
+
+  /* ----------------------------------------------------------------------
+     Rundenleiste — liegt FEST am unteren Rand
+
+     Das Spiel wartet auf Menschen, nicht auf eine Uhr. Wer fertig ist,
+     schließt ab; sobald alle abgeschlossen haben, springen die Kurse.
+
+     Warum unten und nicht im Fluss: der Knopf wird in jeder Runde genau
+     einmal gebraucht und ist der wichtigste des Spiels. Im Fluss stand er
+     zwischen Nachrichten und Marktliste, kostete dort rund 80 Pixel und
+     verschob sich je nachdem, wie lang die Schlagzeile gerade war. Unten
+     ist er immer am selben Fleck und mit dem Daumen erreichbar.
+     ---------------------------------------------------------------------- */
+
+  const FUSS_HOEHE = 60;
+
+  function brauchtFuss(app) {
+    const z = app.zustand;
+    return !!(z.raum && z.raum.phase === 'laeuft' && !z.vorbei);
+  }
+
+  function rundenLeiste(app) {
+    if (!brauchtFuss(app)) return;
+    const z = app.zustand;
+    const fehlt = z.fehlende || [];
+
+    const y = ui.hoehe - FUSS_HOEHE;
+    const rand = ui.oben().x;
+    const breite = ui.oben().b;
+
+    /* Deckt den durchscrollenden Inhalt ab — der Scrollbereich endet zwar
+       darüber, aber ein angeschnittener halber Listeneintrag sähe nach
+       Fehler aus. */
+    ui.fuelleRund(0, y - 6, ui.breite, FUSS_HOEHE + 6, 0, F.hintergrund);
+
+    if (!z.abgeschlossen) {
+      const feld = { x: rand, y: y + 4, b: breite, h: 48 };
+      ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, F.primaer);
+      ui.schreibe('Runde abschließen', feld.x + feld.b / 2, feld.y + feld.h / 2, {
+        groesse: 16, fett: true, farbe: F.weiss, ausrichtung: 'center',
+      });
+      ui.merke('btn-runde-fertig', feld, 'knopf');
+      if (ui.geklickt(feld)) app.schliesseRundeAb();
+      return;
+    }
+
+    /* Abgeschlossen: nur noch warten. Der Host bekommt daneben den Ausweg —
+       ohne ihn hält ein einziges Handy im Rucksack die ganze Partie an. */
+    const zeigeWeiter = z.istHost && fehlt.length > 0;
+    const wartenBreite = zeigeWeiter ? breite * 0.62 : breite;
+    const warten = { x: rand, y: y + 4, b: wartenBreite - (zeigeWeiter ? 6 : 0), h: 48 };
+    ui.fuelleRund(warten.x, warten.y, warten.b, warten.h, ui.RADIUS_KLEIN, F.karte);
+    ui.rahmeRund(warten.x, warten.y, warten.b, warten.h, ui.RADIUS_KLEIN, F.rand, 1.5);
+    const text = fehlt.length ? 'Warten auf ' + namenListe(fehlt) : 'Runde wird abgerechnet …';
+    ui.schreibe('⏳ ' + ui.kuerze(text, warten.b - 30, 13), warten.x + warten.b / 2, warten.y + warten.h / 2, {
+      groesse: 13, fett: 'halb', farbe: F.gedaempft, ausrichtung: 'center',
+    });
+
+    if (zeigeWeiter) {
+      const feld = { x: rand + wartenBreite + 6, y: y + 4, b: breite - wartenBreite - 6, h: 48 };
+      ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, F.karte);
+      ui.rahmeRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, F.primaer, 1.5);
+      ui.schreibe('Weiter ohne sie', feld.x + feld.b / 2, feld.y + feld.h / 2, {
+        groesse: 12, fett: true, farbe: F.primaer, ausrichtung: 'center',
+      });
+      ui.merke('btn-runde-erzwingen', feld, 'knopf');
+      if (ui.geklickt(feld)) app.schalteWeiter();
+    }
+  }
+
+  /* ----------------------------------------------------------------------
      Reiter
      ---------------------------------------------------------------------- */
 
   function reiter(app, eintraege) {
-    const r = ui.reserviere(42, { abstand: 10 });
+    const r = ui.reserviere(40, { abstand: 8 });
     const breite = r.b / eintraege.length;
     ui.fuelleRund(r.x, r.y, r.b, r.h, ui.RADIUS_KLEIN + 2, F.karte);
 
@@ -224,29 +396,28 @@ const bildschirme = (function () {
     ui.seite('lobby-neu', function () {
       ui.titel('Partie einstellen', { zentriert: true, abstand: 14 });
 
-      ui.absatz('Spieldauer', { fett: true, farbe: F.text, abstand: 6 });
-      const stufen = [
-        { id: 'kurz', text: 'Kurz', unter: '10 Min' },
-        { id: 'normal', text: 'Normal', unter: '30 Min' },
-        { id: 'lang', text: 'Lang', unter: '60 Min' },
-      ];
-      const r = ui.reserviere(58, { abstand: 6 });
-      const b = r.b / 3;
-      for (let i = 0; i < 3; i++) {
+      ui.absatz('Wie viele Runden?', { fett: true, farbe: F.text, abstand: 6 });
+      const stufen = gameService.RUNDENSTUFEN;
+      const r = ui.reserviere(62, { abstand: 6 });
+      const b = r.b / stufen.length;
+      for (let i = 0; i < stufen.length; i++) {
         const feld = { x: r.x + b * i + 3, y: r.y, b: b - 6, h: r.h };
-        const aktiv = app.dauerStufe === stufen[i].id;
+        const aktiv = app.runden === stufen[i].runden;
         ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, aktiv ? F.primaer : F.karte);
         if (!aktiv) ui.rahmeRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, F.rand, 1.5);
-        ui.schreibe(stufen[i].text, feld.x + feld.b / 2, feld.y + 21, {
-          groesse: 15, fett: true, farbe: aktiv ? F.weiss : F.text, ausrichtung: 'center',
+        ui.schreibe(String(stufen[i].runden), feld.x + feld.b / 2, feld.y + 22, {
+          groesse: 19, fett: true, farbe: aktiv ? F.weiss : F.text, ausrichtung: 'center',
         });
-        ui.schreibe(stufen[i].unter, feld.x + feld.b / 2, feld.y + 40, {
-          groesse: 12, farbe: aktiv ? 'rgba(255,255,255,0.85)' : F.gedaempft, ausrichtung: 'center',
+        ui.schreibe('Runden', feld.x + feld.b / 2, feld.y + 39, {
+          groesse: 11, farbe: aktiv ? 'rgba(255,255,255,0.85)' : F.gedaempft, ausrichtung: 'center',
         });
-        ui.merke('dauer-' + stufen[i].id, feld, 'knopf');
-        if (ui.geklickt(feld)) app.dauerStufe = stufen[i].id;
+        ui.schreibe(stufen[i].unter, feld.x + feld.b / 2, feld.y + 53, {
+          groesse: 11, fett: 'halb', farbe: aktiv ? 'rgba(255,255,255,0.85)' : F.gedaempft, ausrichtung: 'center',
+        });
+        ui.merke('runden-' + stufen[i].runden, feld, 'knopf');
+        if (ui.geklickt(feld)) app.runden = stufen[i].runden;
       }
-      ui.absatz('In jeder Länge werden fünf Börsenjahre gespielt — nur schneller oder gemächlicher. Deshalb sind die Ergebnisse vergleichbar.', {
+      ui.absatz('Zehn Runden sind ein Börsenjahr. In jeder Runde erscheinen Nachrichten, alle handeln in Ruhe — und erst wenn alle abgeschlossen haben, bewegen sich die Kurse. Es läuft keine Uhr mit.', {
         groesse: 13, abstand: 16,
       });
 
@@ -264,7 +435,7 @@ const bildschirme = (function () {
         ui.merke('bots-' + i, feld, 'knopf');
         if (ui.geklickt(feld)) app.botAnzahl = i;
       }
-      ui.absatz('Mit KI-Mitspielern zählt das Ergebnis nicht für die Bestenliste.', {
+      ui.absatz('KI-Mitspieler halten die Partie nie auf — sie handeln in jeder Runde sofort. Mit ihnen zählt das Ergebnis aber nicht für die Bestenliste.', {
         groesse: 13, abstand: 16,
       });
 
@@ -315,9 +486,9 @@ const bildschirme = (function () {
       ui.beendeKarte(griff);
       ui.luecke(14);
 
-      const stufe = z.dauerStufe;
+      const stufe = z.stufe;
       ui.absatz(
-        'Dauer: ' + (stufe ? stufe.name + ' (' + stufe.minuten + ' Min)' : '—') +
+        (stufe ? stufe.runden + ' Runden (' + stufe.unter + ')' : '—') +
         '  ·  Startgeld: ' + euro(depot.STARTBUDGET, 0) +
         '  ·  höchstens ' + Math.round(depot.HOECHSTANTEIL * 100) + ' % je Wert',
         { zentriert: true, groesse: 13, abstand: 14 }
@@ -342,8 +513,48 @@ const bildschirme = (function () {
     { id: 'krypto', text: 'Krypto' },
   ];
 
+  /* Sortierkriterien je Anlageklasse.
+
+     Sie MÜSSEN sich unterscheiden: ETFs haben in den Daten weder KGV noch
+     Dividende, Kryptowährungen ebenso wenig. Ein KGV-Knopf hätte dort alle
+     Werte gleich bewertet und die Reihenfolge willkürlich verwürfelt —
+     ein Knopf, der etwas tut, aber nichts sortiert, ist schlimmer als
+     keiner.
+
+     `auf` ist die Richtung beim ERSTEN Antippen: bei A–Z und KGV will man
+     das Kleinste zuerst, bei Bewegung und Dividende das Größte. Ein zweites
+     Antippen dreht um. */
+  const SORTEN = {
+    aktie: [
+      { id: 'name', text: 'A–Z', auf: true },
+      { id: 'tag', text: 'Bewegung', auf: false },
+      { id: 'kgv', text: 'KGV', auf: true },
+      { id: 'div', text: 'Dividende', auf: false },
+    ],
+    etf: [
+      { id: 'name', text: 'A–Z', auf: true },
+      { id: 'tag', text: 'Bewegung', auf: false },
+      { id: 'kurs', text: 'Kurs', auf: false },
+      { id: 'seit', text: 'seit Start', auf: false },
+    ],
+    krypto: [
+      { id: 'name', text: 'A–Z', auf: true },
+      { id: 'tag', text: 'Bewegung', auf: false },
+      { id: 'kurs', text: 'Kurs', auf: false },
+      { id: 'groesse', text: 'Größe', auf: false },
+    ],
+  };
+
+  function sortenFuer(klasse) { return SORTEN[klasse] || SORTEN.aktie; }
+
+  /* Wieviel Platz bleibt dem scrollenden Inhalt? Die Rundenleiste liegt
+     fest am unteren Rand und darf nicht überdeckt werden. */
+  function inhaltsHoehe(app) {
+    return ui.hoeheRest() - (brauchtFuss(app) ? FUSS_HOEHE : 0);
+  }
+
   function markt_(app) {
-    const tick = app.tick();
+    const runde = app.runde();
     const stand = app.eigenerStand();
 
     /* Klassenumschalter */
@@ -358,69 +569,72 @@ const bildschirme = (function () {
         farbe: aktiv ? F.weiss : F.gedaempft, ausrichtung: 'center',
       });
       ui.merke('klasse-' + KLASSEN[i].id, feld, 'reiter');
-      if (ui.geklickt(feld)) app.klasse = KLASSEN[i].id;
+      if (ui.geklickt(feld)) app.setzeKlasse(KLASSEN[i].id);
     }
 
     const suche = ui.eingabe('eing-suche', {
-      platzhalter: '🔎 Name oder Kürzel …', maxLaenge: 24, hoehe: 40, abstand: 8,
+      platzhalter: '🔎 Name oder Kürzel …', maxLaenge: 24, hoehe: 38, abstand: 8,
     });
 
-    /* Sortierung */
-    const sorten = [
-      { id: 'name', text: 'A–Z' },
-      { id: 'tag', text: 'Bewegung' },
-      { id: 'kgv', text: 'KGV' },
-      { id: 'div', text: 'Dividende' },
-    ];
-    const rs = ui.reserviere(30, { abstand: 8 });
+    /* Sortierung — der aktive Knopf zeigt die Richtung und dreht beim
+       erneuten Antippen um. */
+    const sorten = sortenFuer(app.klasse);
+    const rs = ui.reserviere(32, { abstand: 8 });
     const bs = rs.b / sorten.length;
     for (let i = 0; i < sorten.length; i++) {
       const feld = { x: rs.x + bs * i + 2, y: rs.y, b: bs - 4, h: rs.h };
       const aktiv = app.sortierung === sorten[i].id;
       ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, aktiv ? F.primaer : F.karte);
-      ui.schreibe(sorten[i].text, feld.x + feld.b / 2, feld.y + feld.h / 2, {
+      const beschriftung = aktiv ? sorten[i].text + ' ' + (app.sortAb ? '▾' : '▴') : sorten[i].text;
+      ui.schreibe(ui.kuerze(beschriftung, feld.b - 8, 12, aktiv), feld.x + feld.b / 2, feld.y + feld.h / 2, {
         groesse: 12, fett: aktiv ? true : false,
         farbe: aktiv ? F.weiss : F.gedaempft, ausrichtung: 'center',
       });
       ui.merke('sort-' + sorten[i].id, feld, 'knopf');
-      if (ui.geklickt(feld)) app.sortierung = sorten[i].id;
+      if (ui.geklickt(feld)) app.setzeSortierung(sorten[i]);
     }
 
-    const liste = app.gefilterteWerte(suche, tick);
+    const liste = app.gefilterteWerte(suche, runde);
 
-    ui.scroll('roll-markt', ui.hoeheRest() - 4, function () {
+    ui.scroll('roll-markt', inhaltsHoehe(app) - 4, function () {
       if (!liste.length) {
         ui.absatz('Nichts gefunden.', { zentriert: true, abstand: 10 });
         return;
       }
       for (const w of liste) {
-        zeileWert(app, w, tick, stand);
+        zeileWert(app, w, runde, stand);
       }
     });
   }
 
-  function zeileWert(app, w, tick, stand) {
+  function zeileWert(app, w, runde, stand) {
     const zeile = ui.reserviere(58, { abstand: 6 });
     ui.fuelleRund(zeile.x, zeile.y, zeile.b, zeile.h, ui.RADIUS_KLEIN, F.karte);
 
-    const kurs = markt.kurs(app.lauf, w.id, tick);
-    const tagesLauf = markt.veraenderung(app.lauf, w.id, tick);
+    const kurs = markt.kurs(app.lauf, w.id, runde);
+    const bewegung = markt.veraenderung(app.lauf, w.id, runde);
     const bestand = depot.bestandVon(stand, w.id);
 
     ui.schreibe(ui.kuerze(w.name, zeile.b - 130, 15, true), zeile.x + 12, zeile.y + 20, {
       groesse: 15, fett: true, farbe: F.text,
     });
 
+    /* Die Unterzeile zeigt, wonach gerade sortiert wird — sonst sortiert man
+       nach KGV und sieht in der Liste keine KGVs. */
     let unten = w.kuerzel;
     if (w.art === 'aktie') {
-      const kgvJetzt = markt.kgv(app.lauf, w, tick);
+      const kgvJetzt = markt.kgv(app.lauf, w, runde);
       unten += '  ·  KGV ' + (kgvJetzt ? kgvJetzt.toFixed(1).replace('.', ',') : '—');
-      const dr = markt.divRendite(app.lauf, w, tick);
+      const dr = markt.divRendite(app.lauf, w, runde);
       if (dr > 0) unten += '  ·  Div ' + dr.toFixed(1).replace('.', ',') + ' %';
     } else if (w.art === 'etf') {
       unten += '  ·  ' + w.sektor;
+      if (app.sortierung === 'seit') {
+        unten += '  ·  ' + prozent(markt.seitStart(app.lauf, w.id, runde), 0) + ' seit Start';
+      }
     } else {
-      unten += '  ·  Krypto';
+      const mk = markt.marktkapitalisierung(app.lauf, w, runde);
+      unten += mk ? '  ·  ' + kompakt(mk) : '  ·  Krypto';
     }
     ui.schreibe(ui.kuerze(unten, zeile.b - 130, 12), zeile.x + 12, zeile.y + 40, {
       groesse: 12, farbe: F.gedaempft,
@@ -429,8 +643,8 @@ const bildschirme = (function () {
     ui.schreibe(kursText(kurs), zeile.x + zeile.b - 12, zeile.y + 20, {
       groesse: 15, fett: true, farbe: F.text, ausrichtung: 'right',
     });
-    ui.schreibe(prozent(tagesLauf, 1), zeile.x + zeile.b - 12, zeile.y + 40, {
-      groesse: 13, fett: 'halb', farbe: farbeFuer(tagesLauf), ausrichtung: 'right',
+    ui.schreibe(prozent(bewegung, 1), zeile.x + zeile.b - 12, zeile.y + 40, {
+      groesse: 13, fett: 'halb', farbe: farbeFuer(bewegung), ausrichtung: 'right',
     });
 
     /* Wer den Wert hält, sieht das sofort — ohne ins Depot zu wechseln. */
@@ -449,9 +663,9 @@ const bildschirme = (function () {
   function detail(app) {
     const w = app.wertNachId[app.detailId];
     if (!w) { app.ansicht = 'spiel'; return; }
-    const tick = app.tick();
+    const runde = app.runde();
     const stand = app.eigenerStand();
-    const kurs = markt.kurs(app.lauf, w.id, tick);
+    const kurs = markt.kurs(app.lauf, w.id, runde);
 
     ui.beginneSeite();
     kopfzeile(app);
@@ -469,19 +683,19 @@ const bildschirme = (function () {
         groesse: 28, fett: true, farbe: F.text,
       });
       ui.reserviere(34, { abstand: 2 });
-      const seit = markt.seitStart(app.lauf, w.id, tick);
-      ui.absatz(prozent(markt.veraenderung(app.lauf, w.id, tick), 2) + ' zuletzt   ·   ' +
+      const seit = markt.seitStart(app.lauf, w.id, runde);
+      ui.absatz(prozent(markt.veraenderung(app.lauf, w.id, runde), 2) + ' letzte Runde   ·   ' +
         prozent(seit, 1) + ' seit Partiebeginn', {
         groesse: 13, fett: 'halb', farbe: farbeFuer(seit), abstand: 8,
       });
-      chart(app, w, tick);
+      chart(app, w, runde);
       ui.beendeKarte(griff);
       ui.luecke(12);
 
       /* Kennzahlen */
       const griff2 = ui.beginneKarte('karte-kennzahlen');
       ui.absatz('Kennzahlen', { fett: true, farbe: F.text, abstand: 8 });
-      for (const [bez, wert] of kennzahlen(app, w, tick)) {
+      for (const [bez, wert] of kennzahlen(app, w, runde)) {
         const zeile = ui.reserviere(26, { abstand: 0 });
         ui.schreibe(bez, zeile.x, zeile.y + 13, { groesse: 13, farbe: F.gedaempft });
         ui.schreibe(wert, zeile.x + zeile.b, zeile.y + 13, {
@@ -507,8 +721,13 @@ const bildschirme = (function () {
         ui.luecke(12);
       }
 
-      const laeuft = app.zustand.raum && app.zustand.raum.phase === 'laeuft' && !app.zustand.vorbei;
-      if (laeuft) {
+      const z = app.zustand;
+      const laeuft = z.raum && z.raum.phase === 'laeuft' && !z.vorbei;
+      if (laeuft && z.abgeschlossen) {
+        ui.absatz('Du hast diese Runde abgeschlossen. Sobald alle so weit sind, geht es weiter.', {
+          zentriert: true, groesse: 13, abstand: 4,
+        });
+      } else if (laeuft) {
         if (ui.knopf('btn-kaufen', 'Kaufen', { abstand: 8 })) app.oeffneHandel(w.id, 'kauf');
         if (bestand > 0) {
           if (ui.knopf('btn-verkaufen', 'Verkaufen', { art: 'zweit' })) app.oeffneHandel(w.id, 'verkauf');
@@ -519,21 +738,20 @@ const bildschirme = (function () {
     });
   }
 
-  function kennzahlen(app, w, tick) {
+  function kennzahlen(app, w, runde) {
     const zeilen = [];
-    const kurs = markt.kurs(app.lauf, w.id, tick);
-    const sp = markt.spanne(app.lauf, w.id, tick);
+    const sp = markt.spanne(app.lauf, w.id, runde);
 
     zeilen.push(['Höchststand bisher', kursText(sp.hoch)]);
     zeilen.push(['Tiefststand bisher', kursText(sp.tief)]);
 
     if (w.art === 'aktie') {
-      const k = markt.kgv(app.lauf, w, tick);
+      const k = markt.kgv(app.lauf, w, runde);
       zeilen.push(['KGV', k ? k.toFixed(1).replace('.', ',') : '—']);
       zeilen.push(['KGV zu Beginn', w.kgv ? String(w.kgv).replace('.', ',') : '—']);
-      const g = markt.gewinnJeAktie(app.lauf, w.id, tick);
+      const g = markt.gewinnJeAktie(app.lauf, w.id, runde);
       zeilen.push(['Gewinn je Aktie', g > 0 ? euro(g) : '—']);
-      const dr = markt.divRendite(app.lauf, w, tick);
+      const dr = markt.divRendite(app.lauf, w, runde);
       zeilen.push(['Dividendenrendite', dr > 0 ? dr.toFixed(2).replace('.', ',') + ' %' : '—']);
       zeilen.push(['Dividende je Aktie', w.dividende > 0 ? euro(w.dividende) : '—']);
       zeilen.push(['Branche', w.sektor]);
@@ -551,7 +769,7 @@ const bildschirme = (function () {
       zeilen.push(['Laufende Kosten', w.ter === null ? '—' : w.ter + ' %']);
       zeilen.push(['Ausschüttung', w.ausschuettend === null ? '—' : w.ausschuettend ? 'ausschüttend' : 'thesaurierend']);
     } else {
-      const mk = markt.marktkapitalisierung(app.lauf, w, tick);
+      const mk = markt.marktkapitalisierung(app.lauf, w, runde);
       zeilen.push(['Marktkapitalisierung', mk ? kompakt(mk) : '—']);
       zeilen.push(['Umlaufmenge', w.umlaufmenge ? w.umlaufmenge.toLocaleString('de-DE', { maximumFractionDigits: 0 }) : '—']);
       zeilen.push(['Höchstmenge', w.hoechstmenge ? w.hoechstmenge.toLocaleString('de-DE', { maximumFractionDigits: 0 }) : 'unbegrenzt']);
@@ -562,12 +780,12 @@ const bildschirme = (function () {
 
   /* Kursverlauf. Auf einer Zeichenfläche ist ein Chart ein paar Linien —
      keine Fremdbibliothek nötig. */
-  function chart(app, w, tick) {
+  function chart(app, w, runde) {
     const h = 120;
     const r = ui.reserviere(h, { abstand: 6 });
     const reihe = app.lauf.kurse[w.id];
-    if (!reihe || tick < 1) {
-      ui.schreibe('Der Verlauf entsteht, sobald die Partie läuft.', r.x + r.b / 2, r.y + h / 2, {
+    if (!reihe || runde < 1) {
+      ui.schreibe('Der Verlauf entsteht ab der zweiten Runde.', r.x + r.b / 2, r.y + h / 2, {
         groesse: 13, farbe: F.gedaempft, ausrichtung: 'center',
       });
       return;
@@ -575,7 +793,7 @@ const bildschirme = (function () {
 
     let hoch = reihe[0];
     let tief = reihe[0];
-    for (let i = 0; i <= tick; i++) {
+    for (let i = 0; i <= runde; i++) {
       if (reihe[i] > hoch) hoch = reihe[i];
       if (reihe[i] < tief) tief = reihe[i];
     }
@@ -593,13 +811,13 @@ const bildschirme = (function () {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    const gestiegen = reihe[tick] >= reihe[0];
+    const gestiegen = reihe[runde] >= reihe[0];
     ctx.strokeStyle = gestiegen ? GRUEN : ROT;
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     ctx.beginPath();
-    for (let i = 0; i <= tick; i++) {
-      const x = r.x + (i / Math.max(1, tick)) * r.b;
+    for (let i = 0; i <= runde; i++) {
+      const x = r.x + (i / Math.max(1, runde)) * r.b;
       const y = r.y + h - ((reihe[i] - tief) / spanne) * h;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
@@ -618,10 +836,9 @@ const bildschirme = (function () {
      ====================================================================== */
 
   function depotAnsicht(app) {
-    const tick = app.tick();
     const stand = app.eigenerStand();
 
-    ui.scroll('roll-depot', ui.hoeheRest(), function () {
+    ui.scroll('roll-depot', inhaltsHoehe(app), function () {
       const griff = ui.beginneKarte('karte-depot');
       ui.absatz('Depotwert', { groesse: 13, abstand: 2 });
       const rz = ui.reserviere(36, { abstand: 2 });
@@ -643,7 +860,7 @@ const bildschirme = (function () {
       ui.luecke(12);
 
       if (!stand.positionen.length) {
-        ui.absatz('Noch nichts gekauft. Im Markt findest du 141 Werte.', {
+        ui.absatz('Noch nichts gekauft. Im Markt findest du ' + app.werteListe.length + ' Werte.', {
           zentriert: true, abstand: 10,
         });
         return;
@@ -681,19 +898,20 @@ const bildschirme = (function () {
   }
 
   /* ======================================================================
-     6. RANGLISTE
+     6. RANGLISTE — und der Ausstieg aus der Partie
      ====================================================================== */
 
   function rangliste(app) {
     const reihen = app.rangliste();
+    const z = app.zustand;
 
-    ui.scroll('roll-rang', ui.hoeheRest(), function () {
+    ui.scroll('roll-rang', inhaltsHoehe(app), function () {
       ui.absatz('Wer liegt vorn?', { fett: true, farbe: F.text, abstand: 8 });
       let platz = 0;
       for (const e of reihen) {
         platz++;
         const zeile = ui.reserviere(56, { abstand: 6 });
-        const ist = e.uid === app.zustand.uid;
+        const ist = e.uid === z.uid;
         ui.fuelleRund(zeile.x, zeile.y, zeile.b, zeile.h, ui.RADIUS_KLEIN, ist ? '#e3edfb' : F.karte);
         if (ist) ui.rahmeRund(zeile.x, zeile.y, zeile.b, zeile.h, ui.RADIUS_KLEIN, F.primaer, 2);
 
@@ -704,9 +922,13 @@ const bildschirme = (function () {
 
         ui.schreibe(ui.kuerze((e.zeichen ? e.zeichen + ' ' : '') + e.name, zeile.b - 170, 15, true),
           zeile.x + 52, zeile.y + 21, { groesse: 15, fett: true, farbe: F.text });
-        ui.schreibe(e.trades + ' Aufträge' + (e.istBot ? '  ·  KI' : ''), zeile.x + 52, zeile.y + 40, {
-          groesse: 12, farbe: F.gedaempft,
-        });
+        /* Wer schon abgeschlossen hat, ist sichtbar — sonst rätselt man, auf
+           wen die Runde noch wartet. */
+        let unten = e.trades + ' Aufträge';
+        if (e.istBot) unten += '  ·  KI';
+        else if (e.raus) unten += '  ·  ausgestiegen';
+        else if (e.fertig) unten += '  ·  ✓ fertig';
+        ui.schreibe(unten, zeile.x + 52, zeile.y + 40, { groesse: 12, farbe: F.gedaempft });
 
         ui.schreibe(euro(e.gesamt, 0), zeile.x + zeile.b - 12, zeile.y + 21, {
           groesse: 15, fett: true, farbe: F.text, ausrichtung: 'right',
@@ -718,33 +940,78 @@ const bildschirme = (function () {
 
       ui.luecke(10);
       ui.absatz('Alle rechnen dieselben Kurse aus derselben Zufallszahl — niemand sieht andere Preise als du.', {
-        groesse: 12, zentriert: true,
+        groesse: 12, zentriert: true, abstand: 14,
       });
+
+      /* Ausstieg. Beim Host beendet er die Partie für alle, deshalb steht
+         eine Rückfrage davor. */
+      ui.trenner('', { abstand: 10 });
+      if (z.istHost) {
+        if (ui.knopf('btn-abbrechen', 'Partie abbrechen', { art: 'zweit', abstand: 6 })) {
+          app.abbruchFrage = true;
+        }
+        ui.absatz('Beendet die Partie für alle. Das Ergebnis zählt dann nicht für die Bestenliste.', {
+          groesse: 11, zentriert: true, abstand: 4,
+        });
+      } else {
+        if (ui.knopf('btn-aussteigen', 'Partie verlassen', { art: 'zweit', abstand: 6 })) {
+          app.abbruchFrage = true;
+        }
+        ui.absatz('Die anderen spielen ohne dich weiter. Dein Depot bleibt in der Rangliste stehen.', {
+          groesse: 11, zentriert: true, abstand: 4,
+        });
+      }
     });
   }
 
+  /* Rückfrage vor dem Abbruch — ein Fehltipp würde sonst für alle die
+     Partie beenden. */
+  function abbruchDialog(app) {
+    const z = app.zustand;
+    const istHost = z.istHost;
+
+    ui.abdunkeln(0.55);
+    const griff = ui.beginneDialog('dlg-abbruch', { maxHoehe: ui.hoehe - 40 });
+
+    ui.titel(istHost ? 'Partie wirklich abbrechen?' : 'Partie wirklich verlassen?', {
+      groesse: 19, abstand: 6,
+    });
+    ui.absatz(istHost
+      ? 'Die Partie endet sofort für alle Mitspieler. Ihr seht noch die Abrechnung, aber das Ergebnis zählt nicht für die Bestenliste.'
+      : 'Du steigst aus und kannst nicht zurück. Die anderen spielen ohne dich weiter — dein jetziges Depot bleibt in ihrer Rangliste stehen.',
+      { groesse: 14, abstand: 14 });
+
+    if (ui.knopf('btn-abbruch-ja', istHost ? 'Ja, abbrechen' : 'Ja, verlassen', { abstand: 8 })) {
+      app.abbruchFrage = false;
+      if (istHost) app.brichAb(); else app.verlassen();
+    }
+    if (ui.knopf('btn-abbruch-nein', 'Weiterspielen', { art: 'zweit', hoehe: 40 })) {
+      app.abbruchFrage = false;
+    }
+
+    ui.beendeDialog(griff);
+  }
+
   /* ======================================================================
-     7. NACHRICHTEN
+     7. NACHRICHTEN-ARCHIV
      ====================================================================== */
 
   function ticker(app) {
-    const tick = app.tick();
-    const liste = markt.meldungenBis(app.lauf, tick);
+    const runde = app.runde();
+    const liste = markt.meldungenBis(app.lauf, runde);
 
-    ui.scroll('roll-news', ui.hoeheRest(), function () {
+    ui.scroll('roll-news', inhaltsHoehe(app), function () {
       if (!liste.length) {
         ui.absatz('Noch keine Meldungen. Es geht gleich los.', { zentriert: true, abstand: 10 });
         return;
       }
-      for (const m of liste) {
-        const griff = ui.beginneKarte('news-' + m.tick + '-' + m.text.length, { polster: 12 });
-        const farbe = m.richtung > 0 ? GRUEN : ROT;
-        const marke = m.geruecht ? '🗣️ Gerücht' :
-          m.aufloesung === 'bestaetigt' ? '✅ Bestätigt' :
-          m.aufloesung === 'dementiert' ? '❌ Dementiert' :
-          m.richtung > 0 ? '▲ Gut' : '▼ Schlecht';
-        ui.absatz(marke + '  ·  Jahr ' + (Math.floor(markt.spieljahr(m.tick)) + 1), {
-          groesse: 11, fett: 'halb', farbe: farbe, abstand: 4,
+      ui.absatz('Alle Meldungen bis jetzt, neueste zuerst.', { groesse: 12, abstand: 8 });
+      for (let i = 0; i < liste.length; i++) {
+        const m = liste[i];
+        const griff = ui.beginneKarte('news-' + m.runde + '-' + i, { polster: 12 });
+        const marke = markeFuer(m);
+        ui.absatz(marke.text + '  ·  Runde ' + (m.runde + 1), {
+          groesse: 11, fett: 'halb', farbe: marke.farbe, abstand: 4,
         });
         ui.absatz(m.text, { groesse: 14, farbe: F.text, abstand: 2 });
         if (m.zielName) {
@@ -764,8 +1031,8 @@ const bildschirme = (function () {
     const h = app.handel;
     const w = app.wertNachId[h.id];
     if (!w) { app.handel = null; return; }
-    const tick = app.tick();
-    const kurs = markt.kurs(app.lauf, w.id, tick);
+    const runde = app.runde();
+    const kurs = markt.kurs(app.lauf, w.id, runde);
     const stand = app.eigenerStand();
     const istKauf = h.art === 'kauf';
 
@@ -773,7 +1040,7 @@ const bildschirme = (function () {
     const griff = ui.beginneDialog('dlg-handel', { maxHoehe: ui.hoehe - 40 });
 
     ui.titel((istKauf ? 'Kaufen: ' : 'Verkaufen: ') + w.name, { groesse: 19, abstand: 4 });
-    ui.absatz('Kurs jetzt ' + kursText(kurs) + '  ·  ' + prozent(markt.veraenderung(app.lauf, w.id, tick), 1), {
+    ui.absatz('Kurs jetzt ' + kursText(kurs) + '  ·  frei ' + euro(stand.cash, 0), {
       groesse: 13, abstand: 10,
     });
 
@@ -833,7 +1100,9 @@ const bildschirme = (function () {
       });
     }
 
-    ui.absatz('Ausgeführt wird zum nächsten Kursstand.', { groesse: 11, abstand: 10 });
+    ui.absatz('Ausgeführt wird sofort zum angezeigten Kurs. Die Nachrichten dieser Runde wirken erst danach.', {
+      groesse: 11, abstand: 10,
+    });
 
     if (ui.knopf('btn-handel-los', istKauf ? 'Kaufen' : 'Verkaufen', {
       aus: !erlaubt, abstand: 8,
@@ -853,14 +1122,18 @@ const bildschirme = (function () {
 
   function ende(app) {
     const reihen = app.rangliste();
-    const eigener = reihen.findIndex(function (e) { return e.uid === app.zustand.uid; });
+    const z = app.zustand;
+    const eigener = reihen.findIndex(function (e) { return e.uid === z.uid; });
 
     ui.beginneSeite();
     kopfzeile(app);
 
     ui.scroll('roll-ende', ui.hoeheRest(), function () {
-      ui.titel('Abgerechnet!', { zentriert: true, abstand: 4 });
-      ui.absatz('Fünf Börsenjahre in ' + (app.zustand.dauerStufe ? app.zustand.dauerStufe.minuten : 30) + ' Minuten.', {
+      ui.titel(z.abgebrochen ? 'Partie abgebrochen' : 'Abgerechnet!', { zentriert: true, abstand: 4 });
+      ui.absatz(z.abgebrochen
+        ? 'Die Partie wurde vorzeitig beendet. Das Ergebnis zählt nicht für die Bestenliste.'
+        : (z.runden || markt.STANDARD_RUNDEN) + ' Runden, ' +
+          Math.round((z.runden || markt.STANDARD_RUNDEN) / markt.RUNDEN_JE_JAHR) + ' Börsenjahre.', {
         zentriert: true, abstand: 14,
       });
 
@@ -888,7 +1161,7 @@ const bildschirme = (function () {
       for (const e of reihen) {
         platz++;
         const zeile = ui.reserviere(44, { abstand: 4 });
-        const ist = e.uid === app.zustand.uid;
+        const ist = e.uid === z.uid;
         ui.fuelleRund(zeile.x, zeile.y, zeile.b, zeile.h, ui.RADIUS_KLEIN, ist ? '#e3edfb' : F.karte);
         ui.schreibe(platz + '.', zeile.x + 12, zeile.y + zeile.h / 2, {
           groesse: 14, fett: true, farbe: F.gedaempft,
@@ -908,7 +1181,7 @@ const bildschirme = (function () {
         app.ansicht = 'spiel';
         app.reiter = 'depot';
       }
-      if (app.zustand.istHost) {
+      if (z.istHost) {
         if (ui.knopf('btn-ende-neu', 'Raum schließen und neu anfangen', { abstand: 8 })) {
           app.raeumeAufUndZurueck();
         }
@@ -982,15 +1255,16 @@ const bildschirme = (function () {
       ui.absatz('Version ' + app.APP_VERSION, { groesse: 12, abstand: 12 });
 
       const bloecke = [
-        ['So läuft es', 'Jeder startet mit ' + euro(depot.STARTBUDGET, 0) + ' Spielgeld. In einer Partie vergehen fünf Börsenjahre — je nach eingestellter Länge in 10, 30 oder 60 Minuten. Wer am Ende das wertvollste Depot hat, gewinnt.'],
+        ['So läuft es', 'Jeder startet mit ' + euro(depot.STARTBUDGET, 0) + ' Spielgeld. Gespielt wird in 20, 50 oder 100 Runden — zehn Runden sind ein Börsenjahr. Wer am Ende das wertvollste Depot hat, gewinnt.'],
+        ['Ihr bestimmt das Tempo', 'Es läuft keine Uhr. In jeder Runde erscheinen Nachrichten, jeder handelt so lange er will, und erst wenn ALLE die Runde abgeschlossen haben, bewegen sich die Kurse. Wer noch fehlt, steht unter dem Knopf. Der Eröffner kann weiterschalten, wenn jemand nicht mehr reagiert.'],
         ['Die Werte sind echt', WERTE.werte.length + ' Werte mit echten Startkursen und Kennzahlen vom ' + WERTE.stand.split('-').reverse().join('.') + ': ' + WERTE.werte.filter(function (w) { return w.art === 'aktie'; }).length + ' Aktien, ' + WERTE.werte.filter(function (w) { return w.art === 'etf'; }).length + ' ETFs und ' + WERTE.werte.filter(function (w) { return w.art === 'krypto'; }).length + ' Kryptowährungen.'],
         ['Der Verlauf ist erfunden', 'Ab dem Start läuft eine Simulation. Die Kursentwicklung hat nichts mit der Wirklichkeit zu tun und ist keine Vorhersage.'],
-        ['Nachrichten bewegen die Kurse', 'Eine Meldung erscheint zuerst, der Kurs wandert danach über etwa eine Minute in ihre Richtung. Wer schnell liest und handelt, fährt den Großteil mit. Vorsicht bei Gerüchten — sie werden später bestätigt oder dementiert.'],
+        ['Nachrichten entscheiden', 'Die Meldungen einer Runde stehen ganz oben — sie bewegen die Kurse erst beim Rundenwechsel. Du hast also Zeit, sie zu lesen und zu handeln, bevor sie wirken. Vorsicht bei Gerüchten: sie werden zwei Runden später bestätigt oder dementiert, und ein Dementi dreht die Bewegung stärker zurück, als sie hingegangen ist.'],
         ['Kennzahlen rechnen mit', 'Das KGV ist keine Zierzahl: es wird laufend aus Kurs und Gewinn je Aktie neu gerechnet. Ein Wert mit KGV 8 ist günstig bewertet, einer mit KGV 90 heiß gelaufen.'],
         ['Streuen ist Pflicht', 'Höchstens ' + Math.round(depot.HOECHSTANTEIL * 100) + ' % des Depots dürfen beim Kauf in einen einzigen Wert. Wächst eine Position danach darüber hinaus, darfst du sie behalten — das hast du dir verdient.'],
         ['Was Handeln kostet', 'Je Auftrag ' + (depot.GEBUEHR_SATZ * 100).toFixed(2).replace('.', ',') + ' %, mindestens ' + euro(depot.GEBUEHR_MIND, 0) + '. Hektisches Hin und Her kostet also Geld — wie in echt.'],
-        ['Dividenden', 'Einmal je Spieljahr wird auf den gehaltenen Bestand ausgeschüttet. Wer erst danach kauft, geht leer aus.'],
-        ['Alle sehen dieselben Kurse', 'Der ganze Verlauf entsteht aus einer einzigen Zufallszahl, die beim Eröffnen gezogen wird. Jedes Handy rechnet ihn selbst — deshalb laufen Kurse und Meldungen auch im Funkloch weiter. Nur Käufe und Rangliste holen später auf.'],
+        ['Dividenden', 'Alle zehn Runden wird auf den gehaltenen Bestand ausgeschüttet. Wer erst danach kauft, geht leer aus.'],
+        ['Alle sehen dieselben Kurse', 'Der ganze Verlauf entsteht aus einer einzigen Zufallszahl, die beim Eröffnen gezogen wird. Jedes Handy rechnet ihn selbst — deshalb laufen Kurse und Meldungen auch im Funkloch weiter. Nur Käufe und Zustimmungen holen später auf.'],
       ];
       for (const [titelText, text] of bloecke) {
         const griff = ui.beginneKarte('info-' + titelText.length + text.length, { polster: 14 });
@@ -1032,16 +1306,21 @@ const bildschirme = (function () {
   function spiel(app) {
     ui.beginneSeite();
     kopfzeile(app);
+    newsBlock(app);
     reiter(app, [
       { id: 'markt', text: 'Markt' },
       { id: 'depot', text: 'Depot' },
       { id: 'rang', text: 'Rangliste' },
-      { id: 'news', text: 'News' },
+      { id: 'news', text: 'Archiv' },
     ]);
     if (app.reiter === 'markt') markt_(app);
     else if (app.reiter === 'depot') depotAnsicht(app);
     else if (app.reiter === 'rang') rangliste(app);
     else ticker(app);
+
+    /* ZULETZT: die Leiste liegt über dem Inhalt und muss nach ihm gezeichnet
+       werden, sonst scrollt die Marktliste darüber hinweg. */
+    rundenLeiste(app);
   }
 
   return {
@@ -1055,6 +1334,8 @@ const bildschirme = (function () {
     bestenliste: bestenliste,
     info: info,
     handelDialog: handelDialog,
+    abbruchDialog: abbruchDialog,
+    sortenFuer: sortenFuer,
     euro: euro,
     prozent: prozent,
     kursText: kursText,

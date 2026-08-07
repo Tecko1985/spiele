@@ -10,13 +10,52 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.1',
+    groups: [
+      {
+        title: 'Rundenmodus statt Zeitdruck',
+        items: [
+          'Das Spiel läuft jetzt in Runden: 20, 50 oder 100 zur Wahl — es tickt keine Uhr mehr mit',
+          'Die Kurse bewegen sich erst, wenn alle Mitspieler die Runde abgeschlossen haben',
+          'Unter dem Knopf steht, auf wen noch gewartet wird; der Eröffner kann weiterschalten, wenn jemand nicht mehr reagiert',
+          'Wer abgeschlossen hat, kann in dieser Runde nicht mehr handeln — sonst könnte man als Letzter noch zuschlagen',
+        ],
+      },
+      {
+        title: 'Nachrichten stehen ganz oben',
+        items: [
+          'Die Meldungen der laufenden Runde stehen über allem und sind durchblätterbar',
+          'Sie wirken erst auf den nächsten Kursschritt — man hat also Zeit, darauf zu reagieren',
+          'Der Nachrichtenblock lässt sich zuklappen, wenn der Platz für die Marktliste gebraucht wird',
+          'Der alte News-Reiter heißt jetzt Archiv und sammelt alle bisherigen Meldungen',
+        ],
+      },
+      {
+        title: 'Kopfzeile und Marktliste',
+        items: [
+          'Das freie Guthaben steht jetzt in der Kopfzeile — man muss für eine Kaufentscheidung nicht mehr ins Depot wechseln',
+          'Rundenstand statt Restzeit, mit Fortschrittsbalken',
+          'Sortierung dreht beim zweiten Antippen die Richtung um',
+          'Eigene Sortierkriterien je Anlageklasse: ETFs und Kryptowährungen haben weder KGV noch Dividende, die Knöpfe sortierten dort nichts',
+        ],
+      },
+      {
+        title: 'Partie beenden',
+        items: [
+          'Der Eröffner kann die Partie abbrechen, jeder andere kann aussteigen — beides mit Rückfrage',
+          'Wer aussteigt, hält die Runden nicht länger auf; sein Depot bleibt in der Rangliste stehen',
+          'Eine abgebrochene Partie zählt nicht für die Bestenliste',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0',
     groups: [
       {
         title: 'Erste Fassung',
         items: [
           '141 echte Werte: 106 Aktien, 25 ETFs und 10 Kryptowährungen mit echten Startkursen und Kennzahlen',
-          'Fünf Börsenjahre je Partie, wahlweise in 10, 30 oder 60 Minuten',
           'Nachrichten bewegen die Kurse — mit Gerüchten, die sich als falsch herausstellen können',
           'KGV, Dividendenrendite und Marktkapitalisierung rechnen während der Partie mit',
           'Bis zu fünf KI-Mitspieler mit erkennbaren Anlagestilen, auch allein spielbar',
@@ -64,14 +103,22 @@ const app = {
   reiter: 'markt',        // markt | depot | rang | news
   klasse: 'aktie',
   sortierung: 'name',
+  sortAb: false,          // absteigend?
   detailId: null,
   handel: null,           // { id, art, stueck }
+  abbruchFrage: false,
+  newsOffen: true,
+  newsIndex: 0,
   fehler: null,
   name: '',
-  dauerStufe: 'normal',
+  runden: markt.STANDARD_RUNDEN,
   botAnzahl: 0,
 
-  zustand: { uid: null, code: null, raum: null, trades: {}, tick: 0, restSekunden: 0, vorbei: false, istHost: false, dauerStufe: null },
+  zustand: {
+    uid: null, code: null, raum: null, trades: {}, runde: 0,
+    runden: markt.STANDARD_RUNDEN, abgeschlossen: false, fehlende: [],
+    bereitJetzt: {}, vorbei: false, abgebrochen: false, istHost: false, stufe: null,
+  },
   lauf: null,
   botFeld: [],
   wertNachId: {},
@@ -82,12 +129,12 @@ const app = {
   ergebnisGemeldet: false,
 
   /* --------------------------------------------------------------------
-     Zeit
+     Die Runde
      -------------------------------------------------------------------- */
 
-  tick: function () {
+  runde: function () {
     if (!this.zustand.raum || this.zustand.raum.phase === 'lobby') return 0;
-    return gameService.aktuellerTick();
+    return this.zustand.runde;
   },
 
   /* --------------------------------------------------------------------
@@ -95,15 +142,18 @@ const app = {
      -------------------------------------------------------------------- */
 
   eigenerStand: function () {
-    if (!this.lauf) return depot.berechne([], { saat: 0, kurse: {}, gewinne: {}, meldungen: [] }, 0, {});
+    if (!this.lauf) {
+      return depot.berechne([], { saat: 0, runden: 0, rundenJeJahr: 10, kurse: {}, gewinne: {}, meldungen: [] }, 0, {});
+    }
     const meine = this.zustand.trades[this.zustand.uid] || [];
-    return depot.stand('ich', meine, this.lauf, this.tick(), this.wertNachId);
+    return depot.stand('ich', meine, this.lauf, this.runde(), this.wertNachId);
   },
 
   rangliste: function () {
     if (!this.lauf || !this.zustand.raum) return [];
-    const t = this.tick();
+    const t = this.runde();
     const raus = [];
+    const bereitJetzt = this.zustand.bereitJetzt || {};
 
     const spieler = this.zustand.raum.spieler || {};
     for (const uid in spieler) {
@@ -111,6 +161,7 @@ const app = {
       const stand = depot.stand(uid, trades, this.lauf, t, this.wertNachId);
       raus.push({
         uid: uid, name: spieler[uid].name, zeichen: null, istBot: false,
+        raus: !!spieler[uid].raus, fertig: !!bereitJetzt[uid],
         gesamt: stand.gesamt, rendite: stand.rendite, trades: stand.anzahlTrades,
       });
     }
@@ -118,6 +169,7 @@ const app = {
       const stand = depot.stand(b.uid, b.trades, this.lauf, t, this.wertNachId);
       raus.push({
         uid: b.uid, name: b.name, zeichen: b.zeichen, istBot: true,
+        raus: false, fertig: true,
         gesamt: stand.gesamt, rendite: stand.rendite, trades: stand.anzahlTrades,
       });
     }
@@ -126,7 +178,7 @@ const app = {
     return raus;
   },
 
-  gefilterteWerte: function (suche, tick) {
+  gefilterteWerte: function (suche, runde) {
     const s = String(suche || '').trim().toLowerCase();
     const self = this;
     let liste = this.werteListe.filter(function (w) { return w.art === self.klasse; });
@@ -135,29 +187,53 @@ const app = {
         return w.name.toLowerCase().indexOf(s) >= 0 || w.kuerzel.toLowerCase().indexOf(s) >= 0;
       });
     }
-    const sort = this.sortierung;
     liste = liste.slice();
-    if (sort === 'name') {
-      liste.sort(function (a, b) { return a.name.localeCompare(b.name, 'de'); });
-    } else if (sort === 'tag') {
-      liste.sort(function (a, b) {
-        return markt.veraenderung(self.lauf, b.id, tick) - markt.veraenderung(self.lauf, a.id, tick);
-      });
+
+    /* Der Vergleich liefert immer die AUFSTEIGENDE Ordnung; die Richtung
+       kommt am Ende durch ein einziges Vorzeichen dazu. Zwei getrennte
+       Sortierzweige wären zwei Stellen, an denen dieselbe Regel auseinander
+       laufen kann. */
+    const sort = this.sortierung;
+    let vergleich;
+    if (sort === 'tag') {
+      vergleich = function (a, b) {
+        return markt.veraenderung(self.lauf, a.id, runde) - markt.veraenderung(self.lauf, b.id, runde);
+      };
     } else if (sort === 'kgv') {
-      liste.sort(function (a, b) {
-        const ka = markt.kgv(self.lauf, a, tick);
-        const kb = markt.kgv(self.lauf, b, tick);
-        /* Werte ohne KGV ans Ende, nicht als "günstigste" an den Anfang. */
+      vergleich = function (a, b) {
+        const ka = markt.kgv(self.lauf, a, runde);
+        const kb = markt.kgv(self.lauf, b, runde);
+        /* Werte ohne KGV IMMER ans Ende — auch wenn umgekehrt sortiert wird.
+           Sonst führte ein Dreh der Richtung neunzehn Werte ohne Kennzahl
+           an die Spitze, als wären sie die teuersten. */
         if (ka === null && kb === null) return 0;
-        if (ka === null) return 1;
-        if (kb === null) return -1;
+        if (ka === null) return self.sortAb ? -1 : 1;
+        if (kb === null) return self.sortAb ? 1 : -1;
         return ka - kb;
-      });
+      };
     } else if (sort === 'div') {
-      liste.sort(function (a, b) {
-        return markt.divRendite(self.lauf, b, tick) - markt.divRendite(self.lauf, a, tick);
-      });
+      vergleich = function (a, b) {
+        return markt.divRendite(self.lauf, a, runde) - markt.divRendite(self.lauf, b, runde);
+      };
+    } else if (sort === 'kurs') {
+      vergleich = function (a, b) {
+        return markt.kurs(self.lauf, a.id, runde) - markt.kurs(self.lauf, b.id, runde);
+      };
+    } else if (sort === 'seit') {
+      vergleich = function (a, b) {
+        return markt.seitStart(self.lauf, a.id, runde) - markt.seitStart(self.lauf, b.id, runde);
+      };
+    } else if (sort === 'groesse') {
+      vergleich = function (a, b) {
+        return (markt.marktkapitalisierung(self.lauf, a, runde) || 0) -
+          (markt.marktkapitalisierung(self.lauf, b, runde) || 0);
+      };
+    } else {
+      vergleich = function (a, b) { return a.name.localeCompare(b.name, 'de'); };
     }
+
+    const richtung = this.sortAb ? -1 : 1;
+    liste.sort(function (a, b) { return richtung * vergleich(a, b); });
     return liste;
   },
 
@@ -169,9 +245,30 @@ const app = {
     try { localStorage.setItem(NAME_SCHLUESSEL, this.name); } catch (f) { /* egal */ }
   },
 
+  /* Beim Wechsel der Anlageklasse muss die Sortierung mitziehen: nach KGV
+     sortierte Aktien, dann auf Krypto gewechselt — dort gibt es kein KGV,
+     die Liste stünde in willkürlicher Reihenfolge und der aktive Knopf wäre
+     gar nicht sichtbar. */
+  setzeKlasse: function (klasse) {
+    if (this.klasse === klasse) return;
+    this.klasse = klasse;
+    const erlaubt = bildschirme.sortenFuer(klasse);
+    if (!erlaubt.some((s) => s.id === this.sortierung)) {
+      this.sortierung = erlaubt[0].id;
+      this.sortAb = !erlaubt[0].auf;
+    }
+  },
+
+  /* Erstes Antippen: das Kriterium mit seiner sinnvollen Richtung. Erneutes
+     Antippen: umdrehen. */
+  setzeSortierung: function (sorte) {
+    if (this.sortierung === sorte.id) this.sortAb = !this.sortAb;
+    else { this.sortierung = sorte.id; this.sortAb = !sorte.auf; }
+  },
+
   erstelleRaum: function () {
     const self = this;
-    gameService.erstelleRaum(this.name.trim(), this.dauerStufe, this.botAnzahl)
+    gameService.erstelleRaum(this.name.trim(), this.runden, this.botAnzahl)
       .then(function () { self.ansicht = 'lobby'; ui.anfordern(); })
       .catch(function (f) { self.fehler = f.message; self.ansicht = 'start'; ui.anfordern(); });
   },
@@ -189,7 +286,7 @@ const app = {
      komplett tot, während der Mehrspielerpfad sauber lief. */
   starteSolo: function () {
     const self = this;
-    gameService.erstelleRaum(this.name.trim(), this.dauerStufe, 4)
+    gameService.erstelleRaum(this.name.trim(), this.runden, 4)
       .then(function () { return gameService.starteRaum(); })
       .then(function () { self.ansicht = 'spiel'; self.reiter = 'markt'; ui.anfordern(); })
       .catch(function (f) { self.fehler = f.message; self.ansicht = 'start'; ui.anfordern(); });
@@ -197,6 +294,26 @@ const app = {
 
   starte: function () {
     gameService.starteRaum().catch(function (f) { console.warn(f); });
+  },
+
+  schliesseRundeAb: function () {
+    const self = this;
+    /* Ein offener Kaufdialog wäre nach dem Abschließen wirkungslos — der
+       Auftrag würde abgelehnt und nur eine Fehlermeldung hinterlassen. */
+    this.handel = null;
+    gameService.schliesseRundeAb().catch(function (f) {
+      self.fehler = f.message;
+      console.warn('Runde nicht abgeschlossen:', f);
+      ui.anfordern();
+    });
+  },
+
+  schalteWeiter: function () {
+    gameService.schalteWeiter().catch(function (f) { console.warn('Nicht weitergeschaltet:', f); });
+  },
+
+  brichAb: function () {
+    gameService.brichAb().catch(function (f) { console.warn('Nicht abgebrochen:', f); });
   },
 
   verlassen: function () {
@@ -251,18 +368,28 @@ const app = {
 
   uebernehmeZustand: function (z) {
     const vorherigePhase = this.zustand.raum ? this.zustand.raum.phase : null;
+    const vorherigeRunde = this.zustand.runde;
     this.zustand = z;
 
-    /* Lauf erzeugen, sobald eine Saat vorliegt. Einmal je Partie — die
-       Berechnung kostet ein paar Millisekunden, aber sie bei jedem Bild zu
-       wiederholen wäre Unsinn. */
-    if (z.raum && z.raum.saat !== undefined && (!this.lauf || this.lauf.saat !== z.raum.saat)) {
-      this.lauf = markt.erzeuge(z.raum.saat, this.werteListe);
+    /* Lauf erzeugen, sobald Saat und Rundenzahl vorliegen. Einmal je Partie
+       — die Berechnung kostet ein paar Millisekunden, aber sie bei jedem
+       Bild zu wiederholen wäre Unsinn. */
+    if (z.raum && z.raum.saat !== undefined &&
+        (!this.lauf || this.lauf.saat !== z.raum.saat || this.lauf.runden !== z.runden)) {
+      this.lauf = markt.erzeuge(z.raum.saat, this.werteListe, z.runden);
       this.botFeld = z.raum.botAnzahl > 0
         ? bots.stelleAuf(this.lauf, this.werteListe, this.wertNachId, z.raum.botAnzahl)
         : [];
       depot.leereSpeicher();
       this.ergebnisGemeldet = false;
+    }
+
+    /* Neue Runde: die neuen Meldungen sollen sichtbar sein und von vorn
+       beginnen. Wer zugeklappt hatte, bekommt sie wieder eingeblendet —
+       sie sind die Grundlage der nächsten Entscheidung. */
+    if (z.runde !== vorherigeRunde) {
+      this.newsIndex = 0;
+      this.newsOffen = true;
     }
 
     /* Ansicht nachziehen, wenn sich die Phase geändert hat. */
@@ -288,6 +415,8 @@ const app = {
   pruefeEnde: function () {
     if (!this.zustand.vorbei || !this.lauf) return;
     if (this.ansicht === 'spiel' || this.ansicht === 'detail') this.ansicht = 'ende';
+    this.abbruchFrage = false;
+    this.handel = null;
 
     /* Jedes Gerät meldet NUR sein eigenes Ergebnis. Ein Gerät, das für alle
        schreibt, müsste dafür verbunden bleiben — und wer als Letzter
@@ -298,11 +427,13 @@ const app = {
     const eigener = reihen.find((e) => e.uid === this.zustand.uid);
     if (!eigener) return;
     this.ergebnisGemeldet = true;
+    /* Eine abgebrochene Partie zählt nicht — sonst bräche der Führende
+       genau dann ab, wenn er vorn liegt. */
     gameService.meldeErgebnis(
       eigener.name,
       eigener.rendite,
       reihen[0].uid === this.zustand.uid,
-      this.botFeld.length > 0
+      this.botFeld.length > 0 || this.zustand.abgebrochen
     );
   },
 };
@@ -326,6 +457,7 @@ function szene() {
 
   /* Dialoge zuletzt, sie liegen über allem. */
   if (a.handel) bildschirme.handelDialog(a);
+  else if (a.abbruchFrage) bildschirme.abbruchDialog(a);
 
   /* Aufklappbare Auswahllisten gehören ganz nach oben. */
   ui.zeichneOffeneListen();
@@ -350,19 +482,12 @@ function szene() {
     szene
   );
 
-  gameService.onZustandsAenderung(function (z) { app.uebernehmeZustand(z); });
+  /* Kein Zeittakt mehr: seit die Runde aus den Zustimmungen abgeleitet wird,
+     ändert sich am Bild nichts von selbst. Jede Änderung kommt über den
+     Firebase-Horcher herein und zeichnet dort neu — ein Dauerlauf hätte auf
+     einer Busfahrt nur Akku gekostet. */
 
-  /* Die Kurse laufen weiter, auch wenn niemand etwas antippt. Ein halber
-     Sekundentakt reicht: der Tick wechselt frühestens alle zwei Sekunden,
-     und der Countdown in der Kopfzeile soll flüssig zählen. Bewusst KEIN
-     Dauerlauf mit 60 Bildern je Sekunde — auf einer Busfahrt ist das
-     Akkuverschwendung. */
-  setInterval(function () {
-    if (app.zustand.raum && app.zustand.raum.phase === 'laeuft') {
-      app.pruefeEnde();
-      ui.anfordern();
-    }
-  }, 500);
+  gameService.onZustandsAenderung(function (z) { app.uebernehmeZustand(z); });
 
   pruefeAdminStatus();
   document.addEventListener('visibilitychange', function () {

@@ -62,17 +62,17 @@ const bots = (function () {
      Hilfen
      ---------------------------------------------------------------------- */
 
-  /* Kursentwicklung über die letzten `fenster` Ticks — der einzige Blick
+  /* Kursentwicklung über die letzten `fenster` Runden — der einzige Blick
      zurück, den ein Bot hat. */
-  function schwung(lauf, id, tick, fenster) {
-    const von = Math.max(0, tick - fenster);
+  function schwung(lauf, id, runde, fenster) {
+    const von = Math.max(0, runde - fenster);
     const a = markt.kurs(lauf, id, von);
-    const b = markt.kurs(lauf, id, tick);
+    const b = markt.kurs(lauf, id, runde);
     if (!(a > 0)) return 0;
     return (b / a - 1) * 100;
   }
 
-  function kaufe(trades, zustand, wert, kurs, tick, anteilVomCash) {
+  function kaufe(trades, zustand, wert, kurs, runde, anteilVomCash) {
     const wunschBetrag = zustand.cash * anteilVomCash;
     if (wunschBetrag < 500) return false;      // Kleckerkäufe lohnen die Gebühr nicht
     let stueck = depot.rundeStueck(wert, wunschBetrag / kurs);
@@ -81,14 +81,14 @@ const bots = (function () {
     if (!(stueck > 0)) return false;
     const pruefung = depot.pruefeKauf(zustand, wert, stueck, kurs);
     if (!pruefung.ok) return false;
-    trades.push({ art: 'kauf', id: wert.id, stueck: stueck, tick: tick });
+    trades.push({ art: 'kauf', id: wert.id, stueck: stueck, runde: runde });
     return true;
   }
 
-  function verkaufe(trades, zustand, position, tick, anteil) {
+  function verkaufe(trades, zustand, position, runde, anteil) {
     const stueck = depot.rundeStueck(position.wert, position.stueck * anteil);
     if (!(stueck > 0)) return false;
-    trades.push({ art: 'verkauf', id: position.id, stueck: stueck, tick: tick });
+    trades.push({ art: 'verkauf', id: position.id, stueck: stueck, runde: runde });
     return true;
   }
 
@@ -103,9 +103,9 @@ const bots = (function () {
   const STRATEGIEN = {
     /* Kauft, was zuletzt am stärksten gestiegen ist. Steigt aus, wenn eine
        Position deutlich ins Minus läuft. Krypto bevorzugt. */
-    zocker: function (rng, lauf, werte, zustand, tick, trades) {
+    zocker: function (rng, lauf, werte, zustand, runde, trades) {
       for (const p of zustand.positionen) {
-        if (p.gewinnProzent < -28 && rng() < 0.7) verkaufe(trades, zustand, p, tick, 1);
+        if (p.gewinnProzent < -28 && rng() < 0.7) verkaufe(trades, zustand, p, runde, 1);
       }
       const auswahl = werte.filter(function (w) {
         return w.art === 'krypto' || (w.art === 'aktie' && rng() < 0.35);
@@ -114,29 +114,28 @@ const bots = (function () {
       let bester = null;
       let bestwert = -1e9;
       for (const w of auswahl) {
-        const s = schwung(lauf, w.id, tick, 12) + rng() * 20;
+        const s = schwung(lauf, w.id, runde, 3) + rng() * 20;
         if (s > bestwert) { bestwert = s; bester = w; }
       }
-      if (bester) kaufe(trades, zustand, bester, markt.kurs(lauf, bester.id, tick), tick, 0.55);
+      if (bester) kaufe(trades, zustand, bester, markt.kurs(lauf, bester.id, runde), runde, 0.55);
     },
 
     /* Breite Indexfonds und Anleihen, dann liegen lassen. */
-    sparer: function (rng, lauf, werte, zustand, tick, trades) {
+    sparer: function (rng, lauf, werte, zustand, runde, trades) {
       const auswahl = werte.filter(function (w) {
         return w.art === 'etf' && (w.anlageklasse === 'Aktien' || w.anlageklasse === 'Anleihen');
       });
       if (!auswahl.length) return;
       const w = auswahl[Math.floor(rng() * auswahl.length)];
-      kaufe(trades, zustand, w, markt.kurs(lauf, w.id, tick), tick, 0.4);
+      kaufe(trades, zustand, w, markt.kurs(lauf, w.id, runde), runde, 0.4);
     },
 
-    /* Reagiert auf Meldungen: kauft nach guten, verkauft nach schlechten.
-       Sieht nur Meldungen der letzten Ticks — wie jemand, der den Ticker
-       mitliest, aber nicht die ganze Historie durchgeht. */
-    trendjaeger: function (rng, lauf, werte, zustand, tick, trades, werteNachId) {
-      const frisch = lauf.meldungen.filter(function (m) {
-        return m.tick <= tick && m.tick > tick - 8;
-      });
+    /* Reagiert auf die Meldungen DIESER Runde: kauft nach guten, verkauft
+       nach schlechten — genau wie ein Mensch, der die Schlagzeilen oben
+       liest, bevor er auf "weiter" tippt. Ältere Meldungen sind für ihn
+       erledigt, ihre Wirkung steckt längst im Kurs. */
+    trendjaeger: function (rng, lauf, werte, zustand, runde, trades, werteNachId) {
+      const frisch = markt.meldungenIn(lauf, runde);
       if (!frisch.length) return;
       const m = frisch[Math.floor(rng() * frisch.length)];
 
@@ -148,42 +147,48 @@ const bots = (function () {
 
       const ziel = ziele[Math.floor(rng() * ziele.length)];
       if (m.richtung > 0) {
-        kaufe(trades, zustand, ziel, markt.kurs(lauf, ziel.id, tick), tick, 0.45);
+        kaufe(trades, zustand, ziel, markt.kurs(lauf, ziel.id, runde), runde, 0.45);
       } else {
         const p = zustand.positionen.find(function (x) { return x.id === ziel.id; });
-        if (p) verkaufe(trades, zustand, p, tick, 1);
+        if (p) verkaufe(trades, zustand, p, runde, 1);
       }
     },
 
-    /* Kauft in den ersten Ticks ein gestreutes Depot und rührt es nie an.
-       Der stille Gegenspieler zu allen anderen — und erstaunlich oft vorn. */
-    ruhepol: function (rng, lauf, werte, zustand, tick, trades) {
-      if (tick > 24) return;
+    /* Kauft in den ersten Runden ein gestreutes Depot und rührt es nie an.
+       Der stille Gegenspieler zu allen anderen — und erstaunlich oft vorn.
+       Das Zeitfenster wächst mit der Partielänge: bei 20 Runden hat er drei
+       Runden zum Aufbauen, bei 100 Runden fünfzehn. Eine feste Rundenzahl
+       hätte ihn in der kurzen Partie mit halbem Depot dastehen lassen. */
+    ruhepol: function (rng, lauf, werte, zustand, runde, trades) {
+      if (runde > Math.max(3, Math.round(lauf.runden * 0.15))) return;
       const auswahl = werte.filter(function (w) { return w.art !== 'krypto'; });
       if (!auswahl.length) return;
       const w = auswahl[Math.floor(rng() * auswahl.length)];
-      kaufe(trades, zustand, w, markt.kurs(lauf, w.id, tick), tick, 0.3);
+      kaufe(trades, zustand, w, markt.kurs(lauf, w.id, runde), runde, 0.3);
     },
 
     /* Sucht niedrige Bewertung: kleines KGV, ordentliche Dividende. */
-    schnaeppchen: function (rng, lauf, werte, zustand, tick, trades) {
+    schnaeppchen: function (rng, lauf, werte, zustand, runde, trades) {
       const auswahl = werte.filter(function (w) { return w.art === 'aktie' && w.kgv; });
       if (!auswahl.length) return;
       let bester = null;
       let bestwert = -1e9;
       for (const w of auswahl) {
         if (rng() < 0.7) continue;              // schaut sich nicht alles an
-        const kgvJetzt = markt.kgv(lauf, w, tick);
+        const kgvJetzt = markt.kgv(lauf, w, runde);
         if (!kgvJetzt || kgvJetzt <= 0) continue;
-        const punkte = 40 / kgvJetzt + markt.divRendite(lauf, w, tick);
+        const punkte = 40 / kgvJetzt + markt.divRendite(lauf, w, runde);
         if (punkte > bestwert) { bestwert = punkte; bester = w; }
       }
-      if (bester) kaufe(trades, zustand, bester, markt.kurs(lauf, bester.id, tick), tick, 0.4);
+      if (bester) kaufe(trades, zustand, bester, markt.kurs(lauf, bester.id, runde), runde, 0.4);
     },
   };
 
-  /* Wie oft ein Charakter überhaupt zum Handeln ansetzt. */
-  const TAKT = { zocker: 11, sparer: 17, trendjaeger: 7, ruhepol: 5, schnaeppchen: 19 };
+  /* Nach wie vielen Runden ein Charakter erneut zum Handeln ansetzt.
+     Absolute Rundenabstände, NICHT auf die Partielänge umgerechnet: eine
+     Runde ist immer derselbe Zeitsprung, also handelt ein Bot in einer
+     langen Partie schlicht öfter — genauso wie ein Mensch. */
+  const TAKT = { zocker: 4, sparer: 6, trendjaeger: 2, ruhepol: 2, schnaeppchen: 7 };
 
   /* ----------------------------------------------------------------------
      Erzeugung
@@ -201,12 +206,12 @@ const bots = (function () {
     const trades = [];
     const takt = TAKT[charakterId] || 12;
 
-    /* Versetzter Start, sonst kaufen alle Bots im selben Tick. */
-    let naechster = 2 + Math.floor(rng() * takt);
+    /* Versetzter Start, sonst kaufen alle Bots in derselben Runde. */
+    let naechster = Math.floor(rng() * takt);
 
-    for (let t = 0; t <= markt.TICKS; t++) {
+    for (let t = 0; t <= lauf.runden; t++) {
       if (t < naechster) continue;
-      naechster = t + Math.max(3, takt + Math.floor(rng() * 7) - 3);
+      naechster = t + Math.max(1, takt + Math.floor(rng() * 3) - 1);
 
       const zustand = depot.berechne(trades, lauf, t, werteNachId);
       strategie(rng, lauf, werte, zustand, t, trades, werteNachId);

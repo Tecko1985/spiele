@@ -3,13 +3,16 @@
    ==========================================================================
 
    Die Nachrichten sind nicht Zierrat, sondern der einzige Hebel, mit dem
-   Können statt Glück über den Sieg entscheidet: bei fünf Jahren Zeitraffer
-   wäre eine reine Zufallskurve ein Würfelspiel. Wer die Meldung liest und
-   handelt, fährt den Großteil der Bewegung mit.
+   Können statt Glück über den Sieg entscheidet: bei einem Zeitraffer über
+   Jahre wäre eine reine Zufallskurve ein Würfelspiel. Wer die Meldung liest
+   und richtig deutet, verdient daran.
 
-   DESHALB: Die Meldung erscheint ZUERST, der Kurs wandert danach über
-   mehrere Ticks (`dauer`). Ein sofortiger Sprung wäre realistischer — an
-   echten Börsen ist alles sofort eingepreist — aber spielerisch tot.
+   DESHALB IST DAS SPIEL RUNDENBASIERT: In Runde `r` liegen die Meldungen
+   offen auf dem Tisch, jeder handelt in Ruhe, und erst wenn alle zugestimmt
+   haben, wandern die Kurse — der Schritt von `r` nach `r+1` trägt genau die
+   Wirkung dieser Meldungen. Ein sofortiger Sprung wäre realistischer (an
+   echten Börsen ist alles sofort eingepreist), aber spielerisch tot: dann
+   gäbe es nichts zu entscheiden.
 
    Jede Vorlage trägt ihre Wirkung fest im Bauch. Damit ist die Partie
    austarierbar und über ein Testskript nachrechenbar; eine erzeugende KI
@@ -74,11 +77,21 @@ const nachrichten = (function () {
   /* ----------------------------------------------------------------------
      Wirkungsstärken
 
-     Angegeben als Kursbewegung über die gesamte Wirkdauer. 0.08 heißt: der
-     Kurs läuft um rund 8 % in die genannte Richtung, verteilt über `dauer`
-     Ticks. Das kommt ZUSÄTZLICH zur normalen Schwankung.
+     Angegeben als Kursbewegung, die eine Meldung im folgenden Kursschritt
+     auslöst. 0.2 heißt: der Kurs läuft um rund 20 % in die genannte
+     Richtung. Das kommt ZUSÄTZLICH zur normalen Schwankung.
      ---------------------------------------------------------------------- */
   const STAERKE = { klein: 0.05, mittel: 0.11, gross: 0.2, riesig: 0.34 };
+
+  /* Wie breit eine Meldung streut, muss ihre Wucht bestimmen. Eine
+     Einzelwertmeldung trifft einen von 141 Werten — sie darf voll
+     durchschlagen und ist der Jackpot für den, der ihn hält. Eine
+     Marktmeldung trifft dagegen JEDES Depot gleichzeitig; mit voller Stärke
+     würde der Gesamtmarkt in jeder zweiten Runde zweistellig springen und
+     die eigene Auswahl wäre neben dem Marktrauschen bedeutungslos. Zum
+     Vergleich: die normale Schwankung einer Aktie liegt bei rund 9 % je
+     Runde — dort sollen breite Meldungen landen, nicht darüber. */
+  const ZIEL_WUCHT = { wert: 1, gruppe: 0.55, markt: 0.35 };
 
   /* ----------------------------------------------------------------------
      Vorlagen
@@ -182,12 +195,30 @@ const nachrichten = (function () {
      auf jedem Gerät dieselbe Liste. Nichts davon wird je übertragen.
      ---------------------------------------------------------------------- */
 
-  const WIRKDAUER = 10;       // Ticks, über die eine Meldung den Kurs schiebt
-  const ABSTAND_MIN = 3;      // frühestens so viele Ticks bis zur nächsten
-  const ABSTAND_MAX = 9;
-  const GERUECHT_FRIST = 22;  // nach so vielen Ticks löst sich ein Gerücht auf
+  /* Eine Meldung wirkt auf GENAU EINEN Kursschritt — den unmittelbar nach
+     der Runde, in der sie zu lesen war. Über mehrere Runden verteilt wäre
+     die Wirkung im Rundenmodus nicht mehr zuzuordnen: man sähe eine
+     Bewegung und wüsste nicht, ob sie zur Schlagzeile von eben gehört oder
+     zu einer von vorletzter Runde. */
+  const WIRKDAUER = 1;
 
-  function plane(rng, werte, ticks) {
+  /* Nach so vielen Runden löst sich ein Gerücht auf. Zwei Runden geben
+     genug Zeit zum Ein- und Aussteigen, ohne dass man es vergisst. */
+  const GERUECHT_FRIST = 2;
+
+  /* Wie viele Meldungen eine Runde bringt. Zwei sind gesetzt, die dritte und
+     vierte kommen mit abnehmender Wahrscheinlichkeit dazu — im Mittel 2,7.
+     Weniger wäre eine leere Runde, in der es nichts zu entscheiden gibt;
+     mehr passt nicht auf einen Handybildschirm, und niemand liest acht
+     Schlagzeilen, bevor er auf "weiter" tippt. */
+  function meldungenDieserRunde(rng) {
+    let zahl = 2;
+    if (rng() < 0.5) zahl++;
+    if (rng() < 0.2) zahl++;
+    return zahl;
+  }
+
+  function plane(rng, werte, runden) {
     const liste = [];
     const gruppen = {};
     for (const w of werte) {
@@ -196,10 +227,7 @@ const nachrichten = (function () {
       gruppen[g].push(w);
     }
     const gruppenNamen = Object.keys(gruppen);
-
-    /* Die erste Meldung kommt bewusst nicht sofort: die ersten Ticks gehören
-       dem ersten Kauf, sonst verpasst jeder die Eröffnung. */
-    let tick = 6;
+    const ohneKrypto = werte.filter((w) => w.art !== 'krypto');
 
     /* Vorlagen nach Zielart vorsortieren. Wählte man blind aus dem ganzen
        Katalog, entschiede dessen Zusammensetzung über die Mischung — gemessen
@@ -207,7 +235,7 @@ const nachrichten = (function () {
        Werten trifft eine Einzelmeldung aber kaum je ein Depot, und die
        Meldung verpufft. Gruppen- und Marktmeldungen treffen dagegen fast
        jeden, und genau darum geht es: alle lesen dieselbe Schlagzeile und
-       handeln gleichzeitig. */
+       entscheiden gleichzeitig. */
     const nachZiel = { wert: [], gruppe: [], markt: [] };
     for (const v of VORLAGEN) nachZiel[v.z].push(v);
     const MISCHUNG = [
@@ -216,77 +244,81 @@ const nachrichten = (function () {
       { art: 'markt', anteil: 0.2 },
     ];
 
-    while (tick < ticks - WIRKDAUER) {
-      const wurf = rng();
-      let summe = 0;
-      let topf = nachZiel.wert;
-      for (const m of MISCHUNG) {
-        summe += m.anteil;
-        if (wurf < summe) { topf = nachZiel[m.art]; break; }
-      }
-      const v = topf[Math.floor(rng() * topf.length)];
+    /* Die letzte Runde bekommt keine Meldungen: nach ihr gibt es keinen
+       Kursschritt mehr, auf den sie wirken könnten. Eine Schlagzeile ohne
+       Folgen wäre schlimmer als keine — man würde noch darauf handeln. */
+    for (let runde = 0; runde < runden; runde++) {
+      const zahl = meldungenDieserRunde(rng);
 
-      let ziel = null;
-      let text = v.t;
+      for (let i = 0; i < zahl; i++) {
+        const wurf = rng();
+        let summe = 0;
+        let art = 'wert';
+        for (const m of MISCHUNG) {
+          summe += m.anteil;
+          if (wurf < summe) { art = m.art; break; }
+        }
+        const topf = nachZiel[art];
+        const v = topf[Math.floor(rng() * topf.length)];
 
-      if (v.z === 'wert') {
-        let auswahl = werte;
-        if (v.nur === 'krypto') auswahl = gruppen.krypto || [];
-        else auswahl = werte.filter((w) => w.art !== 'krypto');
-        if (!auswahl.length) { tick += ABSTAND_MIN; continue; }
-        ziel = auswahl[Math.floor(rng() * auswahl.length)];
-        text = text.replace('{name}', ziel.name);
-      } else if (v.z === 'gruppe') {
-        const g = gruppenNamen[Math.floor(rng() * gruppenNamen.length)];
-        ziel = g;
-        text = text.replace('{gruppe}', GRUPPEN_NAME[g] || 'breite Marktwerte');
-      }
+        let ziel = null;
+        let text = v.t;
 
-      const eintrag = {
-        tick: tick,
-        text: text,
-        zielArt: v.z,
-        ziel: v.z === 'wert' ? ziel.id : ziel,
-        zielName: v.z === 'wert' ? ziel.name : GRUPPEN_NAME[ziel] || null,
-        richtung: v.r,
-        staerke: STAERKE[v.s],
-        gewinn: v.g || 0,
-        dauer: WIRKDAUER,
-        geruecht: !!v.ger,
-      };
-      liste.push(eintrag);
+        if (v.z === 'wert') {
+          const auswahl = v.nur === 'krypto' ? (gruppen.krypto || []) : ohneKrypto;
+          if (!auswahl.length) continue;
+          ziel = auswahl[Math.floor(rng() * auswahl.length)];
+          text = text.replace('{name}', ziel.name);
+        } else if (v.z === 'gruppe') {
+          const g = gruppenNamen[Math.floor(rng() * gruppenNamen.length)];
+          ziel = g;
+          text = text.replace('{gruppe}', GRUPPEN_NAME[g] || 'breite Marktwerte');
+        }
 
-      /* Auflösung eines Gerüchts. Bestätigung verstärkt die ursprüngliche
-         Richtung, ein Dementi dreht sie um — und zwar stärker als die
-         ursprüngliche Bewegung, sonst bliebe unterm Strich ein Gewinn und
-         das Gerücht wäre risikolos. */
-      if (v.ger) {
-        const bestaetigt = rng() < 0.5;
-        const aufTick = tick + GERUECHT_FRIST;
-        if (aufTick < ticks - 2) {
-          const muster = bestaetigt
-            ? AUFLOESUNG_JA[Math.floor(rng() * AUFLOESUNG_JA.length)]
-            : AUFLOESUNG_NEIN[Math.floor(rng() * AUFLOESUNG_NEIN.length)];
-          liste.push({
-            tick: aufTick,
-            text: muster.replace('{name}', eintrag.zielName).replace('{kurz}', eintrag.text),
-            zielArt: 'wert',
-            ziel: eintrag.ziel,
-            zielName: eintrag.zielName,
-            richtung: bestaetigt ? v.r : -v.r,
-            staerke: bestaetigt ? STAERKE[v.s] * 0.7 : STAERKE[v.s] * 1.45,
-            gewinn: 0,
-            dauer: 6,
-            geruecht: false,
-            aufloesung: bestaetigt ? 'bestaetigt' : 'dementiert',
-          });
+        const eintrag = {
+          runde: runde,
+          text: text,
+          zielArt: v.z,
+          ziel: v.z === 'wert' ? ziel.id : ziel,
+          zielName: v.z === 'wert' ? ziel.name : GRUPPEN_NAME[ziel] || null,
+          richtung: v.r,
+          staerke: STAERKE[v.s] * ZIEL_WUCHT[v.z],
+          gewinn: (v.g || 0) * ZIEL_WUCHT[v.z],
+          dauer: WIRKDAUER,
+          geruecht: !!v.ger,
+        };
+        liste.push(eintrag);
+
+        /* Auflösung eines Gerüchts. Bestätigung verstärkt die ursprüngliche
+           Richtung, ein Dementi dreht sie um — und zwar stärker als die
+           ursprüngliche Bewegung, sonst bliebe unterm Strich ein Gewinn und
+           das Gerücht wäre risikolos. */
+        if (v.ger) {
+          const bestaetigt = rng() < 0.5;
+          const aufRunde = runde + GERUECHT_FRIST;
+          if (aufRunde < runden) {
+            const muster = bestaetigt
+              ? AUFLOESUNG_JA[Math.floor(rng() * AUFLOESUNG_JA.length)]
+              : AUFLOESUNG_NEIN[Math.floor(rng() * AUFLOESUNG_NEIN.length)];
+            liste.push({
+              runde: aufRunde,
+              text: muster.replace('{name}', eintrag.zielName).replace('{kurz}', eintrag.text),
+              zielArt: 'wert',
+              ziel: eintrag.ziel,
+              zielName: eintrag.zielName,
+              richtung: bestaetigt ? v.r : -v.r,
+              staerke: eintrag.staerke * (bestaetigt ? 0.7 : 1.45),
+              gewinn: 0,
+              dauer: WIRKDAUER,
+              geruecht: false,
+              aufloesung: bestaetigt ? 'bestaetigt' : 'dementiert',
+            });
+          }
         }
       }
-
-      tick += ABSTAND_MIN + Math.floor(rng() * (ABSTAND_MAX - ABSTAND_MIN + 1));
     }
 
-    liste.sort((a, b) => a.tick - b.tick);
+    liste.sort((a, b) => a.runde - b.runde);
     return liste;
   }
 

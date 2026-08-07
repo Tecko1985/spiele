@@ -20,6 +20,11 @@ const { markt: M, depot: D, bots: B } = globalThis;
 const werteSrc = fs.readFileSync(path.join(__dirname, '..', 'werte.js'), 'utf8');
 const WERTE = new Function(werteSrc + '\nreturn WERTE;')();
 const werte = WERTE.werte;
+
+/* Gemessen wird an der mittleren Partielaenge. 50 Runden sind fuenf
+   Boersenjahre - derselbe Zeitraum, den die Fassung mit Zeittakt hatte,
+   die Balancezahlen bleiben also vergleichbar. */
+const RUNDEN = 50;
 const nachId = {};
 for (const w of werte) nachId[w.id] = w;
 
@@ -29,7 +34,7 @@ function pruefe(b, t) {
   else { console.log('  FEHL ' + t); fehler++; }
 }
 
-const lauf = M.erzeuge(4711, werte);
+const lauf = M.erzeuge(4711, werte, RUNDEN);
 const sap = werte.find((w) => w.kuerzel === 'SAP');
 const btc = werte.find((w) => w.kuerzel === 'BTC');
 
@@ -42,7 +47,7 @@ pruefe(leer.gesamt === D.STARTBUDGET, 'leeres Depot = Startbudget (' + leer.gesa
 pruefe(leer.rendite === 0, 'Rendite eines leeren Depots ist null');
 
 const kursSap0 = M.kurs(lauf, sap.id, 0);
-const einKauf = [{ art: 'kauf', id: sap.id, stueck: 100, tick: 0 }];
+const einKauf = [{ art: 'kauf', id: sap.id, stueck: 100, runde: 0 }];
 const nachKauf = D.berechne(einKauf, lauf, 0, nachId);
 const erwarteterBetrag = kursSap0 * 100;
 const erwarteteGebuehr = Math.max(1, erwarteterBetrag * 0.0025);
@@ -57,7 +62,7 @@ pruefe(
 );
 
 /* Teilverkauf: der Einstand der Restposition muss anteilig mitziehen. */
-const teilVerkauf = einKauf.concat([{ art: 'verkauf', id: sap.id, stueck: 40, tick: 5 }]);
+const teilVerkauf = einKauf.concat([{ art: 'verkauf', id: sap.id, stueck: 40, runde: 5 }]);
 const nachTeil = D.berechne(teilVerkauf, lauf, 5, nachId);
 const restPos = nachTeil.positionen[0];
 pruefe(restPos && Math.abs(restPos.stueck - 60) < 1e-9, 'nach Teilverkauf 60 Stück übrig');
@@ -67,11 +72,11 @@ pruefe(
 );
 
 /* Kompletter Verkauf räumt die Position. */
-const ganzRaus = einKauf.concat([{ art: 'verkauf', id: sap.id, stueck: 100, tick: 5 }]);
+const ganzRaus = einKauf.concat([{ art: 'verkauf', id: sap.id, stueck: 100, runde: 5 }]);
 pruefe(D.berechne(ganzRaus, lauf, 5, nachId).positionen.length === 0, 'Vollverkauf räumt die Position');
 
 /* Dividende: SAP zahlt, also muss nach einem simulierten Jahr Geld da sein. */
-const einJahr = M.TICKS_JE_JAHR;
+const einJahr = M.RUNDEN_JE_JAHR;
 const mitDiv = D.berechne(einKauf, lauf, einJahr, nachId);
 pruefe(
   Math.abs(mitDiv.dividenden - sap.dividende * 100) < 0.01,
@@ -81,11 +86,11 @@ const vorJahr = D.berechne(einKauf, lauf, einJahr - 1, nachId);
 pruefe(vorJahr.dividenden === 0, 'einen Tick vor dem Stichtag noch keine Dividende');
 
 /* Wer erst nach dem Stichtag kauft, bekommt sie nicht. */
-const spaetKauf = [{ art: 'kauf', id: sap.id, stueck: 100, tick: einJahr + 1 }];
+const spaetKauf = [{ art: 'kauf', id: sap.id, stueck: 100, runde: einJahr + 1 }];
 pruefe(D.berechne(spaetKauf, lauf, einJahr + 5, nachId).dividenden === 0, 'Kauf nach dem Stichtag bekommt keine Dividende');
 
 /* Krypto in Bruchteilen. */
-const kryptoKauf = [{ art: 'kauf', id: btc.id, stueck: 0.12345678, tick: 0 }];
+const kryptoKauf = [{ art: 'kauf', id: btc.id, stueck: 0.12345678, runde: 0 }];
 pruefe(
   Math.abs(D.berechne(kryptoKauf, lauf, 0, nachId).positionen[0].stueck - 0.12345678) < 1e-9,
   'Krypto wird in Bruchteilen gehalten'
@@ -121,7 +126,7 @@ const scheibe = Math.floor((D.STARTBUDGET * 0.06) / kursSap0);
 for (let i = 0; i < 12; i++) {
   const z = D.berechne(trades, lauf, 0, nachId);
   const p = D.pruefeKauf(z, sap, scheibe, M.kurs(lauf, sap.id, 0));
-  if (p.ok) trades.push({ art: 'kauf', id: sap.id, stueck: scheibe, tick: 0 });
+  if (p.ok) trades.push({ art: 'kauf', id: sap.id, stueck: scheibe, runde: 0 });
   else abgelehnt++;
 }
 const endstand = D.berechne(trades, lauf, 0, nachId);
@@ -137,8 +142,8 @@ pruefe(D.pruefeVerkauf(hatWas, sap, 100).ok, 'Verkauf des ganzen Bestands ist er
 
 /* Cash darf nie negativ werden, auch nicht bei untergeschobenen Trades. */
 const boesartig = [
-  { art: 'kauf', id: sap.id, stueck: 100000, tick: 0 },
-  { art: 'kauf', id: sap.id, stueck: 50, tick: 1 },
+  { art: 'kauf', id: sap.id, stueck: 100000, runde: 0 },
+  { art: 'kauf', id: sap.id, stueck: 50, runde: 1 },
 ];
 const nachBoese = D.berechne(boesartig, lauf, 5, nachId);
 pruefe(nachBoese.cash >= 0, 'untergeschobener Riesenkauf zieht das Konto nicht ins Minus (Cash ' + nachBoese.cash.toFixed(0) + ')');
@@ -158,7 +163,7 @@ for (let i = 0; i < feld1.length; i++) {
 }
 pruefe(gleich, 'Bot-Züge sind bei gleicher Saat identisch — sonst müssten sie übertragen werden');
 
-const anderes = B.stelleAuf(M.erzeuge(4712, werte), werte, nachId, 5);
+const anderes = B.stelleAuf(M.erzeuge(4712, werte, RUNDEN), werte, nachId, 5);
 pruefe(
   JSON.stringify(anderes[0].trades) !== JSON.stringify(feld1[0].trades),
   'andere Saat ergibt andere Bot-Züge'
@@ -173,8 +178,8 @@ function pruefeKaufregelTreue(trades, l) {
   const bisher = [];
   for (const h of trades) {
     if (h.art === 'kauf') {
-      const davor = D.berechne(bisher, l, h.tick, nachId);
-      const p = D.pruefeKauf(davor, nachId[h.id], h.stueck, M.kurs(l, h.id, h.tick));
+      const davor = D.berechne(bisher, l, h.runde, nachId);
+      const p = D.pruefeKauf(davor, nachId[h.id], h.stueck, M.kurs(l, h.id, h.runde));
       if (!p.ok) return { ok: false, wo: h };
     }
     bisher.push(h);
@@ -183,7 +188,7 @@ function pruefeKaufregelTreue(trades, l) {
 }
 
 for (const b of feld1) {
-  const z = D.berechne(b.trades, lauf, M.TICKS, nachId);
+  const z = D.berechne(b.trades, lauf, RUNDEN, nachId);
   const maxAnteil = z.positionen.reduce((m, p) => Math.max(m, p.anteil), 0);
   const investiert = z.anlagewert / z.gesamt;
   console.log(
@@ -203,8 +208,8 @@ for (const b of feld1) {
 /* Bots dürfen nicht in die Zukunft schauen: ein Zug darf nie einen Tick
    tragen, der nach dem Partieende liegt, und die Käufe müssen sich über die
    Partie verteilen statt am Ende geballt aufzutreten. */
-const alleTicks = feld1.flatMap((b) => b.trades.map((t) => t.tick));
-pruefe(alleTicks.every((t) => t >= 0 && t <= M.TICKS), 'kein Bot-Zug außerhalb der Partie');
+const alleRunden = feld1.flatMap((b) => b.trades.map((t) => t.runde));
+pruefe(alleRunden.every((t) => t >= 0 && t <= RUNDEN), 'kein Bot-Zug außerhalb der Partie');
 
 /* ====================================================================== */
 console.log('\n4. WER GEWINNT? (120 Partien, 5 Bots)');
@@ -217,12 +222,12 @@ for (const c of B.CHARAKTERE) { siege[c.name] = 0; summeRendite[c.name] = 0; }
 const LAEUFE = 120;
 const t0 = Date.now();
 for (let i = 0; i < LAEUFE; i++) {
-  const l = M.erzeuge(90000 + i * 613, werte);
+  const l = M.erzeuge(90000 + i * 613, werte, RUNDEN);
   const feld = B.stelleAuf(l, werte, nachId, 5);
   let bester = null;
   let bestwert = -1e18;
   for (const b of feld) {
-    const z = D.berechne(b.trades, l, M.TICKS, nachId);
+    const z = D.berechne(b.trades, l, RUNDEN, nachId);
     summeRendite[b.name] += z.rendite;
     if (z.gesamt > bestwert) { bestwert = z.gesamt; bester = b.name; }
   }
