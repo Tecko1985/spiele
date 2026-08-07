@@ -246,6 +246,108 @@ const nachrichten = (function () {
     { t: 'Schwere Sicherheitslücke im Netzwerk von {name} entdeckt', z: 'wert', r: -1, s: 'riesig', g: 0, nur: 'krypto' },
     { t: 'Notenbank nennt {name} eine Gefahr für die Stabilität', z: 'wert', r: -1, s: 'gross', g: 0, nur: 'krypto' },
     { t: 'Wichtiges Netzwerk-Update für {name} erfolgreich abgeschlossen', z: 'wert', r: 1, s: 'gross', g: 0, nur: 'krypto' },
+
+    /* --- Zweiter Nachschub (2026-08-07) ----------------------------------
+       Mit 110 Vorlagen wiederholte sich in einer 100-Runden-Partie noch jede
+       fünfte Schlagzeile wortgleich. Gemessen wurde über 40 Partien je
+       Länge; entscheidend ist die Größe des jeweiligen Topfes, nicht die
+       Gesamtzahl — die Mischung zieht ja aus drei getrennten Töpfen. ---- */
+
+    /* Einzelwert, gut */
+    { t: '{name} gewinnt einen Auftrag der öffentlichen Hand', z: 'wert', r: 1, s: 'mittel', g: 0.07 },
+    { t: 'Umsatz von {name} wächst zweistellig', z: 'wert', r: 1, s: 'mittel', g: 0.1 },
+    { t: '{name} eröffnet einen neuen Absatzmarkt in Asien', z: 'wert', r: 1, s: 'gross', g: 0.09 },
+    { t: 'Rating-Agentur stuft {name} herauf', z: 'wert', r: 1, s: 'klein', g: 0 },
+    { t: '{name} legt die Kartellstreitigkeiten bei', z: 'wert', r: 1, s: 'mittel', g: 0.04 },
+    { t: 'Neues Führungsteam bei {name} überzeugt die Anleger', z: 'wert', r: 1, s: 'klein', g: 0 },
+    { t: '{name} verdoppelt die Kapazität am Hauptstandort', z: 'wert', r: 1, s: 'mittel', g: 0.08 },
+    { t: 'Lagerbestände von {name} deutlich abgebaut', z: 'wert', r: 1, s: 'klein', g: 0.05 },
+    { t: '{name} steigert den freien Mittelzufluss kräftig', z: 'wert', r: 1, s: 'mittel', g: 0.12 },
+    { t: 'Wichtiger Konkurrent zieht sich aus dem Markt von {name} zurück', z: 'wert', r: 1, s: 'gross', g: 0.1 },
+    { t: '{name} gewinnt einen Rechtsstreit in zweiter Instanz', z: 'wert', r: 1, s: 'mittel', g: 0.03 },
+    { t: 'Auftragsbestand von {name} reicht zwei Jahre', z: 'wert', r: 1, s: 'gross', g: 0.11 },
+    { t: '{name} startet den Verkauf in einem neuen Segment', z: 'wert', r: 1, s: 'klein', g: 0.06 },
+    { t: 'Kosten für Vorprodukte bei {name} deutlich gesunken', z: 'wert', r: 1, s: 'mittel', g: 0.13 },
+    { t: '{name} zahlt Schulden vorzeitig zurück', z: 'wert', r: 1, s: 'klein', g: 0.04 },
+    { t: 'Testsieg für ein Produkt von {name}', z: 'wert', r: 1, s: 'klein', g: 0.03 },
+    { t: '{name} beteiligt sich an einem vielversprechenden Start-up', z: 'wert', r: 1, s: 'klein', g: 0 },
+    { t: 'Rekordbeteiligung auf der Hauptversammlung von {name}', z: 'wert', r: 1, s: 'klein', g: 0 },
+    { t: '{name} erhält Fördermittel für den Umbau der Produktion', z: 'wert', r: 1, s: 'mittel', g: 0.06 },
+    { t: 'Exportgeschäft von {name} zieht kräftig an', z: 'wert', r: 1, s: 'mittel', g: 0.08 },
+
+    /* Einzelwert, schlecht */
+    { t: '{name} muss eine Charge zurückrufen', z: 'wert', r: -1, s: 'mittel', g: -0.05 },
+    { t: 'Rating-Agentur stuft {name} herab', z: 'wert', r: -1, s: 'mittel', g: 0 },
+    { t: 'Schlüsselpersonal verlässt {name} in Richtung Konkurrenz', z: 'wert', r: -1, s: 'klein', g: -0.04 },
+    { t: '{name} verfehlt die eigenen Klimaziele deutlich', z: 'wert', r: -1, s: 'klein', g: 0 },
+    { t: 'Gericht verurteilt {name} zu Schadensersatz', z: 'wert', r: -1, s: 'mittel', g: -0.07 },
+    { t: '{name} verliert die Zulassung in einem wichtigen Markt', z: 'wert', r: -1, s: 'gross', g: -0.14 },
+    { t: 'Lagerbestände von {name} türmen sich', z: 'wert', r: -1, s: 'mittel', g: -0.09 },
+    { t: '{name} muss die Investitionen zusammenstreichen', z: 'wert', r: -1, s: 'mittel', g: -0.06 },
+    { t: 'Brand legt eine Fabrik von {name} still', z: 'wert', r: -1, s: 'gross', g: -0.08 },
+    { t: 'Anleihen von {name} auf Ramschniveau herabgestuft', z: 'wert', r: -1, s: 'gross', g: -0.1 },
+    { t: '{name} verliert Marktanteile an einen billigeren Anbieter', z: 'wert', r: -1, s: 'mittel', g: -0.11 },
+    { t: 'Grossbestellung bei {name} storniert', z: 'wert', r: -1, s: 'gross', g: -0.12 },
+    { t: '{name} kämpft mit Qualitätsproblemen in der Serie', z: 'wert', r: -1, s: 'mittel', g: -0.08 },
+    { t: 'Zulieferer von {name} meldet Insolvenz an', z: 'wert', r: -1, s: 'mittel', g: -0.07 },
+    { t: '{name} verschiebt die Zahlen — Prüfer haben Fragen', z: 'wert', r: -1, s: 'riesig', g: -0.15 },
+    { t: 'Boykottaufrufe gegen {name} in sozialen Netzwerken', z: 'wert', r: -1, s: 'klein', g: -0.03 },
+    { t: '{name} zahlt zu viel für eine Übernahme, sagen Analysten', z: 'wert', r: -1, s: 'mittel', g: -0.04 },
+    { t: 'Wechselkurse belasten das Ergebnis von {name}', z: 'wert', r: -1, s: 'klein', g: -0.06 },
+    { t: '{name} verliert den Anschluss bei einer Schlüsseltechnik', z: 'wert', r: -1, s: 'gross', g: -0.13 },
+    { t: 'Rückstellungen bei {name} reichen nicht aus', z: 'wert', r: -1, s: 'mittel', g: -0.09 },
+
+    /* Gerüchte */
+    { t: 'Marktgeflüster: {name} soll Kaufinteresse an einem Wettbewerber haben', z: 'wert', r: 1, s: 'mittel', g: 0, ger: true },
+    { t: 'Angeblich prüft {name} den Rückzug von der Börse', z: 'wert', r: 1, s: 'gross', g: 0, ger: true },
+    { t: 'Insider berichten von einem Durchbruch im Labor von {name}', z: 'wert', r: 1, s: 'gross', g: 0, ger: true },
+    { t: 'Unbestätigte Meldungen über Entlassungen bei {name}', z: 'wert', r: -1, s: 'mittel', g: 0, ger: true },
+    { t: 'Am Markt hält sich das Gerücht einer Dividendenkürzung bei {name}', z: 'wert', r: -1, s: 'mittel', g: 0, ger: true },
+    { t: 'Es heißt, ein Großkunde von {name} suche einen neuen Lieferanten', z: 'wert', r: -1, s: 'gross', g: 0, ger: true },
+    { t: 'Gerüchte über eine Staatsbeteiligung an {name}', z: 'wert', r: 1, s: 'mittel', g: 0, ger: true },
+    { t: 'Berichte: Aufsichtsrat von {name} soll zerstritten sein', z: 'wert', r: -1, s: 'klein', g: 0, ger: true },
+
+    /* Gruppe */
+    { t: 'Reallöhne steigen — {gruppe} profitieren von der Kauflaune', z: 'gruppe', r: 1, s: 'mittel', g: 0.07 },
+    { t: 'Kreditvergabe wird strenger, {gruppe} unter Druck', z: 'gruppe', r: -1, s: 'mittel', g: -0.06 },
+    { t: 'Subventionen für {gruppe} laufen aus', z: 'gruppe', r: -1, s: 'mittel', g: -0.08 },
+    { t: 'Rohstoffpreise fallen — {gruppe} rechnen mit besseren Margen', z: 'gruppe', r: 1, s: 'mittel', g: 0.09 },
+    { t: 'Neuer Standard setzt {gruppe} unter Investitionsdruck', z: 'gruppe', r: -1, s: 'klein', g: -0.05 },
+    { t: 'Ausländische Nachfrage nach {gruppe} zieht deutlich an', z: 'gruppe', r: 1, s: 'gross', g: 0.1 },
+    { t: 'Übernahmeangebot in der Branche lässt {gruppe} steigen', z: 'gruppe', r: 1, s: 'mittel', g: 0 },
+    { t: 'Aufsicht kündigt schärfere Kontrollen bei {gruppe} an', z: 'gruppe', r: -1, s: 'klein', g: -0.03 },
+    { t: 'Quartalssaison enttäuscht bei {gruppe} auf breiter Front', z: 'gruppe', r: -1, s: 'gross', g: -0.11 },
+    { t: 'Große Pensionsfonds entdecken {gruppe} für sich', z: 'gruppe', r: 1, s: 'mittel', g: 0 },
+    { t: 'Kapazitäten bei {gruppe} sind auf Monate ausgelastet', z: 'gruppe', r: 1, s: 'gross', g: 0.12 },
+    { t: 'Billigimporte setzen {gruppe} zu', z: 'gruppe', r: -1, s: 'mittel', g: -0.09 },
+    { t: 'Forschungsoffensive gibt {gruppe} Rückenwind', z: 'gruppe', r: 1, s: 'mittel', g: 0.06 },
+    { t: 'Versicherer verteuern die Policen für {gruppe}', z: 'gruppe', r: -1, s: 'klein', g: -0.04 },
+    { t: 'Branchenmesse bringt {gruppe} volle Auftragsbücher', z: 'gruppe', r: 1, s: 'mittel', g: 0.08 },
+    { t: 'Zulieferstreik legt {gruppe} teilweise lahm', z: 'gruppe', r: -1, s: 'mittel', g: -0.07 },
+    { t: 'Steuervorteil für {gruppe} beschlossen', z: 'gruppe', r: 1, s: 'gross', g: 0.09 },
+    { t: 'Reihenweise Prognosesenkungen bei {gruppe}', z: 'gruppe', r: -1, s: 'gross', g: -0.12 },
+
+    /* Gesamtmarkt */
+    { t: 'Inflationsrate fällt schneller als erwartet', z: 'markt', r: 1, s: 'gross', g: 0.05 },
+    { t: 'Wachstumsprognose für das Gesamtjahr gesenkt', z: 'markt', r: -1, s: 'mittel', g: -0.04 },
+    { t: 'Anleiherenditen springen nach oben, Aktien geben nach', z: 'markt', r: -1, s: 'mittel', g: 0 },
+    { t: 'Ölpreis fällt deutlich — Entlastung auf breiter Front', z: 'markt', r: 1, s: 'mittel', g: 0.04 },
+    { t: 'Kaufwelle privater Anleger treibt die Kurse', z: 'markt', r: 1, s: 'klein', g: 0 },
+    { t: 'Bankenstress in Übersee schreckt die Anleger auf', z: 'markt', r: -1, s: 'gross', g: -0.06 },
+    { t: 'Regierung legt ein Investitionspaket auf', z: 'markt', r: 1, s: 'gross', g: 0.06 },
+    { t: 'Lieferketten weltweit wieder im Takt', z: 'markt', r: 1, s: 'mittel', g: 0.05 },
+    { t: 'Neue Handelsbarrieren angekündigt', z: 'markt', r: -1, s: 'gross', g: -0.05 },
+    { t: 'Rekordquartal quer durch alle Branchen', z: 'markt', r: 1, s: 'gross', g: 0.08 },
+    { t: 'Wahlausgang sorgt für Unsicherheit an den Märkten', z: 'markt', r: -1, s: 'mittel', g: 0 },
+    { t: 'Sparquote steigt — Konsum schwächelt', z: 'markt', r: -1, s: 'klein', g: -0.03 },
+
+    /* Krypto */
+    { t: 'Zahlungsdienstleister bindet {name} in seine App ein', z: 'wert', r: 1, s: 'gross', g: 0, nur: 'krypto' },
+    { t: 'Handelsvolumen von {name} bricht ein', z: 'wert', r: -1, s: 'gross', g: 0, nur: 'krypto' },
+    { t: 'Neue Regeln erleichtern den Handel mit {name}', z: 'wert', r: 1, s: 'gross', g: 0, nur: 'krypto' },
+    { t: 'Große Börse setzt den Handel mit {name} vorübergehend aus', z: 'wert', r: -1, s: 'riesig', g: 0, nur: 'krypto' },
+    { t: 'Entwicklerteam von {name} kündigt eine Neuausrichtung an', z: 'wert', r: 1, s: 'mittel', g: 0, nur: 'krypto' },
+    { t: 'Miner von {name} verkaufen ihre Bestände', z: 'wert', r: -1, s: 'gross', g: 0, nur: 'krypto' },
   ];
 
   /* Auflösungstexte für Gerüchte. */

@@ -160,6 +160,48 @@ const AKTIEN = [
  * fuehrt sie nicht. In der App stehen sie deshalb als Strich. Beim naechsten
  * Pflegelauf aus dem jeweiligen Anbieterdatenblatt nachtragen, NICHT schaetzen.
  */
+/**
+ * Laufende Kosten (TER) und Ausschuettungsart der ETFs.
+ * TER am 2026-08-07 von stockanalysis.com/etf/compare abgerufen - die
+ * Vergleichsseite liefert fuenf Werte auf einmal, deshalb fuenf Abrufe
+ * statt fuenfundzwanzig.
+ *
+ * Ausschuettungsart: alle fuenfundzwanzig sind US-Produkte. Ein
+ * US-Investmentfonds muss den Grossteil seiner Ertraege ausschuetten, um
+ * steuerlich als Regulated Investment Company zu gelten - thesaurierende
+ * ETFs gibt es dort praktisch nicht. GLD und IBIT sind die Ausnahme, aber
+ * aus einem anderen Grund: sie sind Trusts auf einen Sachwert (Gold,
+ * Bitcoin) und erwirtschaften ueberhaupt keine Ertraege, die auszuschuetten
+ * waeren.
+ */
+const ETF_KOSTEN = {
+  'VOO':  { ter: 0.03, ausschuettend: true },
+  'QQQ':  { ter: 0.18, ausschuettend: true },
+  'VT':   { ter: 0.06, ausschuettend: true },
+  'VEA':  { ter: 0.03, ausschuettend: true },
+  'VWO':  { ter: 0.06, ausschuettend: true },
+  'EFA':  { ter: 0.32, ausschuettend: true },
+  'IWM':  { ter: 0.19, ausschuettend: true },
+  'IJH':  { ter: 0.05, ausschuettend: true },
+  'DIA':  { ter: 0.16, ausschuettend: true },
+  'RSP':  { ter: 0.20, ausschuettend: true },
+  'VUG':  { ter: 0.03, ausschuettend: true },
+  'VTV':  { ter: 0.03, ausschuettend: true },
+  'SCHD': { ter: 0.06, ausschuettend: true },
+  'VYM':  { ter: 0.04, ausschuettend: true },
+  'XLK':  { ter: 0.08, ausschuettend: true },
+  'SOXX': { ter: 0.34, ausschuettend: true },
+  'XLV':  { ter: 0.08, ausschuettend: true },
+  'XLF':  { ter: 0.08, ausschuettend: true },
+  'XLE':  { ter: 0.08, ausschuettend: true },
+  'VNQ':  { ter: 0.13, ausschuettend: true },
+  'GLD':  { ter: 0.40, ausschuettend: false },
+  'AGG':  { ter: 0.03, ausschuettend: true },
+  'TLT':  { ter: 0.15, ausschuettend: true },
+  'VCIT': { ter: 0.03, ausschuettend: true },
+  'IBIT': { ter: 0.25, ausschuettend: false },
+};
+
 const ETFS = [
   ['Vanguard S&P 500 ETF',       'VOO',  706.40, 1030.0,  520, 'USA breit',        'Aktien'],
   ['Invesco QQQ Trust',          'QQQ',  714.65,  479.2,  106, 'USA Technologie',  'Aktien'],
@@ -271,8 +313,8 @@ for (const [name, kuerzel, kurs, volumenMrd, positionen, bereich, anlageklasse] 
     waehrungOriginal: 'USD',
     fondsvolumenMrd: volumenMrd,
     anzahlPositionen: positionen,
-    ter: null, // beim naechsten Pflegelauf nachtragen, nicht schaetzen
-    ausschuettend: null,
+    ter: (ETF_KOSTEN[kuerzel] || {}).ter === undefined ? null : ETF_KOSTEN[kuerzel].ter,
+    ausschuettend: (ETF_KOSTEN[kuerzel] || {}).ausschuettend === undefined ? null : ETF_KOSTEN[kuerzel].ausschuettend,
     sektor: bereich,
     anlageklasse,
     land: null,

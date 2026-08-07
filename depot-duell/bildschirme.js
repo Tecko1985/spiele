@@ -911,10 +911,11 @@ const bildschirme = (function () {
       zeilen.push(['Schwerpunkt', w.sektor]);
       zeilen.push(['Fondsvolumen', w.fondsvolumenMrd ? w.fondsvolumenMrd.toLocaleString('de-DE') + ' Mrd $' : '—']);
       zeilen.push(['Enthaltene Werte', w.anzahlPositionen ? w.anzahlPositionen.toLocaleString('de-DE') : '—']);
-      /* Bewusst als Strich statt geschätzt: die laufenden Kosten stehen in
-         keiner der benutzten Quellen als Liste. */
-      zeilen.push(['Laufende Kosten', w.ter === null ? '—' : w.ter + ' %']);
-      zeilen.push(['Ausschüttung', w.ausschuettend === null ? '—' : w.ausschuettend ? 'ausschüttend' : 'thesaurierend']);
+      zeilen.push(['Laufende Kosten', w.ter === null ? '—' : String(w.ter).replace('.', ',') + ' % im Jahr']);
+      /* "thesaurierend" wäre bei GLD und IBIT falsch: das sind Trusts auf
+         einen Sachwert, die überhaupt keine Erträge erwirtschaften. */
+      zeilen.push(['Ausschüttung', w.ausschuettend === null ? '—'
+        : w.ausschuettend ? 'ausschüttend' : 'keine (Sachwert-Trust)']);
     } else {
       const mk = markt.marktkapitalisierung(app.lauf, w, runde);
       zeilen.push(['Marktkapitalisierung', mk ? kompakt(mk) : '—']);
