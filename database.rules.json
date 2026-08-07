@@ -18,7 +18,7 @@
           "regeln": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby'" },
           "spieler": {
             "$uid": {
-              ".write": "auth != null && ($uid === auth.uid || root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid)"
+              ".write": "auth != null && ($uid === auth.uid || root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid) && (data.exists() || root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby')"
             }
           }
         }
