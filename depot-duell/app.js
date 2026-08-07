@@ -10,6 +10,30 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.2',
+    groups: [
+      {
+        title: 'Der Eröffner stellt die Partie ein',
+        items: [
+          'Startgeld wählbar: 10.000, 50.000, 100.000 oder eine Million',
+          'Ordergebühr wählbar: keine, 0,25 % oder 1 %',
+          'Höchstanteil je Wert wählbar: 10, 25, 50 Prozent oder ohne Grenze',
+          'Die Einstellungen lassen sich in der Lobby noch ändern, solange die Partie nicht läuft — danach nicht mehr, sonst würde jeder bereits getätigte Kauf rückwirkend anders bewertet',
+          'Auch der Weg "Allein gegen die KI üben" führt jetzt durch die Einstellungen statt sofort loszulaufen',
+        ],
+      },
+      {
+        title: 'Kleinigkeiten',
+        items: [
+          'Der Startbildschirm sitzt mittig statt am oberen Rand',
+          'Nach einem Neuladen mitten in der Partie landet man wieder im Spiel statt auf dem Startbildschirm',
+          'Der Knopf zum Beenden sitzt jetzt oben rechts in der Kopfzeile und ist in jeder Ansicht erreichbar',
+          'Die Leiste zum Rundenabschluss lag auf dem iPhone unter dem Home-Indicator und war dort nicht zu treffen',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.1',
     groups: [
       {
@@ -111,8 +135,18 @@ const app = {
   newsIndex: 0,
   fehler: null,
   name: '',
-  runden: markt.STANDARD_RUNDEN,
-  botAnzahl: 0,
+
+  /* Was in der Einstellansicht gerade eingestellt wird. Erst beim Eröffnen
+     wandert es in den Raum — ab da gilt es für alle und ist nicht mehr
+     Sache des einzelnen Geräts. */
+  entwurf: {
+    runden: markt.STANDARD_RUNDEN,
+    botAnzahl: 0,
+    startgeld: depot.VORGABE.startgeld,
+    gebuehrSatz: depot.VORGABE.gebuehrSatz,
+    gebuehrMind: depot.VORGABE.gebuehrMind,
+    hoechstanteil: depot.VORGABE.hoechstanteil,
+  },
 
   zustand: {
     uid: null, code: null, raum: null, trades: {}, runde: 0,
@@ -137,16 +171,27 @@ const app = {
     return this.zustand.runde;
   },
 
+  /* Die geltenden Regeln — aus dem Raum, nicht aus dem Entwurf. Solange man
+     noch keinen Raum hat (Startbildschirm, Info), zeigt die Oberfläche den
+     Entwurf, damit dort keine Zahlen stehen, die niemand eingestellt hat. */
+  regeln: function () {
+    if (this.zustand.raum && this.zustand.raum.regeln) {
+      return depot.normiereRegeln(this.zustand.raum.regeln);
+    }
+    if (this.zustand.raum) return depot.normiereRegeln(null);
+    return depot.normiereRegeln(this.entwurf);
+  },
+
   /* --------------------------------------------------------------------
      Ableitungen — nie gespeichert, immer gerechnet
      -------------------------------------------------------------------- */
 
   eigenerStand: function () {
     if (!this.lauf) {
-      return depot.berechne([], { saat: 0, runden: 0, rundenJeJahr: 10, kurse: {}, gewinne: {}, meldungen: [] }, 0, {});
+      return depot.berechne([], { saat: 0, runden: 0, rundenJeJahr: 10, kurse: {}, gewinne: {}, meldungen: [] }, 0, {}, this.regeln());
     }
     const meine = this.zustand.trades[this.zustand.uid] || [];
-    return depot.stand('ich', meine, this.lauf, this.runde(), this.wertNachId);
+    return depot.stand('ich', meine, this.lauf, this.runde(), this.wertNachId, this.regeln());
   },
 
   rangliste: function () {
@@ -154,11 +199,12 @@ const app = {
     const t = this.runde();
     const raus = [];
     const bereitJetzt = this.zustand.bereitJetzt || {};
+    const R = this.regeln();
 
     const spieler = this.zustand.raum.spieler || {};
     for (const uid in spieler) {
       const trades = this.zustand.trades[uid] || [];
-      const stand = depot.stand(uid, trades, this.lauf, t, this.wertNachId);
+      const stand = depot.stand(uid, trades, this.lauf, t, this.wertNachId, R);
       raus.push({
         uid: uid, name: spieler[uid].name, zeichen: null, istBot: false,
         raus: !!spieler[uid].raus, fertig: !!bereitJetzt[uid],
@@ -166,7 +212,7 @@ const app = {
       });
     }
     for (const b of this.botFeld) {
-      const stand = depot.stand(b.uid, b.trades, this.lauf, t, this.wertNachId);
+      const stand = depot.stand(b.uid, b.trades, this.lauf, t, this.wertNachId, R);
       raus.push({
         uid: b.uid, name: b.name, zeichen: b.zeichen, istBot: true,
         raus: false, fertig: true,
@@ -266,9 +312,32 @@ const app = {
     else { this.sortierung = sorte.id; this.sortAb = !sorte.auf; }
   },
 
+  /* Beim Öffnen den Entwurf aus dem Raum füllen — sonst stünden dort die
+     zuletzt auf DIESEM Gerät eingestellten Werte statt der Werte, die für
+     alle im Raum gelten. */
+  oeffneEinstellungen: function () {
+    const R = this.regeln();
+    this.entwurf = {
+      runden: this.zustand.runden || markt.STANDARD_RUNDEN,
+      botAnzahl: this.zustand.botAnzahl || 0,
+      startgeld: R.startgeld,
+      gebuehrSatz: R.gebuehrSatz,
+      gebuehrMind: R.gebuehrMind,
+      hoechstanteil: R.hoechstanteil,
+    };
+    this.ansicht = 'lobby-neu';
+  },
+
+  uebernehmeEinstellungen: function () {
+    const self = this;
+    gameService.aendereEinstellungen(this.entwurf)
+      .then(function () { self.ansicht = 'lobby'; ui.anfordern(); })
+      .catch(function (f) { self.fehler = f.message; ui.anfordern(); });
+  },
+
   erstelleRaum: function () {
     const self = this;
-    gameService.erstelleRaum(this.name.trim(), this.runden, this.botAnzahl)
+    gameService.erstelleRaum(this.name.trim(), this.entwurf)
       .then(function () { self.ansicht = 'lobby'; ui.anfordern(); })
       .catch(function (f) { self.fehler = f.message; self.ansicht = 'start'; ui.anfordern(); });
   },
@@ -286,7 +355,7 @@ const app = {
      komplett tot, während der Mehrspielerpfad sauber lief. */
   starteSolo: function () {
     const self = this;
-    gameService.erstelleRaum(this.name.trim(), this.runden, 4)
+    gameService.erstelleRaum(this.name.trim(), this.entwurf)
       .then(function () { return gameService.starteRaum(); })
       .then(function () { self.ansicht = 'spiel'; self.reiter = 'markt'; ui.anfordern(); })
       .catch(function (f) { self.fehler = f.message; self.ansicht = 'start'; ui.anfordern(); });
@@ -378,7 +447,7 @@ const app = {
         (!this.lauf || this.lauf.saat !== z.raum.saat || this.lauf.runden !== z.runden)) {
       this.lauf = markt.erzeuge(z.raum.saat, this.werteListe, z.runden);
       this.botFeld = z.raum.botAnzahl > 0
-        ? bots.stelleAuf(this.lauf, this.werteListe, this.wertNachId, z.raum.botAnzahl)
+        ? bots.stelleAuf(this.lauf, this.werteListe, this.wertNachId, z.raum.botAnzahl, this.regeln())
         : [];
       depot.leereSpeicher();
       this.ergebnisGemeldet = false;
@@ -394,10 +463,18 @@ const app = {
 
     /* Ansicht nachziehen, wenn sich die Phase geändert hat. */
     if (z.raum) {
-      if (z.raum.phase === 'lobby' && this.ansicht !== 'lobby' && this.ansicht !== 'info' && this.ansicht !== 'bestenliste') {
+      if (z.raum.phase === 'lobby' && this.ansicht !== 'lobby' && this.ansicht !== 'info' &&
+          this.ansicht !== 'bestenliste' && this.ansicht !== 'lobby-neu') {
         this.ansicht = 'lobby';
       }
-      if (z.raum.phase === 'laeuft' && (this.ansicht === 'lobby' || this.ansicht === 'lobby-neu' || this.ansicht === 'beitreten')) {
+      /* 'start' MUSS mit in die Liste. Nach einem Neuladen mitten in der
+         Partie steht die Ansicht auf ihrem Anfangswert 'start' — ohne diesen
+         Fall landete man auf "Wer bist du?", während oben der eigene
+         Depotwert und die laufende Runde standen. Der Raumcode liegt ja im
+         Speicher, die Partie läuft weiter. */
+      if (z.raum.phase === 'laeuft' &&
+          (this.ansicht === 'start' || this.ansicht === 'lobby' ||
+           this.ansicht === 'lobby-neu' || this.ansicht === 'beitreten')) {
         this.ansicht = 'spiel';
         this.reiter = 'markt';
       }

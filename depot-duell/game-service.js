@@ -221,8 +221,20 @@ const gameService = (function () {
     throw new Error('Konnte keinen freien Raum-Code finden.');
   }
 
-  async function erstelleRaum(name, runden, botAnzahl) {
+  /**
+   * Legt einen Raum an.
+   * @param {string} name    Anzeigename des Eröffners
+   * @param {object} entwurf { runden, botAnzahl, startgeld, gebuehrSatz,
+   *                           gebuehrMind, hoechstanteil }
+   *
+   * Die Regeln wandern MIT IN DEN RAUM. Läge Startgeld oder Gebühr als
+   * Konstante im Programm, spielten zwei Geräte mit unterschiedlichem Stand
+   * dieselbe Partie nach verschiedenen Regeln — und die Rangliste wäre
+   * stillschweigend falsch, ohne dass irgendetwas nach einem Fehler aussieht.
+   */
+  async function erstelleRaum(name, entwurf) {
     await bereit;
+    const e = entwurf || {};
     const code = await freierCode();
 
     /* Die Saat ist die einzige Zahl, aus der die ganze Partie entsteht.
@@ -235,8 +247,9 @@ const gameService = (function () {
       erstellt: firebase.database.ServerValue.TIMESTAMP,
       phase: 'lobby',
       saat: saat,
-      runden: markt.normiereRunden(runden),
-      botAnzahl: Math.max(0, Math.min(5, botAnzahl | 0)),
+      runden: markt.normiereRunden(e.runden),
+      botAnzahl: Math.max(0, Math.min(5, e.botAnzahl | 0)),
+      regeln: depot.normiereRegeln(e),
       startZeit: 0,
       spieler: {},
     };
@@ -481,6 +494,8 @@ const gameService = (function () {
       abgebrochen: !!(raumZustand && raumZustand.abgebrochen),
       istHost: !!(raumZustand && raumZustand.hostId === eigeneUid),
       stufe: raumZustand ? stufeFuer(raumZustand.runden) : null,
+      regeln: raumZustand ? depot.normiereRegeln(raumZustand.regeln) : depot.normiereRegeln(null),
+      botAnzahl: raumZustand ? raumZustand.botAnzahl || 0 : 0,
     };
   }
 
@@ -577,6 +592,24 @@ const gameService = (function () {
     await raumRef.update({ phase: 'beendet' });
   }
 
+  /**
+   * Ändert die Einstellungen eines Raums, der noch in der Lobby steht.
+   * Nur der Host. Sobald die Partie läuft, geht es nicht mehr — Regeln, die
+   * sich mitten im Spiel ändern, würden jeden bereits getätigten Kauf
+   * rückwirkend anders bewerten.
+   */
+  async function aendereEinstellungen(entwurf) {
+    await bereit;
+    if (!aktuellerCode || !raumZustand) return;
+    if (raumZustand.hostId !== eigeneUid || raumZustand.phase !== 'lobby') return;
+    const e = entwurf || {};
+    await db.ref(RAEUME_PFAD + '/' + aktuellerCode).update({
+      runden: markt.normiereRunden(e.runden),
+      botAnzahl: Math.max(0, Math.min(5, e.botAnzahl | 0)),
+      regeln: depot.normiereRegeln(e),
+    });
+  }
+
   /* ----------------------------------------------------------------------
      Bestenliste
 
@@ -637,6 +670,7 @@ const gameService = (function () {
     betreteRaum: betreteRaum,
     starteRaum: starteRaum,
     beendeRaum: beendeRaum,
+    aendereEinstellungen: aendereEinstellungen,
     brichAb: brichAb,
     schliesseRundeAb: schliesseRundeAb,
     schalteWeiter: schalteWeiter,

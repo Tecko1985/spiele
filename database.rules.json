@@ -13,6 +13,11 @@
           "phase": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
           "startZeit": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
           "abgebrochen": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
+
+          "//einstellungen": "Rundenzahl, KI-Anzahl und Spielregeln (Startgeld, Gebuehr, Hoechstanteil) darf nur der Host und NUR solange die Partie in der Lobby steht. Waeren sie im Lauf aenderbar, wuerde eine Aenderung des Startgelds jedes bereits gekaufte Depot rueckwirkend neu bewerten - dieselbe Klasse Fehler wie eine nachtraeglich geaenderte Saat.",
+          "runden": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "botAnzahl": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "regeln": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby'" },
           "spieler": {
             "$uid": {
               "//": "Jeder pflegt nur seinen eigenen Eintrag. Sonst koennte man einen Mitspieler auf 'raus' setzen und ihn damit aus der Rundenfreigabe draengen - die Partie liefe ohne ihn weiter.",

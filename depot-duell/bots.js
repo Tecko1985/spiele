@@ -196,7 +196,7 @@ const bots = (function () {
      Rechnet alle Züge eines Bots für die ganze Partie im Voraus. Läuft
      einmal beim Partiestart.
      ---------------------------------------------------------------------- */
-  function erzeugeTrades(lauf, werte, werteNachId, charakterId, platz) {
+  function erzeugeTrades(lauf, werte, werteNachId, charakterId, platz, regeln) {
     const strategie = STRATEGIEN[charakterId];
     if (!strategie) return [];
 
@@ -213,7 +213,7 @@ const bots = (function () {
       if (t < naechster) continue;
       naechster = t + Math.max(1, takt + Math.floor(rng() * 3) - 1);
 
-      const zustand = depot.berechne(trades, lauf, t, werteNachId);
+      const zustand = depot.berechne(trades, lauf, t, werteNachId, regeln);
       strategie(rng, lauf, werte, zustand, t, trades, werteNachId);
     }
 
@@ -226,9 +226,13 @@ const bots = (function () {
    * @param {Array} werte
    * @param {object} werteNachId
    * @param {number} anzahl 1..5
+   * @param {object} regeln  Spielregeln des Raums (Startgeld, Gebuehr, Hoechstanteil).
+   *   ⚠️ MUSS dieselben sein wie beim Menschen — sonst kauft ein Bot mit
+   *   100.000 ein, waehrend die Mitspieler 500.000 haben, und die Rangliste
+   *   vergleicht zwei verschiedene Spiele.
    * @returns {Array} Mitspieler mit id, name, zeichen, trades
    */
-  function stelleAuf(lauf, werte, werteNachId, anzahl) {
+  function stelleAuf(lauf, werte, werteNachId, anzahl, regeln) {
     const zahl = Math.max(0, Math.min(CHARAKTERE.length, anzahl | 0));
     const raus = [];
     for (let i = 0; i < zahl; i++) {
@@ -239,7 +243,7 @@ const bots = (function () {
         zeichen: c.zeichen,
         beschreibung: c.beschreibung,
         istBot: true,
-        trades: erzeugeTrades(lauf, werte, werteNachId, c.id, i),
+        trades: erzeugeTrades(lauf, werte, werteNachId, c.id, i, regeln),
       });
     }
     return raus;

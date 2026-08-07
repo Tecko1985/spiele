@@ -360,7 +360,11 @@ const bildschirme = (function () {
         art: 'zweit', aus: !bereit, abstand: 16,
       })) {
         app.merkeName();
-        app.starteSolo();
+        /* Führt in dieselbe Einstellansicht wie das Eröffnen. Vorher sprang
+           der Solo-Start direkt los — an die Einstellungen kam man auf
+           diesem Weg gar nicht heran. */
+        if (!app.entwurf.botAnzahl) app.entwurf.botAnzahl = 4;
+        app.ansicht = 'lobby-neu';
       }
 
       ui.trenner('', { abstand: 12 });
@@ -369,7 +373,7 @@ const bildschirme = (function () {
         app.ansicht = 'bestenliste';
       }
       if (ui.knopf('btn-info', 'ℹ️ Wie es funktioniert', { art: 'link' })) app.ansicht = 'info';
-    });
+    }, { zentriert: true });
   }
 
   function beitreten(app) {
@@ -395,65 +399,119 @@ const bildschirme = (function () {
         app.fehler = null;
         app.ansicht = 'start';
       }
-    });
+    }, { zentriert: true });
   }
 
   /* ======================================================================
      2. LOBBY
      ====================================================================== */
 
+  /* Eine Reihe gleich breiter Wahlknöpfe. Alle Einstellungen sehen damit
+     gleich aus und verhalten sich gleich — bei fünf handgebauten Reihen wäre
+     sonst jede ein eigener kleiner Fehler. */
+  function wahlReihe(kennung, werte, aktuell, opt) {
+    const o = opt || {};
+    const hoehe = o.hoehe || 46;
+    const r = ui.reserviere(hoehe, { abstand: o.abstand === undefined ? 6 : o.abstand });
+    const b = r.b / werte.length;
+    let gewaehlt = null;
+    for (let i = 0; i < werte.length; i++) {
+      const feld = { x: r.x + b * i + 3, y: r.y, b: b - 6, h: r.h };
+      const aktiv = werte[i].wert === aktuell;
+      ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, aktiv ? F.primaer : F.karte);
+      if (!aktiv) ui.rahmeRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, F.rand, 1.5);
+      const hatUnter = !!werte[i].unter;
+      ui.schreibe(ui.kuerze(werte[i].text, feld.b - 6, o.groesse || 15, true),
+        feld.x + feld.b / 2, hatUnter ? feld.y + hoehe * 0.38 : feld.y + hoehe / 2, {
+          groesse: o.groesse || 15, fett: true,
+          farbe: aktiv ? F.weiss : F.text, ausrichtung: 'center',
+        });
+      if (hatUnter) {
+        ui.schreibe(ui.kuerze(werte[i].unter, feld.b - 6, 11), feld.x + feld.b / 2, feld.y + hoehe * 0.72, {
+          groesse: 11, farbe: aktiv ? 'rgba(255,255,255,0.85)' : F.gedaempft, ausrichtung: 'center',
+        });
+      }
+      ui.merke(kennung + '-' + i, feld, 'knopf');
+      if (ui.geklickt(feld)) gewaehlt = werte[i].wert;
+    }
+    return gewaehlt;
+  }
+
   function lobbyNeu(app) {
+    const e = app.entwurf;
+    const imRaum = !!(app.zustand.raum && app.zustand.raum.phase === 'lobby');
+
     ui.beginneSeite();
     kopfzeile(app);
 
     ui.seite('lobby-neu', function () {
-      ui.titel('Partie einstellen', { zentriert: true, abstand: 14 });
+      ui.titel(imRaum ? 'Einstellungen ändern' : 'Partie einstellen', { zentriert: true, abstand: 14 });
 
       ui.absatz('Wie viele Runden?', { fett: true, farbe: F.text, abstand: 6 });
-      const stufen = gameService.RUNDENSTUFEN;
-      const r = ui.reserviere(62, { abstand: 6 });
-      const b = r.b / stufen.length;
-      for (let i = 0; i < stufen.length; i++) {
-        const feld = { x: r.x + b * i + 3, y: r.y, b: b - 6, h: r.h };
-        const aktiv = app.runden === stufen[i].runden;
-        ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, aktiv ? F.primaer : F.karte);
-        if (!aktiv) ui.rahmeRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, F.rand, 1.5);
-        ui.schreibe(String(stufen[i].runden), feld.x + feld.b / 2, feld.y + 22, {
-          groesse: 19, fett: true, farbe: aktiv ? F.weiss : F.text, ausrichtung: 'center',
-        });
-        ui.schreibe('Runden', feld.x + feld.b / 2, feld.y + 39, {
-          groesse: 11, farbe: aktiv ? 'rgba(255,255,255,0.85)' : F.gedaempft, ausrichtung: 'center',
-        });
-        ui.schreibe(stufen[i].unter, feld.x + feld.b / 2, feld.y + 53, {
-          groesse: 11, fett: 'halb', farbe: aktiv ? 'rgba(255,255,255,0.85)' : F.gedaempft, ausrichtung: 'center',
-        });
-        ui.merke('runden-' + stufen[i].runden, feld, 'knopf');
-        if (ui.geklickt(feld)) app.runden = stufen[i].runden;
-      }
+      const gewaehltRunden = wahlReihe('runden', gameService.RUNDENSTUFEN.map(function (s) {
+        return { wert: s.runden, text: String(s.runden), unter: s.unter };
+      }), e.runden, { hoehe: 54, groesse: 19 });
+      if (gewaehltRunden !== null) e.runden = gewaehltRunden;
       ui.absatz('Zehn Runden sind ein Börsenjahr. In jeder Runde erscheinen Nachrichten, alle handeln in Ruhe — und erst wenn alle abgeschlossen haben, bewegen sich die Kurse. Es läuft keine Uhr mit.', {
-        groesse: 13, abstand: 16,
+        groesse: 13, abstand: 14,
+      });
+
+      ui.absatz('Startgeld', { fett: true, farbe: F.text, abstand: 6 });
+      const gewaehltGeld = wahlReihe('geld', [
+        { wert: 10000, text: '10.000' },
+        { wert: 50000, text: '50.000' },
+        { wert: 100000, text: '100.000' },
+        { wert: 1000000, text: '1 Mio' },
+      ], e.startgeld, { groesse: 14 });
+      if (gewaehltGeld !== null) e.startgeld = gewaehltGeld;
+      ui.absatz('Mit wenig Geld sind teure Aktien unerreichbar und jede Gebühr tut weh — mit viel Geld spielt sich die Gebühr nicht mehr.', {
+        groesse: 13, abstand: 14,
+      });
+
+      ui.absatz('Ordergebühr', { fett: true, farbe: F.text, abstand: 6 });
+      const gewaehltGeb = wahlReihe('gebuehr', [
+        { wert: 0, text: 'keine' },
+        { wert: 0.0025, text: '0,25 %' },
+        { wert: 0.01, text: '1 %' },
+      ], e.gebuehrSatz, { groesse: 14 });
+      if (gewaehltGeb !== null) {
+        e.gebuehrSatz = gewaehltGeb;
+        /* Ohne Satz auch keinen Mindestbetrag — sonst kostete jeder Auftrag
+           weiterhin einen Euro, obwohl "keine" dransteht. */
+        e.gebuehrMind = gewaehltGeb === 0 ? 0 : depot.VORGABE.gebuehrMind;
+      }
+      ui.absatz('Die Gebühr bestraft hektisches Hin und Her, wie in echt. Ohne sie kann man in jeder Runde umschichten, ohne dass es etwas kostet.', {
+        groesse: 13, abstand: 14,
+      });
+
+      ui.absatz('Höchstens je Wert', { fett: true, farbe: F.text, abstand: 6 });
+      const gewaehltAnteil = wahlReihe('anteil', [
+        { wert: 0.1, text: '10 %' },
+        { wert: 0.25, text: '25 %' },
+        { wert: 0.5, text: '50 %' },
+        { wert: 1, text: 'alles' },
+      ], e.hoechstanteil, { groesse: 14 });
+      if (gewaehltAnteil !== null) e.hoechstanteil = gewaehltAnteil;
+      ui.absatz('Der Anteil, den ein einzelner Wert beim Kauf im Depot haben darf. Bei "alles" darf jemand sein ganzes Geld auf eine Kryptowährung setzen — dann entscheidet ein einziger Treffer die Partie.', {
+        groesse: 13, abstand: 14,
       });
 
       ui.absatz('KI-Mitspieler', { fett: true, farbe: F.text, abstand: 6 });
-      const rb = ui.reserviere(48, { abstand: 6 });
-      const bb = rb.b / 6;
-      for (let i = 0; i <= 5; i++) {
-        const feld = { x: rb.x + bb * i + 3, y: rb.y, b: bb - 6, h: rb.h };
-        const aktiv = app.botAnzahl === i;
-        ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, aktiv ? F.primaer : F.karte);
-        if (!aktiv) ui.rahmeRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, F.rand, 1.5);
-        ui.schreibe(String(i), feld.x + feld.b / 2, feld.y + feld.h / 2, {
-          groesse: 17, fett: true, farbe: aktiv ? F.weiss : F.text, ausrichtung: 'center',
-        });
-        ui.merke('bots-' + i, feld, 'knopf');
-        if (ui.geklickt(feld)) app.botAnzahl = i;
-      }
-      ui.absatz('KI-Mitspieler halten die Partie nie auf — sie handeln in jeder Runde sofort. Mit ihnen zählt das Ergebnis aber nicht für die Bestenliste.', {
+      const gewaehltBots = wahlReihe('bots', [0, 1, 2, 3, 4, 5].map(function (i) {
+        return { wert: i, text: String(i) };
+      }), e.botAnzahl, { hoehe: 44, groesse: 17 });
+      if (gewaehltBots !== null) e.botAnzahl = gewaehltBots;
+      ui.absatz('KI-Mitspieler halten die Partie nie auf — sie sind sofort fertig. Mit ihnen zählt das Ergebnis aber nicht für die Bestenliste.', {
         groesse: 13, abstand: 16,
       });
 
-      if (ui.knopf('btn-lobby-erstellen', 'Raum eröffnen', { abstand: 10 })) app.erstelleRaum();
-      if (ui.knopf('btn-lobby-zurueck', 'Zurück', { art: 'zweit' })) app.ansicht = 'start';
+      if (imRaum) {
+        if (ui.knopf('btn-lobby-uebernehmen', 'Übernehmen', { abstand: 10 })) app.uebernehmeEinstellungen();
+        if (ui.knopf('btn-lobby-zurueck', 'Zurück zur Lobby', { art: 'zweit' })) app.ansicht = 'lobby';
+      } else {
+        if (ui.knopf('btn-lobby-erstellen', 'Raum eröffnen', { abstand: 10 })) app.erstelleRaum();
+        if (ui.knopf('btn-lobby-zurueck', 'Zurück', { art: 'zweit' })) app.ansicht = 'start';
+      }
     });
   }
 
@@ -500,20 +558,25 @@ const bildschirme = (function () {
       ui.luecke(14);
 
       const stufe = z.stufe;
+      const R = app.regeln();
       ui.absatz(
         (stufe ? stufe.runden + ' Runden (' + stufe.unter + ')' : '—') +
-        '  ·  Startgeld: ' + euro(depot.STARTBUDGET, 0) +
-        '  ·  höchstens ' + Math.round(depot.HOECHSTANTEIL * 100) + ' % je Wert',
+        '  ·  ' + euro(R.startgeld, 0) + ' Startgeld' +
+        '  ·  ' + (R.gebuehrSatz ? (R.gebuehrSatz * 100).toFixed(2).replace('.', ',') + ' % Gebühr' : 'ohne Gebühr') +
+        '  ·  höchstens ' + (R.hoechstanteil >= 1 ? 'alles' : Math.round(R.hoechstanteil * 100) + ' %') + ' je Wert',
         { zentriert: true, groesse: 13, abstand: 14 }
       );
 
       if (z.istHost) {
+        if (ui.knopf('btn-lobby-einstellungen', '⚙️ Einstellungen ändern', { art: 'zweit', abstand: 10 })) {
+          app.oeffneEinstellungen();
+        }
         if (ui.knopf('btn-start', 'Partie starten', { abstand: 10 })) app.starte();
       } else {
         ui.absatz('Warte auf den Start …', { zentriert: true, fett: 'halb', abstand: 10 });
       }
       if (ui.knopf('btn-lobby-verlassen', 'Raum verlassen', { art: 'zweit' })) app.verlassen();
-    });
+    }, { zentriert: true });
   }
 
   /* ======================================================================
@@ -860,7 +923,7 @@ const bildschirme = (function () {
       ui.absatz('Depotwert', { groesse: 13, abstand: 2 });
       const rz = ui.reserviere(36, { abstand: 2 });
       ui.schreibe(euro(stand.gesamt), rz.x, rz.y + 20, { groesse: 27, fett: true, farbe: F.text });
-      ui.absatz(prozent(stand.rendite, 2) + '  gegenüber ' + euro(depot.STARTBUDGET, 0) + ' Startgeld', {
+      ui.absatz(prozent(stand.rendite, 2) + '  gegenüber ' + euro(app.regeln().startgeld, 0) + ' Startgeld', {
         groesse: 13, fett: 'halb', farbe: farbeFuer(stand.rendite), abstand: 10,
       });
 
@@ -1272,14 +1335,14 @@ const bildschirme = (function () {
       ui.absatz('Version ' + app.APP_VERSION, { groesse: 12, abstand: 12 });
 
       const bloecke = [
-        ['So läuft es', 'Jeder startet mit ' + euro(depot.STARTBUDGET, 0) + ' Spielgeld. Gespielt wird in 20, 50 oder 100 Runden — zehn Runden sind ein Börsenjahr. Wer am Ende das wertvollste Depot hat, gewinnt.'],
+        ['So läuft es', 'Der Eröffner stellt ein, wie viel Startgeld es gibt, wie hoch die Ordergebühr ist und wie viel höchstens in einen einzelnen Wert darf. Gespielt wird in 20, 50 oder 100 Runden — zehn Runden sind ein Börsenjahr. Wer am Ende das wertvollste Depot hat, gewinnt.'],
         ['Ihr bestimmt das Tempo', 'Es läuft keine Uhr. In jeder Runde erscheinen Nachrichten, jeder handelt so lange er will, und erst wenn ALLE die Runde abgeschlossen haben, bewegen sich die Kurse. Wer noch fehlt, steht unter dem Knopf. Der Eröffner kann weiterschalten, wenn jemand nicht mehr reagiert.'],
         ['Die Werte sind echt', WERTE.werte.length + ' Werte mit echten Startkursen und Kennzahlen vom ' + WERTE.stand.split('-').reverse().join('.') + ': ' + WERTE.werte.filter(function (w) { return w.art === 'aktie'; }).length + ' Aktien, ' + WERTE.werte.filter(function (w) { return w.art === 'etf'; }).length + ' ETFs und ' + WERTE.werte.filter(function (w) { return w.art === 'krypto'; }).length + ' Kryptowährungen.'],
         ['Der Verlauf ist erfunden', 'Ab dem Start läuft eine Simulation. Die Kursentwicklung hat nichts mit der Wirklichkeit zu tun und ist keine Vorhersage.'],
         ['Nachrichten entscheiden', 'Die Meldungen einer Runde stehen ganz oben — sie bewegen die Kurse erst beim Rundenwechsel. Du hast also Zeit, sie zu lesen und zu handeln, bevor sie wirken. Vorsicht bei Gerüchten: sie werden zwei Runden später bestätigt oder dementiert, und ein Dementi dreht die Bewegung stärker zurück, als sie hingegangen ist.'],
         ['Kennzahlen rechnen mit', 'Das KGV ist keine Zierzahl: es wird laufend aus Kurs und Gewinn je Aktie neu gerechnet. Ein Wert mit KGV 8 ist günstig bewertet, einer mit KGV 90 heiß gelaufen.'],
-        ['Streuen ist Pflicht', 'Höchstens ' + Math.round(depot.HOECHSTANTEIL * 100) + ' % des Depots dürfen beim Kauf in einen einzigen Wert. Wächst eine Position danach darüber hinaus, darfst du sie behalten — das hast du dir verdient.'],
-        ['Was Handeln kostet', 'Je Auftrag ' + (depot.GEBUEHR_SATZ * 100).toFixed(2).replace('.', ',') + ' %, mindestens ' + euro(depot.GEBUEHR_MIND, 0) + '. Hektisches Hin und Her kostet also Geld — wie in echt.'],
+        ['Streuen ist Pflicht', 'Der eingestellte Höchstanteil gilt beim KAUF. Wächst eine Position danach darüber hinaus, darfst du sie behalten — das hast du dir verdient. Die Grenze lässt sich beim Eröffnen bis auf "alles" öffnen; dann kann ein einziger Treffer die Partie entscheiden.'],
+        ['Was Handeln kostet', 'Die Ordergebühr ist einstellbar (keine, 0,25 % oder 1 %, mindestens 1 €). Hektisches Hin und Her kostet damit Geld — wie in echt.'],
         ['Dividenden', 'Alle zehn Runden wird auf den gehaltenen Bestand ausgeschüttet. Wer erst danach kauft, geht leer aus.'],
         ['Alle sehen dieselben Kurse', 'Der ganze Verlauf entsteht aus einer einzigen Zufallszahl, die beim Eröffnen gezogen wird. Jedes Handy rechnet ihn selbst — deshalb laufen Kurse und Meldungen auch im Funkloch weiter. Nur Käufe und Zustimmungen holen später auf.'],
       ];

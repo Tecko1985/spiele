@@ -43,7 +43,7 @@ console.log('\n1. DEPOTRECHNUNG');
 /* ====================================================================== */
 
 const leer = D.berechne([], lauf, 0, nachId);
-pruefe(leer.gesamt === D.STARTBUDGET, 'leeres Depot = Startbudget (' + leer.gesamt + ')');
+pruefe(leer.gesamt === D.VORGABE.startgeld, 'leeres Depot = Startbudget (' + leer.gesamt + ')');
 pruefe(leer.rendite === 0, 'Rendite eines leeren Depots ist null');
 
 const kursSap0 = M.kurs(lauf, sap.id, 0);
@@ -52,12 +52,12 @@ const nachKauf = D.berechne(einKauf, lauf, 0, nachId);
 const erwarteterBetrag = kursSap0 * 100;
 const erwarteteGebuehr = Math.max(1, erwarteterBetrag * 0.0025);
 pruefe(
-  Math.abs(nachKauf.cash - (D.STARTBUDGET - erwarteterBetrag - erwarteteGebuehr)) < 0.001,
+  Math.abs(nachKauf.cash - (D.VORGABE.startgeld - erwarteterBetrag - erwarteteGebuehr)) < 0.001,
   'Kauf zieht Betrag UND Gebühr ab (Gebühr ' + erwarteteGebuehr.toFixed(2) + ' EUR)'
 );
 pruefe(nachKauf.positionen.length === 1 && nachKauf.positionen[0].stueck === 100, '100 Stück im Bestand');
 pruefe(
-  Math.abs(nachKauf.gesamt - (D.STARTBUDGET - erwarteteGebuehr)) < 0.001,
+  Math.abs(nachKauf.gesamt - (D.VORGABE.startgeld - erwarteteGebuehr)) < 0.001,
   'Depotwert direkt nach dem Kauf = Startbudget minus Gebühr'
 );
 
@@ -110,7 +110,7 @@ pruefe(!zuTeuer.ok, 'Kauf über dem Guthaben wird abgelehnt');
 pruefe(zuTeuer.hoechstStueck > 0, 'Ablehnung nennt die mögliche Stückzahl (' + zuTeuer.hoechstStueck + ')');
 
 /* 25-Prozent-Grenze, einzelner Kauf. */
-const zuGross = D.pruefeKauf(start, sap, Math.floor((D.STARTBUDGET * 0.4) / kursSap0), kursSap0);
+const zuGross = D.pruefeKauf(start, sap, Math.floor((D.VORGABE.startgeld * 0.4) / kursSap0), kursSap0);
 pruefe(!zuGross.ok, 'Kauf über 25 % des Depots wird abgelehnt');
 pruefe(/25 %/.test(zuGross.grund), 'Begründung nennt die Grenze');
 
@@ -122,7 +122,7 @@ pruefe(knappDrunter.ok, 'genau an der Grenze ist der Kauf erlaubt (' + grenzKauf
    harmlos — zusammen dürfen sie die Grenze trotzdem nicht reißen. */
 let trades = [];
 let abgelehnt = 0;
-const scheibe = Math.floor((D.STARTBUDGET * 0.06) / kursSap0);
+const scheibe = Math.floor((D.VORGABE.startgeld * 0.06) / kursSap0);
 for (let i = 0; i < 12; i++) {
   const z = D.berechne(trades, lauf, 0, nachId);
   const p = D.pruefeKauf(z, sap, scheibe, M.kurs(lauf, sap.id, 0));
@@ -148,6 +148,57 @@ const boesartig = [
 const nachBoese = D.berechne(boesartig, lauf, 5, nachId);
 pruefe(nachBoese.cash >= 0, 'untergeschobener Riesenkauf zieht das Konto nicht ins Minus (Cash ' + nachBoese.cash.toFixed(0) + ')');
 pruefe(nachBoese.positionen.length === 1 && nachBoese.positionen[0].stueck === 50, 'nur der bezahlbare Kauf wird verbucht');
+
+/* ====================================================================== */
+console.log('\n2b. EINSTELLBARE SPIELREGELN');
+/* ======================================================================
+   Startgeld, Gebühr und Höchstanteil stehen seit 2026-08-07 im Raum statt
+   als Konstante im Programm. Die gefährliche Stelle ist nicht die Rechnung
+   selbst, sondern der Zwischenspeicher: liefert er nach einer Regeländerung
+   den Stand der alten Regeln, stimmt die Rangliste stillschweigend nicht
+   mehr — und nichts sieht nach einem Fehler aus.
+   ====================================================================== */
+
+const armeRegeln = D.normiereRegeln({ startgeld: 10000, gebuehrSatz: 0.01, gebuehrMind: 1, hoechstanteil: 0.1 });
+const reicheRegeln = D.normiereRegeln({ startgeld: 1000000, gebuehrSatz: 0, gebuehrMind: 0, hoechstanteil: 1 });
+
+pruefe(D.berechne([], lauf, 0, nachId, armeRegeln).gesamt === 10000, 'Startgeld 10.000 kommt an');
+pruefe(D.berechne([], lauf, 0, nachId, reicheRegeln).gesamt === 1000000, 'Startgeld 1 Mio kommt an');
+pruefe(D.gebuehr(10000, reicheRegeln) === 0, 'ohne Gebührensatz UND ohne Mindestbetrag kostet ein Auftrag nichts');
+pruefe(D.gebuehr(10000, armeRegeln) === 100, '1 % von 10.000 ist 100 EUR Gebühr');
+
+/* Lückenlose Fehlkonfiguration darf nicht die Partie sprengen. */
+const halb = D.normiereRegeln({ startgeld: 50000 });
+pruefe(halb.startgeld === 50000 && halb.gebuehrSatz === D.VORGABE.gebuehrSatz,
+  'fehlende Felder werden aus der Vorgabe ergänzt statt undefined zu werden');
+pruefe(D.normiereRegeln({ startgeld: -5, hoechstanteil: 9 }).startgeld === D.VORGABE.startgeld,
+  'unsinnige Werte fallen auf die Vorgabe zurück');
+
+/* Der Höchstanteil muss wirklich der eingestellte sein. */
+const armStand = D.berechne([], lauf, 0, nachId, armeRegeln);
+const zuViel = D.pruefeKauf(armStand, sap, Math.floor((10000 * 0.2) / kursSap0), kursSap0);
+pruefe(!zuViel.ok && zuViel.grund.indexOf('10 %') >= 0,
+  '10-Prozent-Grenze greift und wird auch so begründet (' + (zuViel.grund || '').slice(0, 46) + '…)');
+const reichStand = D.berechne([], lauf, 0, nachId, reicheRegeln);
+pruefe(D.pruefeKauf(reichStand, sap, Math.floor((1000000 * 0.9) / kursSap0), kursSap0).ok,
+  'bei "alles" ist ein Kauf über 90 % des Depots erlaubt');
+
+/* DIE eigentliche Falle: derselbe Schlüssel, andere Regeln. */
+const trade = [{ art: 'kauf', id: sap.id, stueck: 10, runde: 0 }];
+const ersterStand = D.stand('probe', trade, lauf, 0, nachId, armeRegeln);
+const zweiterStand = D.stand('probe', trade, lauf, 0, nachId, reicheRegeln);
+pruefe(ersterStand.gesamt !== zweiterStand.gesamt,
+  'Zwischenspeicher liefert nach Regelwechsel NICHT den alten Stand (' +
+  Math.round(ersterStand.gesamt) + ' vs ' + Math.round(zweiterStand.gesamt) + ')');
+pruefe(zweiterStand.gebuehren === 0, 'im gebührenfreien Lauf wurde keine Gebühr verbucht');
+
+/* Bots müssen mit denselben Regeln rechnen wie die Menschen. */
+const armeBots = B.stelleAuf(lauf, werte, nachId, 3, armeRegeln);
+const armeStaende = armeBots.map((b) => D.berechne(b.trades, lauf, RUNDEN, nachId, armeRegeln));
+pruefe(armeStaende.every((z) => z.cash >= -0.001), 'Bots gehen auch mit 10.000 Startgeld nie ins Minus');
+const reicheBots = B.stelleAuf(lauf, werte, nachId, 3, reicheRegeln);
+pruefe(JSON.stringify(armeBots[0].trades) !== JSON.stringify(reicheBots[0].trades),
+  'Bots handeln bei anderem Startgeld anders — die Regeln kommen wirklich bei ihnen an');
 
 /* ====================================================================== */
 console.log('\n3. KI-MITSPIELER');

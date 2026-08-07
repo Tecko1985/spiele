@@ -21,13 +21,41 @@
 const depot = (function () {
   'use strict';
 
-  const STARTBUDGET = 100000;
-  const GEBUEHR_SATZ = 0.0025;   // 0,25 %
-  const GEBUEHR_MIND = 1;        // mindestens 1 Euro
-  const HOECHSTANTEIL = 0.25;    // je Wert, siehe pruefeKauf
+  /* ----------------------------------------------------------------------
+     Spielregeln
 
-  function gebuehr(betrag) {
-    return Math.max(GEBUEHR_MIND, betrag * GEBUEHR_SATZ);
+     Werden beim Eröffnen im Raum festgehalten und von dort gelesen — nicht
+     hier als Konstante. Sonst spielten zwei Geräte mit unterschiedlichem
+     Programmstand dieselbe Partie nach verschiedenen Regeln, und die
+     Rangliste wäre stillschweigend falsch.
+
+     Die Vorgabe greift für Räume, die vor der Einstellbarkeit angelegt
+     wurden, und für die Testskripte.
+     ---------------------------------------------------------------------- */
+  const VORGABE = {
+    startgeld: 100000,
+    gebuehrSatz: 0.0025,   // 0,25 %
+    gebuehrMind: 1,        // mindestens 1 Euro
+    hoechstanteil: 0.25,   // je Wert, siehe pruefeKauf
+  };
+
+  /* Nimmt an, was gültig ist, und füllt den Rest aus der Vorgabe. Ein
+     einzelnes fehlendes Feld darf nicht die ganze Partie unbrauchbar machen. */
+  function normiereRegeln(r) {
+    if (!r) return Object.assign({}, VORGABE);
+    return {
+      startgeld: r.startgeld > 0 ? r.startgeld : VORGABE.startgeld,
+      gebuehrSatz: r.gebuehrSatz >= 0 ? r.gebuehrSatz : VORGABE.gebuehrSatz,
+      gebuehrMind: r.gebuehrMind >= 0 ? r.gebuehrMind : VORGABE.gebuehrMind,
+      hoechstanteil: r.hoechstanteil > 0 && r.hoechstanteil <= 1
+        ? r.hoechstanteil : VORGABE.hoechstanteil,
+    };
+  }
+
+  function gebuehr(betrag, regeln) {
+    const R = regeln || VORGABE;
+    if (!R.gebuehrSatz && !R.gebuehrMind) return 0;
+    return Math.max(R.gebuehrMind, betrag * R.gebuehrSatz);
   }
 
   /* Krypto in Bruchteilen, alles andere nur in ganzen Stücken. */
@@ -43,8 +71,9 @@ const depot = (function () {
      die Dividende von der Stückzahl abhängt, die zum Zahltag gehalten wurde
      — wer erst danach kauft, bekommt sie nicht.
      ---------------------------------------------------------------------- */
-  function berechne(trades, lauf, bisRunde, werteNachId) {
-    let cash = STARTBUDGET;
+  function berechne(trades, lauf, bisRunde, werteNachId, regeln) {
+    const R = normiereRegeln(regeln);
+    let cash = R.startgeld;
     let gebuehrenGesamt = 0;
     let dividendenGesamt = 0;
     const bestand = {};   // id -> { stueck, einstand }
@@ -68,7 +97,7 @@ const depot = (function () {
 
         if (h.art === 'kauf') {
           const betrag = kurs * h.stueck;
-          const g = gebuehr(betrag);
+          const g = gebuehr(betrag, R);
           /* Defensiv: ein Kauf, für den das Geld nicht reicht, wird
              übersprungen statt das Konto ins Minus zu ziehen. Kann nur
              auftreten, wenn jemand am Client vorbei schreibt. */
@@ -83,7 +112,7 @@ const depot = (function () {
           if (!b || b.stueck <= 0) continue;
           const stueck = Math.min(h.stueck, b.stueck);
           const betrag = kurs * stueck;
-          const g = gebuehr(betrag);
+          const g = gebuehr(betrag, R);
           cash += betrag - g;
           gebuehrenGesamt += g;
           /* Einstand anteilig mitziehen, sonst stimmt der Gewinn der
@@ -139,11 +168,16 @@ const depot = (function () {
       cash: cash,
       anlagewert: anlagewert,
       gesamt: gesamt,
-      rendite: ((gesamt - STARTBUDGET) / STARTBUDGET) * 100,
+      rendite: ((gesamt - R.startgeld) / R.startgeld) * 100,
       positionen: positionen,
       gebuehren: gebuehrenGesamt,
       dividenden: dividendenGesamt,
       anzahlTrades: sortiert.filter(function (h) { return h.runde <= bis; }).length,
+      /* Die Regeln reisen im Ergebnis mit. Dadurch braucht keine der
+         Pruefungen unten einen zusaetzlichen Parameter — und es kann nicht
+         passieren, dass ein Stand nach den einen und die Kaufpruefung nach
+         anderen Regeln rechnet. */
+      regeln: R,
     };
   }
 
@@ -157,11 +191,15 @@ const depot = (function () {
      ---------------------------------------------------------------------- */
   const speicher = new Map();
 
-  function stand(schluessel, trades, lauf, bisRunde, werteNachId) {
-    const kennung = schluessel + '|' + bisRunde + '|' + (trades ? trades.length : 0) + '|' + lauf.saat;
+  function stand(schluessel, trades, lauf, bisRunde, werteNachId, regeln) {
+    const R = normiereRegeln(regeln);
+    /* Die Regeln MUESSEN in den Schluessel: sonst liefert der Speicher nach
+       einer Regelaenderung stillschweigend den Stand der alten Regeln. */
+    const kennung = schluessel + '|' + bisRunde + '|' + (trades ? trades.length : 0) + '|' + lauf.saat +
+      '|' + R.startgeld + '|' + R.gebuehrSatz + '|' + R.gebuehrMind + '|' + R.hoechstanteil;
     const treffer = speicher.get(kennung);
     if (treffer) return treffer;
-    const ergebnis = berechne(trades, lauf, bisRunde, werteNachId);
+    const ergebnis = berechne(trades, lauf, bisRunde, werteNachId, R);
     /* Klein halten: bei jeder Runde kommt je Mitspieler ein Eintrag dazu. */
     if (speicher.size > 400) speicher.clear();
     speicher.set(kennung, ergebnis);
@@ -186,8 +224,9 @@ const depot = (function () {
     stueck = rundeStueck(wert, stueck);
     if (!(stueck > 0)) return { ok: false, grund: 'Stückzahl muss größer als null sein.', hoechstStueck: 0 };
 
+    const R = zustand.regeln || VORGABE;
     const betrag = kurs * stueck;
-    const g = gebuehr(betrag);
+    const g = gebuehr(betrag, R);
 
     if (betrag + g > zustand.cash + 1e-9) {
       const moeglich = hoechstBezahlbar(zustand, wert, kurs);
@@ -203,12 +242,12 @@ const depot = (function () {
     const bisher = bestandVon(zustand, wert.id);
     const neuerWertDerPosition = (bisher + stueck) * kurs;
     const gesamtDanach = zustand.gesamt - g;
-    if (gesamtDanach > 0 && neuerWertDerPosition / gesamtDanach > HOECHSTANTEIL + 1e-9) {
+    if (gesamtDanach > 0 && neuerWertDerPosition / gesamtDanach > R.hoechstanteil + 1e-9) {
       const erlaubt = hoechstNachAnteil(zustand, wert, kurs);
       return {
         ok: false,
         grund:
-          'Höchstens ' + Math.round(HOECHSTANTEIL * 100) + ' % des Depots dürfen in einem Wert stecken. ' +
+          'Höchstens ' + Math.round(R.hoechstanteil * 100) + ' % des Depots dürfen in einem Wert stecken. ' +
           (erlaubt > 0 ? 'Möglich sind noch ' + erlaubt + '.' : 'Diese Position ist bereits voll.'),
         hoechstStueck: erlaubt,
       };
@@ -224,7 +263,7 @@ const depot = (function () {
 
   function hoechstBezahlbar(zustand, wert, kurs) {
     /* Gebühr ist anteilig, deshalb einmal auflösen statt zu probieren. */
-    const roh = zustand.cash / (kurs * (1 + GEBUEHR_SATZ));
+    const roh = zustand.cash / (kurs * (1 + (zustand.regeln || VORGABE).gebuehrSatz));
     return rundeStueck(wert, Math.max(0, roh - (wert.art === 'krypto' ? 0 : 0)));
   }
 
@@ -232,7 +271,7 @@ const depot = (function () {
     const bisher = bestandVon(zustand, wert.id);
     /* Erlaubter Positionswert bezogen auf den Depotwert (Gebühr vernachlässigt,
        sie verschiebt die Grenze um Promille). */
-    const erlaubterWert = zustand.gesamt * HOECHSTANTEIL;
+    const erlaubterWert = zustand.gesamt * (zustand.regeln || VORGABE).hoechstanteil;
     const restWert = erlaubterWert - bisher * kurs;
     if (restWert <= 0) return 0;
     return rundeStueck(wert, restWert / kurs);
@@ -256,10 +295,8 @@ const depot = (function () {
   }
 
   return {
-    STARTBUDGET: STARTBUDGET,
-    GEBUEHR_SATZ: GEBUEHR_SATZ,
-    GEBUEHR_MIND: GEBUEHR_MIND,
-    HOECHSTANTEIL: HOECHSTANTEIL,
+    VORGABE: VORGABE,
+    normiereRegeln: normiereRegeln,
     gebuehr: gebuehr,
     rundeStueck: rundeStueck,
     berechne: berechne,
