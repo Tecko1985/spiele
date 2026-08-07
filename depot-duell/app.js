@@ -30,7 +30,12 @@ const CHANGELOG = [
 
 /* Gateway-Anbindung: wer in der Toolsübersicht als Administrator angemeldet
    ist, sieht Zusatzfunktionen. Fail-closed — ohne Token oder bei jedem
-   Fehler bleibt es verborgen. Dieses Snippet gehört in jedes Spiel des Hubs. */
+   Fehler bleibt es verborgen. Dieses Snippet gehört in jedes Spiel des Hubs.
+   ⚠️ In diesem Spiel wird `istAdmin` derzeit von KEINER Ansicht ausgewertet:
+   es gibt nichts Administratives zu verbergen (die Werteliste wird über das
+   Pflegeskript im Repo gepflegt, nicht über die Oberfläche). Das Snippet
+   steht vorgehalten da, damit eine künftige Verwaltungsansicht nicht wieder
+   von vorn anfangen muss — wer eine baut, hängt sie an dieses Flag. */
 const TU_WORKER_URL = 'https://landingpage.michel-brunner.workers.dev';
 const TU_TOKEN_KEY = 'tu_session_token';
 let istAdmin = false;
