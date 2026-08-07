@@ -24,11 +24,19 @@ html, body {
    daraus wieder das Attribut — eine Rückkopplung, die sich mit jedem Bild
    verdoppelt. (Genau so passiert: nach wenigen Bildern stand die Fläche auf
    2457600 px und kein Bedienelement war mehr zu treffen.) */
+/* ⚠️ Die Höhe MUSS die untere Sicherheitszone abziehen. Im Dokumentenkopf
+   steht `viewport-fit=cover`, damit legt iOS die Fläche unter den
+   Home-Indicator — und genau dort sitzt seit dem Rundenmodus die feste
+   Fußleiste mit dem wichtigsten Knopf des Spiels. Am Rechner fiel das nie
+   auf: dort ist die Zone null Pixel hoch.
+   Die drei Zeilen sind eine Kaskade, nicht drei Versuche: alte Geräte
+   nehmen die erste, iOS ab 11 die zweite, ab 15.4 die dritte. */
 #buehne {
   display: block;
   width: 100vw;
   height: 100vh;
-  height: 100dvh;                   /* folgt der ein- und ausfahrenden Adressleiste */
+  height: calc(100vh - env(safe-area-inset-bottom, 0px));
+  height: calc(100dvh - env(safe-area-inset-bottom, 0px));   /* folgt zusätzlich der Adressleiste */
   touch-action: none;               /* kein Doppeltipp-Zoom, kein Mitscrollen */
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;

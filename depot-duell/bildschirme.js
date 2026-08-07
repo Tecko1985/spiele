@@ -101,10 +101,23 @@ const bildschirme = (function () {
       const runde = app.runde();
       const gesamtRunden = z.runden || markt.STANDARD_RUNDEN;
       const angezeigt = Math.min(runde + 1, gesamtRunden);
-      ui.schreibe('Runde ' + angezeigt + ' / ' + gesamtRunden, r.x + r.b - 16, r.y + 22, {
+
+      /* Der Ausstieg gehört in die Kopfzeile. Vorher stand er nur ganz unten
+         in der Rangliste — dorthin muss man erst wechseln und dann scrollen,
+         und wer aussteigen will, findet ihn nicht. Die Kopfzeile ist in
+         jeder Ansicht da. Rückfrage kommt trotzdem, ein Fehltipp beendet
+         beim Eröffner die Partie für alle. */
+      const schliessen = { x: r.x + r.b - 42, y: r.y + 4, b: 38, h: 38 };
+      ui.schreibe('✕', schliessen.x + schliessen.b / 2, schliessen.y + schliessen.h / 2, {
+        groesse: 19, fett: true, farbe: 'rgba(255,255,255,0.75)', ausrichtung: 'center',
+      });
+      ui.merke('btn-kopf-beenden', schliessen, 'knopf');
+      if (ui.geklickt(schliessen)) app.abbruchFrage = true;
+
+      ui.schreibe('Runde ' + angezeigt + ' / ' + gesamtRunden, r.x + r.b - 50, r.y + 22, {
         groesse: 13, farbe: 'rgba(255,255,255,0.8)', ausrichtung: 'right',
       });
-      ui.schreibe('frei ' + euro(stand.cash, 0), r.x + r.b - 16, r.y + 45, {
+      ui.schreibe('frei ' + euro(stand.cash, 0), r.x + r.b - 16, r.y + 47, {
         groesse: 15, fett: true, farbe: F.weiss, ausrichtung: 'right',
       });
 
@@ -670,7 +683,7 @@ const bildschirme = (function () {
     ui.beginneSeite();
     kopfzeile(app);
 
-    ui.scroll('roll-detail', ui.hoeheRest(), function () {
+    ui.scroll('roll-detail', inhaltsHoehe(app), function () {
       if (ui.knopf('btn-detail-zurueck', '‹ Zurück zum Markt', { art: 'link', abstand: 4 })) {
         app.ansicht = 'spiel';
       }
@@ -736,6 +749,10 @@ const bildschirme = (function () {
         ui.absatz('Gehandelt wird nur während der Partie.', { zentriert: true, abstand: 4 });
       }
     });
+
+    /* Auch hier, sonst müsste man erst zurück zum Markt, um die Runde
+       abzuschließen — man kauft ja gerade in der Detailansicht. */
+    rundenLeiste(app);
   }
 
   function kennzahlen(app, w, runde) {
