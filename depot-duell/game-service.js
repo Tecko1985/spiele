@@ -339,6 +339,16 @@ const gameService = (function () {
   async function raeumeRaumAuf() {
     if (!aktuellerCode || !raumZustand || raumZustand.hostId !== eigeneUid) return;
     const code = aktuellerCode;
+
+    /* Zuerst die Partie förmlich beenden. Die Rule lässt das Abräumen der
+       Trades NUR bei `phase === 'beendet'` zu — sonst könnte der Host mitten
+       im laufenden Spiel einzelne Trades löschen: eigene, um einen Verlust
+       zu vertuschen, oder fremde, um jemanden zu sabotieren. Eine
+       .write-Erlaubnis gilt in Firebase nämlich auch für alles darunter, die
+       feinere Regel je Trade wäre damit wirkungslos. */
+    try { await db.ref(RAEUME_PFAD + '/' + code + '/phase').set('beendet'); } catch (f) {
+      console.warn('Phase nicht auf beendet gesetzt:', f);
+    }
     try { await db.ref(TRADES_PFAD + '/' + code).remove(); } catch (f) { console.warn('Trades nicht geräumt:', f); }
     try { await db.ref(RAEUME_PFAD + '/' + code).remove(); } catch (f) { console.warn('Raum nicht geräumt:', f); }
     verlasseLokal();

@@ -12,7 +12,8 @@
 
       "trades": {
         "$code": {
-          ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid",
+          "//": "Aufraeumen darf nur der Host und NUR bei beendeter Partie. Ohne die phase-Bedingung greift die Kaskade: eine .write-Erlaubnis gilt in Firebase auch fuer alles darunter, der Host koennte also mitten im Spiel EINZELNE Trades loeschen - eigene, um einen Verlust zu vertuschen, oder fremde, um einen Konkurrenten zu sabotieren. Genau das hat die Gegenprobe am 2026-08-07 aufgedeckt.",
+          ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'beendet'",
           "$uid": {
             "$handel": {
               ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists()",
