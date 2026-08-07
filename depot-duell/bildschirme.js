@@ -88,6 +88,10 @@ const bildschirme = (function () {
     const laeuft = z.raum && z.raum.phase === 'laeuft';
     if (!laeuft) return;
 
+    /* Luft nach oben. Der Zeichencursor startet bei null, ohne diese Lücke
+       klebt die Leiste unmittelbar an der Oberkante — am Rechner unter der
+       Lesezeichenleiste, am Handy an der Statusleiste. */
+    ui.luecke(12);
     const r = ui.reserviere(64, { abstand: 8 });
     ui.fuelleRund(r.x, r.y, r.b, r.h, ui.RADIUS, F.primaer);
 

@@ -34,9 +34,15 @@ html, body {
 #buehne {
   display: block;
   width: 100vw;
+  /* Nach UNTEN weicht die Fläche dem Home-Indicator, nach OBEN der
+     Statusleiste beziehungsweise dem Notch. Der obere Versatz kommt als
+     margin, damit die Zeichenfläche darunter beginnt statt darunter zu
+     verschwinden — und wird von der Höhe wieder abgezogen, sonst schöbe er
+     die Rundenleiste am unteren Rand aus dem Bild. */
+  margin-top: env(safe-area-inset-top, 0px);
   height: 100vh;
-  height: calc(100vh - env(safe-area-inset-bottom, 0px));
-  height: calc(100dvh - env(safe-area-inset-bottom, 0px));   /* folgt zusätzlich der Adressleiste */
+  height: calc(100vh - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+  height: calc(100dvh - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
   touch-action: none;               /* kein Doppeltipp-Zoom, kein Mitscrollen */
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
