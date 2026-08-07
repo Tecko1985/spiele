@@ -3,6 +3,28 @@
     ".read": false,
     ".write": false,
 
+    "depotDuell": {
+      ".read": true,
+
+      "raeume": {
+        "$code": { ".write": "auth != null" }
+      },
+
+      "trades": {
+        "$code": {
+          ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            "$handel": {
+              ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists()",
+              ".validate": "newData.hasChildren(['art','id','stueck','zeit']) && (newData.child('art').val() === 'kauf' || newData.child('art').val() === 'verkauf') && newData.child('stueck').isNumber() && newData.child('stueck').val() > 0 && newData.child('zeit').val() === now"
+            }
+          }
+        }
+      },
+
+      "bestenliste": { ".write": "auth != null" }
+    },
+
     "autoQuartett": {
       ".read": true,
       "raeume": {
