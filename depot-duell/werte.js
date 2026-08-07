@@ -1604,7 +1604,7 @@ const WERTE = {
   {
    "id": "voo",
    "art": "etf",
-   "name": "S&P 500",
+   "name": "Vanguard S&P 500 ETF",
    "kuerzel": "VOO",
    "kurs": 612.03,
    "kursOriginal": 706.4,
@@ -1620,7 +1620,7 @@ const WERTE = {
   {
    "id": "qqq",
    "art": "etf",
-   "name": "Nasdaq 100",
+   "name": "Invesco QQQ Trust",
    "kuerzel": "QQQ",
    "kurs": 619.17,
    "kursOriginal": 714.65,
@@ -1636,7 +1636,7 @@ const WERTE = {
   {
    "id": "vt",
    "art": "etf",
-   "name": "Welt (All-World)",
+   "name": "Vanguard Total World Stock ETF",
    "kuerzel": "VT",
    "kurs": 138.55,
    "kursOriginal": 159.92,
@@ -1652,7 +1652,7 @@ const WERTE = {
   {
    "id": "vea",
    "art": "etf",
-   "name": "Industrielaender ex USA",
+   "name": "Vanguard FTSE Developed Markets ETF",
    "kuerzel": "VEA",
    "kurs": 62.4848,
    "kursOriginal": 72.12,
@@ -1668,7 +1668,7 @@ const WERTE = {
   {
    "id": "vwo",
    "art": "etf",
-   "name": "Schwellenlaender",
+   "name": "Vanguard FTSE Emerging Markets ETF",
    "kuerzel": "VWO",
    "kurs": 51.9494,
    "kursOriginal": 59.96,
@@ -1684,7 +1684,7 @@ const WERTE = {
   {
    "id": "efa",
    "art": "etf",
-   "name": "Europa und Asien",
+   "name": "iShares MSCI EAFE ETF",
    "kuerzel": "EFA",
    "kurs": 93.0168,
    "kursOriginal": 107.36,
@@ -1700,7 +1700,7 @@ const WERTE = {
   {
    "id": "iwm",
    "art": "etf",
-   "name": "US Nebenwerte",
+   "name": "iShares Russell 2000 ETF",
    "kuerzel": "IWM",
    "kurs": 258.4,
    "kursOriginal": 298.25,
@@ -1716,7 +1716,7 @@ const WERTE = {
   {
    "id": "ijh",
    "art": "etf",
-   "name": "US mittelgrosse Werte",
+   "name": "iShares Core S&P Mid-Cap ETF",
    "kuerzel": "IJH",
    "kurs": 66.4963,
    "kursOriginal": 76.75,
@@ -1732,7 +1732,7 @@ const WERTE = {
   {
    "id": "dia",
    "art": "etf",
-   "name": "Dow Jones",
+   "name": "SPDR Dow Jones Industrial Average ETF",
    "kuerzel": "DIA",
    "kurs": 466.29,
    "kursOriginal": 538.19,
@@ -1748,7 +1748,7 @@ const WERTE = {
   {
    "id": "rsp",
    "art": "etf",
-   "name": "S&P 500 gleichgewichtet",
+   "name": "Invesco S&P 500 Equal Weight ETF",
    "kuerzel": "RSP",
    "kurs": 189.38,
    "kursOriginal": 218.58,
@@ -1764,7 +1764,7 @@ const WERTE = {
   {
    "id": "vug",
    "art": "etf",
-   "name": "Wachstumswerte",
+   "name": "Vanguard Growth ETF",
    "kuerzel": "VUG",
    "kurs": 76.8324,
    "kursOriginal": 88.68,
@@ -1780,7 +1780,7 @@ const WERTE = {
   {
    "id": "vtv",
    "art": "etf",
-   "name": "Substanzwerte",
+   "name": "Vanguard Value ETF",
    "kuerzel": "VTV",
    "kurs": 193.53,
    "kursOriginal": 223.37,
@@ -1796,7 +1796,7 @@ const WERTE = {
   {
    "id": "schd",
    "art": "etf",
-   "name": "Dividendenstarke Werte",
+   "name": "Schwab US Dividend Equity ETF",
    "kuerzel": "SCHD",
    "kurs": 29.1977,
    "kursOriginal": 33.7,
@@ -1812,7 +1812,7 @@ const WERTE = {
   {
    "id": "vym",
    "art": "etf",
-   "name": "Hohe Dividendenrendite",
+   "name": "Vanguard High Dividend Yield ETF",
    "kuerzel": "VYM",
    "kurs": 142.76,
    "kursOriginal": 164.77,
@@ -1828,7 +1828,7 @@ const WERTE = {
   {
    "id": "xlk",
    "art": "etf",
-   "name": "Technologie",
+   "name": "Technology Select Sector SPDR",
    "kuerzel": "XLK",
    "kurs": 160.57,
    "kursOriginal": 185.33,
@@ -1844,7 +1844,7 @@ const WERTE = {
   {
    "id": "soxx",
    "art": "etf",
-   "name": "Halbleiter",
+   "name": "iShares Semiconductor ETF",
    "kuerzel": "SOXX",
    "kurs": 461.38,
    "kursOriginal": 532.52,
@@ -1860,7 +1860,7 @@ const WERTE = {
   {
    "id": "xlv",
    "art": "etf",
-   "name": "Gesundheit",
+   "name": "Health Care Select Sector SPDR",
    "kuerzel": "XLV",
    "kurs": 142.48,
    "kursOriginal": 164.45,
@@ -1876,7 +1876,7 @@ const WERTE = {
   {
    "id": "xlf",
    "art": "etf",
-   "name": "Finanzwerte",
+   "name": "Financial Select Sector SPDR",
    "kuerzel": "XLF",
    "kurs": 50.0866,
    "kursOriginal": 57.81,
@@ -1892,7 +1892,7 @@ const WERTE = {
   {
    "id": "xle",
    "art": "etf",
-   "name": "Energie",
+   "name": "Energy Select Sector SPDR",
    "kuerzel": "XLE",
    "kurs": 50.3899,
    "kursOriginal": 58.16,
@@ -1908,7 +1908,7 @@ const WERTE = {
   {
    "id": "vnq",
    "art": "etf",
-   "name": "Immobilien",
+   "name": "Vanguard Real Estate ETF",
    "kuerzel": "VNQ",
    "kurs": 84.942,
    "kursOriginal": 98.04,
@@ -1924,7 +1924,7 @@ const WERTE = {
   {
    "id": "gld",
    "art": "etf",
-   "name": "Gold",
+   "name": "SPDR Gold Shares",
    "kuerzel": "GLD",
    "kurs": 337.61,
    "kursOriginal": 389.67,
@@ -1940,7 +1940,7 @@ const WERTE = {
   {
    "id": "agg",
    "art": "etf",
-   "name": "Anleihen breit",
+   "name": "iShares Core US Aggregate Bond ETF",
    "kuerzel": "AGG",
    "kurs": 84.4134,
    "kursOriginal": 97.43,
@@ -1956,7 +1956,7 @@ const WERTE = {
   {
    "id": "tlt",
    "art": "etf",
-   "name": "Staatsanleihen lang",
+   "name": "iShares 20+ Year Treasury Bond ETF",
    "kuerzel": "TLT",
    "kurs": 71.4954,
    "kursOriginal": 82.52,
@@ -1972,7 +1972,7 @@ const WERTE = {
   {
    "id": "vcit",
    "art": "etf",
-   "name": "Unternehmensanleihen",
+   "name": "Vanguard Interm.-Term Corp. Bond ETF",
    "kuerzel": "VCIT",
    "kurs": 70.4211,
    "kursOriginal": 81.28,
@@ -1988,7 +1988,7 @@ const WERTE = {
   {
    "id": "ibit",
    "art": "etf",
-   "name": "Bitcoin",
+   "name": "iShares Bitcoin Trust",
    "kuerzel": "IBIT",
    "kurs": 31.615,
    "kursOriginal": 36.49,

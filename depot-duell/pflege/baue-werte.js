@@ -150,6 +150,10 @@ const AKTIEN = [
 
 /**
  * ETFs. Kurse in Dollar von stockanalysis.com/etf/screener (2026-08-07).
+ * Die Namen sind die offiziellen Produktnamen derselben Quelle - keine
+ * eingedeutschten Gattungsbegriffe. Ein ETF, der schlicht 'Immobilien' heisst,
+ * ist von einer Meldung ueber 'Immobilienwerte' nicht zu unterscheiden; mit
+ * 'Vanguard Real Estate ETF' sieht man, dass hier ein echtes Produkt liegt.
  * [name, kuerzel, kurs, fondsvolumenMrdUsd, anzahlPositionen, bereich, anlageklasse]
  *
  * OFFEN: TER und Ausschuettungsart sind hier noch nicht erfasst - der Screener
@@ -157,31 +161,31 @@ const AKTIEN = [
  * Pflegelauf aus dem jeweiligen Anbieterdatenblatt nachtragen, NICHT schaetzen.
  */
 const ETFS = [
-  ['S&P 500',                 'VOO',  706.40, 1030.0,  520, 'USA breit',        'Aktien'],
-  ['Nasdaq 100',              'QQQ',  714.65,  479.2,  106, 'USA Technologie',  'Aktien'],
-  ['Welt (All-World)',        'VT',   159.92,   80.9, 10070, 'Welt',            'Aktien'],
-  ['Industrielaender ex USA', 'VEA',   72.12,  235.0, 3881, 'Welt ohne USA',    'Aktien'],
-  ['Schwellenlaender',        'VWO',   59.96,  124.9, 5077, 'Schwellenlaender', 'Aktien'],
-  ['Europa und Asien',        'EFA',  107.36,   79.3,  704, 'Europa/Asien',     'Aktien'],
-  ['US Nebenwerte',           'IWM',  298.25,   82.2, 1973, 'USA klein',        'Aktien'],
-  ['US mittelgrosse Werte',   'IJH',   76.75,  126.1,  413, 'USA mittel',       'Aktien'],
-  ['Dow Jones',               'DIA',  538.19,   47.6,   31, 'USA Standard',     'Aktien'],
-  ['S&P 500 gleichgewichtet', 'RSP',  218.58,   97.5,  509, 'USA breit',        'Aktien'],
-  ['Wachstumswerte',          'VUG',   88.68,  229.6,  151, 'USA Wachstum',     'Aktien'],
-  ['Substanzwerte',           'VTV',  223.37,  191.4,  326, 'USA Substanz',     'Aktien'],
-  ['Dividendenstarke Werte',  'SCHD',  33.70,  105.7,  103, 'Dividenden',       'Aktien'],
-  ['Hohe Dividendenrendite',  'VYM',  164.77,   83.4,  618, 'Dividenden',       'Aktien'],
-  ['Technologie',             'XLK',  185.33,  122.8,   76, 'Technologie',      'Aktien'],
-  ['Halbleiter',              'SOXX', 532.52,   47.6,   34, 'Halbleiter',       'Aktien'],
-  ['Gesundheit',              'XLV',  164.45,   41.9,   63, 'Gesundheit',       'Aktien'],
-  ['Finanzwerte',             'XLF',   57.81,   59.2,   80, 'Finanzen',         'Aktien'],
-  ['Energie',                 'XLE',   58.16,   38.5,   24, 'Energie',          'Aktien'],
-  ['Immobilien',              'VNQ',   98.04,   39.3,  157, 'Immobilien',       'Aktien'],
-  ['Gold',                    'GLD',  389.67,  132.5,    2, 'Rohstoffe',        'Rohstoff'],
-  ['Anleihen breit',          'AGG',   97.43,  137.7, 13314, 'Anleihen',        'Anleihen'],
-  ['Staatsanleihen lang',     'TLT',   82.52,   41.6,   48, 'Anleihen',         'Anleihen'],
-  ['Unternehmensanleihen',    'VCIT',  81.28,   67.6, 2268, 'Anleihen',         'Anleihen'],
-  ['Bitcoin',                 'IBIT',  36.49,   47.5,    2, 'Krypto',           'Krypto'],
+  ['Vanguard S&P 500 ETF',       'VOO',  706.40, 1030.0,  520, 'USA breit',        'Aktien'],
+  ['Invesco QQQ Trust',          'QQQ',  714.65,  479.2,  106, 'USA Technologie',  'Aktien'],
+  ['Vanguard Total World Stock ETF', 'VT',   159.92,   80.9, 10070, 'Welt',            'Aktien'],
+  ['Vanguard FTSE Developed Markets ETF', 'VEA',   72.12,  235.0, 3881, 'Welt ohne USA',    'Aktien'],
+  ['Vanguard FTSE Emerging Markets ETF', 'VWO',   59.96,  124.9, 5077, 'Schwellenlaender', 'Aktien'],
+  ['iShares MSCI EAFE ETF',      'EFA',  107.36,   79.3,  704, 'Europa/Asien',     'Aktien'],
+  ['iShares Russell 2000 ETF',   'IWM',  298.25,   82.2, 1973, 'USA klein',        'Aktien'],
+  ['iShares Core S&P Mid-Cap ETF', 'IJH',   76.75,  126.1,  413, 'USA mittel',       'Aktien'],
+  ['SPDR Dow Jones Industrial Average ETF', 'DIA',  538.19,   47.6,   31, 'USA Standard',     'Aktien'],
+  ['Invesco S&P 500 Equal Weight ETF', 'RSP',  218.58,   97.5,  509, 'USA breit',        'Aktien'],
+  ['Vanguard Growth ETF',        'VUG',   88.68,  229.6,  151, 'USA Wachstum',     'Aktien'],
+  ['Vanguard Value ETF',         'VTV',  223.37,  191.4,  326, 'USA Substanz',     'Aktien'],
+  ['Schwab US Dividend Equity ETF', 'SCHD',  33.70,  105.7,  103, 'Dividenden',       'Aktien'],
+  ['Vanguard High Dividend Yield ETF', 'VYM',  164.77,   83.4,  618, 'Dividenden',       'Aktien'],
+  ['Technology Select Sector SPDR', 'XLK',  185.33,  122.8,   76, 'Technologie',      'Aktien'],
+  ['iShares Semiconductor ETF',  'SOXX', 532.52,   47.6,   34, 'Halbleiter',       'Aktien'],
+  ['Health Care Select Sector SPDR', 'XLV',  164.45,   41.9,   63, 'Gesundheit',       'Aktien'],
+  ['Financial Select Sector SPDR', 'XLF',   57.81,   59.2,   80, 'Finanzen',         'Aktien'],
+  ['Energy Select Sector SPDR',  'XLE',   58.16,   38.5,   24, 'Energie',          'Aktien'],
+  ['Vanguard Real Estate ETF',   'VNQ',   98.04,   39.3,  157, 'Immobilien',       'Aktien'],
+  ['SPDR Gold Shares',           'GLD',  389.67,  132.5,    2, 'Rohstoffe',        'Rohstoff'],
+  ['iShares Core US Aggregate Bond ETF', 'AGG',   97.43,  137.7, 13314, 'Anleihen',        'Anleihen'],
+  ['iShares 20+ Year Treasury Bond ETF', 'TLT',   82.52,   41.6,   48, 'Anleihen',         'Anleihen'],
+  ['Vanguard Interm.-Term Corp. Bond ETF', 'VCIT',  81.28,   67.6, 2268, 'Anleihen',         'Anleihen'],
+  ['iShares Bitcoin Trust',      'IBIT',  36.49,   47.5,    2, 'Krypto',           'Krypto'],
 ];
 
 /**

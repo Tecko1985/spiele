@@ -173,6 +173,79 @@ const nachrichten = (function () {
     { t: 'Netzwerk von {name} nach Angriff stundenlang gestört', z: 'wert', r: -1, s: 'gross', g: 0, nur: 'krypto' },
     { t: 'Großkonzern nimmt {name} als Zahlungsmittel an', z: 'wert', r: 1, s: 'gross', g: 0, nur: 'krypto' },
     { t: 'Ein Land verbietet den Handel mit {name}', z: 'wert', r: -1, s: 'gross', g: 0, nur: 'krypto' },
+
+    /* --- Nachschub (2026-08-07) ------------------------------------------
+       Der Katalog war nach wenigen Runden durchgespielt und dieselbe
+       Schlagzeile kam mehrfach. Die Erweiterung ist bewusst über alle drei
+       Zielarten verteilt: die Mischung entsteht zwar in `plane()` und nicht
+       aus der Katalogzusammensetzung, aber ein Topf mit zu wenig Vorlagen
+       wiederholt sich trotzdem sichtbar. -------------------------------- */
+
+    /* Einzelwert, gut */
+    { t: '{name} übertrifft die eigene Prognose zum zweiten Mal in Folge', z: 'wert', r: 1, s: 'gross', g: 0.13 },
+    { t: 'Großinvestor steigt bei {name} ein', z: 'wert', r: 1, s: 'gross', g: 0 },
+    { t: '{name} meldet Rekordabsatz im Auslandsgeschäft', z: 'wert', r: 1, s: 'mittel', g: 0.08 },
+    { t: 'Neues Werk von {name} geht früher als geplant in Betrieb', z: 'wert', r: 1, s: 'klein', g: 0.05 },
+    { t: '{name} sichert sich einen Rahmenvertrag über mehrere Jahre', z: 'wert', r: 1, s: 'gross', g: 0.11 },
+    { t: 'Sparprogramm bei {name} zeigt Wirkung — Marge steigt deutlich', z: 'wert', r: 1, s: 'mittel', g: 0.15 },
+    { t: '{name} löst sich vorzeitig von einer teuren Altlast', z: 'wert', r: 1, s: 'mittel', g: 0.09 },
+    { t: 'Behörde erteilt {name} die lang erwartete Zulassung', z: 'wert', r: 1, s: 'gross', g: 0.12 },
+    { t: '{name} verlängert den Vertrag mit dem größten Kunden', z: 'wert', r: 1, s: 'klein', g: 0.04 },
+    { t: 'Belegschaft von {name} stimmt dem Zukunftspaket zu', z: 'wert', r: 1, s: 'klein', g: 0.06 },
+    { t: '{name} kehrt in die Gewinnzone zurück', z: 'wert', r: 1, s: 'gross', g: 0.2 },
+    { t: 'Wettbewerber von {name} muss ein Werk schließen', z: 'wert', r: 1, s: 'mittel', g: 0.07 },
+
+    /* Einzelwert, schlecht */
+    { t: '{name} verliert die Ausschreibung an einen Wettbewerber', z: 'wert', r: -1, s: 'mittel', g: -0.08 },
+    { t: 'Finanzchef von {name} tritt überraschend zurück', z: 'wert', r: -1, s: 'mittel', g: 0 },
+    { t: 'Aufsicht untersagt {name} den geplanten Zusammenschluss', z: 'wert', r: -1, s: 'mittel', g: -0.04 },
+    { t: '{name} schreibt Firmenwert in Milliardenhöhe ab', z: 'wert', r: -1, s: 'gross', g: -0.16 },
+    { t: 'Wichtiges Patent von {name} läuft aus', z: 'wert', r: -1, s: 'mittel', g: -0.11 },
+    { t: 'Sammelklage gegen {name} eingereicht', z: 'wert', r: -1, s: 'mittel', g: -0.05 },
+    { t: '{name} verschiebt den Marktstart des neuen Produkts', z: 'wert', r: -1, s: 'klein', g: -0.06 },
+    { t: 'Rohstoffmangel bremst die Produktion bei {name}', z: 'wert', r: -1, s: 'mittel', g: -0.07 },
+    { t: 'Großaktionär trennt sich von seinem Paket an {name}', z: 'wert', r: -1, s: 'gross', g: 0 },
+    { t: '{name} senkt die Prognose zum dritten Mal in diesem Jahr', z: 'wert', r: -1, s: 'riesig', g: -0.22 },
+    { t: 'Streik legt die Werke von {name} lahm', z: 'wert', r: -1, s: 'mittel', g: -0.06 },
+    { t: 'Datenpanne bei {name} — Millionen Kundendaten betroffen', z: 'wert', r: -1, s: 'mittel', g: -0.03 },
+
+    /* Gerüchte */
+    { t: 'Am Markt wird über einen Großeinstieg bei {name} getuschelt', z: 'wert', r: 1, s: 'gross', g: 0, ger: true },
+    { t: 'Gerücht: {name} soll eine Sparte abspalten wollen', z: 'wert', r: 1, s: 'mittel', g: 0, ger: true },
+    { t: 'Unbestätigt: Ermittler sollen bei {name} vorstellig geworden sein', z: 'wert', r: -1, s: 'gross', g: 0, ger: true },
+    { t: 'Händler sprechen von Problemen in der Fertigung bei {name}', z: 'wert', r: -1, s: 'mittel', g: 0, ger: true },
+    { t: 'Berichte über einen Großauftrag für {name} machen die Runde', z: 'wert', r: 1, s: 'mittel', g: 0, ger: true },
+    { t: 'Spekulationen über eine Kapitalerhöhung bei {name}', z: 'wert', r: -1, s: 'mittel', g: 0, ger: true },
+
+    /* Gruppe */
+    { t: 'Neue Auflagen verteuern die Produktion bei {gruppe}', z: 'gruppe', r: -1, s: 'mittel', g: -0.05 },
+    { t: 'Fachkräftemangel bremst {gruppe}', z: 'gruppe', r: -1, s: 'klein', g: -0.04 },
+    { t: 'Auftragseingang bei {gruppe} auf Rekordniveau', z: 'gruppe', r: 1, s: 'gross', g: 0.11 },
+    { t: 'Analysehaus hebt den Daumen für {gruppe}', z: 'gruppe', r: 1, s: 'klein', g: 0 },
+    { t: 'Energiepreise entspannen sich — {gruppe} atmen auf', z: 'gruppe', r: 1, s: 'mittel', g: 0.06 },
+    { t: 'Neue Zölle treffen {gruppe} unmittelbar', z: 'gruppe', r: -1, s: 'gross', g: -0.09 },
+    { t: 'Übernahmewelle bei {gruppe} erwartet', z: 'gruppe', r: 1, s: 'mittel', g: 0 },
+    { t: 'Lieferengpässe bei {gruppe} lösen sich auf', z: 'gruppe', r: 1, s: 'klein', g: 0.05 },
+    { t: 'Verband warnt vor einem schwachen Jahr für {gruppe}', z: 'gruppe', r: -1, s: 'mittel', g: -0.07 },
+    { t: 'Investitionsprogramm treibt die Nachfrage bei {gruppe}', z: 'gruppe', r: 1, s: 'gross', g: 0.09 },
+    { t: 'Preiskampf drückt die Margen bei {gruppe}', z: 'gruppe', r: -1, s: 'mittel', g: -0.1 },
+    { t: 'Neue Technik eröffnet {gruppe} zusätzliche Märkte', z: 'gruppe', r: 1, s: 'mittel', g: 0.07 },
+
+    /* Gesamtmarkt */
+    { t: 'Arbeitsmarktdaten fallen besser aus als erwartet', z: 'markt', r: 1, s: 'mittel', g: 0.03 },
+    { t: 'Notenbank deutet weitere Zinsschritte an — Anleger werden nervös', z: 'markt', r: -1, s: 'mittel', g: -0.03 },
+    { t: 'Ölpreis springt nach einer Förderkürzung', z: 'markt', r: -1, s: 'klein', g: -0.02 },
+    { t: 'Handelsabkommen unterzeichnet — die Börsen feiern', z: 'markt', r: 1, s: 'gross', g: 0.05 },
+    { t: 'Großbank meldet Verluste, Zweifel an der ganzen Branche', z: 'markt', r: -1, s: 'gross', g: -0.05 },
+    { t: 'Verbrauchervertrauen auf dem höchsten Stand seit Jahren', z: 'markt', r: 1, s: 'mittel', g: 0.04 },
+    { t: 'Währungsturbulenzen verunsichern die Märkte', z: 'markt', r: -1, s: 'mittel', g: -0.03 },
+    { t: 'Steuerreform beschlossen — Unternehmen deutlich entlastet', z: 'markt', r: 1, s: 'gross', g: 0.07 },
+
+    /* Krypto */
+    { t: 'Großer Vermögensverwalter legt einen Fonds auf {name} auf', z: 'wert', r: 1, s: 'riesig', g: 0, nur: 'krypto' },
+    { t: 'Schwere Sicherheitslücke im Netzwerk von {name} entdeckt', z: 'wert', r: -1, s: 'riesig', g: 0, nur: 'krypto' },
+    { t: 'Notenbank nennt {name} eine Gefahr für die Stabilität', z: 'wert', r: -1, s: 'gross', g: 0, nur: 'krypto' },
+    { t: 'Wichtiges Netzwerk-Update für {name} erfolgreich abgeschlossen', z: 'wert', r: 1, s: 'gross', g: 0, nur: 'krypto' },
   ];
 
   /* Auflösungstexte für Gerüchte. */
