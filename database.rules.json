@@ -8,19 +8,16 @@
 
       "raeume": {
         "$code": {
-          "//": "Feldweise statt pauschal. Mit einem offenen .write auf Raumebene koennte JEDER Mitspieler die 'saat' aendern - und da die komplette Kursentwicklung aus ihr entsteht, wuerde damit mitten im Spiel eine voellig andere Partie gerechnet und jeder bisherige Kauf zu fremden Kursen bewertet. Auf $code-Ebene bleibt daher nur Anlegen (als Host) und Loeschen (als Host, bei beendeter Partie); alles andere braucht eine eigene Regel darunter.",
           ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid) || (!newData.exists() && data.child('hostId').val() === auth.uid && data.child('phase').val() === 'beendet'))",
           "phase": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
           "startZeit": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
           "abgebrochen": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
 
-          "//einstellungen": "Rundenzahl, KI-Anzahl und Spielregeln (Startgeld, Gebuehr, Hoechstanteil) darf nur der Host und NUR solange die Partie in der Lobby steht. Waeren sie im Lauf aenderbar, wuerde eine Aenderung des Startgelds jedes bereits gekaufte Depot rueckwirkend neu bewerten - dieselbe Klasse Fehler wie eine nachtraeglich geaenderte Saat.",
           "runden": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby'" },
           "botAnzahl": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby'" },
           "regeln": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby'" },
           "spieler": {
             "$uid": {
-              "//": "Jeder pflegt nur seinen eigenen Eintrag. Sonst koennte man einen Mitspieler auf 'raus' setzen und ihn damit aus der Rundenfreigabe draengen - die Partie liefe ohne ihn weiter.",
               ".write": "auth != null && ($uid === auth.uid || root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid)"
             }
           }
@@ -29,7 +26,6 @@
 
       "trades": {
         "$code": {
-          "//": "Aufraeumen darf nur der Host und NUR bei beendeter Partie. Ohne die phase-Bedingung greift die Kaskade: eine .write-Erlaubnis gilt in Firebase auch fuer alles darunter, der Host koennte also mitten im Spiel EINZELNE Trades loeschen - eigene, um einen Verlust zu vertuschen, oder fremde, um einen Konkurrenten zu sabotieren. Genau das hat die Gegenprobe am 2026-08-07 aufgedeckt.",
           ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'beendet'",
           "$uid": {
             "$handel": {
@@ -42,7 +38,6 @@
 
       "bereit": {
         "$code": {
-          "//": "Zustimmung zur naechsten Runde. Unveraenderlich und nicht zurueckzunehmen: waere sie loeschbar, koennte man abwarten bis alle fertig sind, die eigene Zustimmung zurueckziehen und als Einziger noch handeln - zu Kursen, auf die niemand mehr reagieren kann. Abraeumen nur wie bei den Trades.",
           ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'beendet'",
           "$runde": {
             "$uid": {
@@ -55,7 +50,6 @@
 
       "weiter": {
         "$code": {
-          "//": "Der Host schaltet weiter, ohne auf alle zu warten. Ebenfalls unveraenderlich - der Zeitstempel entscheidet mit darueber, zu welcher Runde ein Kauf gehoert.",
           ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'beendet'",
           "$runde": {
             ".write": "auth != null && !data.exists() && newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid",

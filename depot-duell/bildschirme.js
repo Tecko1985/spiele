@@ -76,15 +76,22 @@ const bildschirme = (function () {
      Kopfzeile
      ---------------------------------------------------------------------- */
 
+  /* Die blaue Leiste erscheint NUR während einer laufenden Partie — dort
+     trägt sie Depotwert, Rendite, Rundenstand und freies Geld.
+
+     Vor der Partie hat sie nichts zu zeigen und würde nur oben am Rand
+     kleben, während der eigentliche Inhalt mittig sitzt. Die Quartett-Spiele
+     machen es genauso: dort steht der Titel als Teil des zentrierten Blocks,
+     nicht als Balken darüber. */
   function kopfzeile(app) {
     const z = app.zustand;
-    const k = ui.oben();
-    const r = ui.reserviere(64, { abstand: 8 });
+    const laeuft = z.raum && z.raum.phase === 'laeuft';
+    if (!laeuft) return;
 
+    const r = ui.reserviere(64, { abstand: 8 });
     ui.fuelleRund(r.x, r.y, r.b, r.h, ui.RADIUS, F.primaer);
 
-    const laeuft = z.raum && z.raum.phase === 'laeuft';
-    if (laeuft) {
+    {
       const stand = app.eigenerStand();
       ui.schreibe(euro(stand.gesamt, 0), r.x + 16, r.y + 24, {
         groesse: 22, fett: true, farbe: F.weiss,
@@ -124,14 +131,13 @@ const bildschirme = (function () {
       const anteil = runde / gesamtRunden;
       ui.fuelleRund(r.x + 12, r.y + r.h - 9, r.b - 24, 4, 2, 'rgba(255,255,255,0.25)');
       if (anteil > 0) ui.fuelleRund(r.x + 12, r.y + r.h - 9, Math.max(4, (r.b - 24) * anteil), 4, 2, F.weiss);
-    } else {
-      ui.schreibe('📈 Depot-Duell', r.x + 16, r.y + r.h / 2, { groesse: 21, fett: true, farbe: F.weiss });
-      if (z.code) {
-        ui.schreibe('Raum ' + z.code, r.x + r.b - 16, r.y + r.h / 2, {
-          groesse: 15, fett: 'halb', farbe: 'rgba(255,255,255,0.85)', ausrichtung: 'right',
-        });
-      }
     }
+  }
+
+  /* Der Titel für alles vor der Partie: Teil des zentrierten Blocks, kein
+     Balken am oberen Rand. */
+  function spielTitel() {
+    ui.titel('📈 Depot-Duell', { groesse: 28, zentriert: true, abstand: 2 });
   }
 
   /* ----------------------------------------------------------------------
@@ -265,6 +271,23 @@ const bildschirme = (function () {
        Fehler aus. */
     ui.fuelleRund(0, y - 6, ui.breite, FUSS_HOEHE + 6, 0, F.hintergrund);
 
+    /* Ein abgelehnter Zug MUSS hier stehen und nicht nur in der Konsole.
+       Sonst tippt man auf "Runde abschließen", es passiert nichts, und man
+       hält das Spiel für kaputt statt zu erfahren, was schiefging. */
+    if (app.fehler) {
+      const fh = 26;
+      const fr = { x: rand, y: y - fh - 4, b: breite, h: fh };
+      ui.fuelleRund(fr.x, fr.y, fr.b, fr.h, ui.RADIUS_KLEIN, '#fee2e2');
+      ui.schreibe('⚠ ' + ui.kuerze(app.fehler, fr.b - 60, 12), fr.x + 10, fr.y + fh / 2, {
+        groesse: 12, fett: 'halb', farbe: ROT,
+      });
+      ui.schreibe('schließen', fr.x + fr.b - 10, fr.y + fh / 2, {
+        groesse: 11, fett: 'halb', farbe: ROT, ausrichtung: 'right',
+      });
+      ui.merke('btn-fehler-weg', fr, 'knopf');
+      if (ui.geklickt(fr)) app.fehler = null;
+    }
+
     if (!z.abgeschlossen) {
       const feld = { x: rand, y: y + 4, b: breite, h: 48 };
       ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, F.primaer);
@@ -334,7 +357,11 @@ const bildschirme = (function () {
     kopfzeile(app);
 
     ui.seite('start', function () {
-      ui.titel('Wer bist du?', { zentriert: true, abstand: 6 });
+      spielTitel();
+      ui.absatz('Börsenspiel mit Spielgeld — gegen die Mannschaft oder allein gegen die KI.', {
+        zentriert: true, groesse: 14, abstand: 18,
+      });
+      ui.titel('Wer bist du?', { zentriert: true, groesse: 21, abstand: 6 });
       ui.absatz('Der Name steht in der Rangliste und in der Bestenliste.', {
         zentriert: true, abstand: 14,
       });
@@ -381,7 +408,9 @@ const bildschirme = (function () {
     kopfzeile(app);
 
     ui.seite('beitreten', function () {
-      ui.titel('Raum-Code eingeben', { zentriert: true, abstand: 6 });
+      spielTitel();
+      ui.luecke(14);
+      ui.titel('Raum-Code eingeben', { zentriert: true, groesse: 21, abstand: 6 });
       ui.absatz('Sechs Zeichen — lass sie dir vorlesen.', { zentriert: true, abstand: 14 });
 
       const code = ui.eingabe('eing-code', {

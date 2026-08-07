@@ -365,24 +365,47 @@ const app = {
     gameService.starteRaum().catch(function (f) { console.warn(f); });
   },
 
+  /* Übersetzt, woran ein Schreibvorgang gescheitert ist. "PERMISSION_DENIED"
+     allein lässt jeden ratlos zurück — und der mit Abstand häufigste Grund
+     dafür ist, dass die Firebase-Rules nicht veröffentlicht wurden. */
+  fehlertext: function (f) {
+    const roh = (f && f.message) || String(f);
+    if (/permission_denied/i.test(roh)) {
+      return 'Der Server hat den Zug abgelehnt (PERMISSION_DENIED). Vermutlich fehlen die Firebase-Regeln.';
+    }
+    return roh;
+  },
+
   schliesseRundeAb: function () {
     const self = this;
     /* Ein offener Kaufdialog wäre nach dem Abschließen wirkungslos — der
        Auftrag würde abgelehnt und nur eine Fehlermeldung hinterlassen. */
     this.handel = null;
+    this.fehler = null;
     gameService.schliesseRundeAb().catch(function (f) {
-      self.fehler = f.message;
+      self.fehler = self.fehlertext(f);
       console.warn('Runde nicht abgeschlossen:', f);
       ui.anfordern();
     });
   },
 
   schalteWeiter: function () {
-    gameService.schalteWeiter().catch(function (f) { console.warn('Nicht weitergeschaltet:', f); });
+    const self = this;
+    this.fehler = null;
+    gameService.schalteWeiter().catch(function (f) {
+      self.fehler = self.fehlertext(f);
+      console.warn('Nicht weitergeschaltet:', f);
+      ui.anfordern();
+    });
   },
 
   brichAb: function () {
-    gameService.brichAb().catch(function (f) { console.warn('Nicht abgebrochen:', f); });
+    const self = this;
+    gameService.brichAb().catch(function (f) {
+      self.fehler = self.fehlertext(f);
+      console.warn('Nicht abgebrochen:', f);
+      ui.anfordern();
+    });
   },
 
   verlassen: function () {
@@ -417,7 +440,7 @@ const app = {
     const art = this.handel.art;
     this.handel = null;
     gameService.handle(art, wert.id, stueck).catch(function (f) {
-      self.fehler = f.message;
+      self.fehler = self.fehlertext(f);
       console.warn('Auftrag abgelehnt:', f);
       ui.anfordern();
     });
