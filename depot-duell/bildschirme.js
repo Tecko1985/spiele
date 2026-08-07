@@ -681,9 +681,29 @@ const bildschirme = (function () {
       if (ui.geklickt(feld)) app.setzeKlasse(KLASSEN[i].id);
     }
 
+    const suchZeile = ui.oben();
+    const suchY = suchZeile.y + suchZeile.cursor;
     const suche = ui.eingabe('eing-suche', {
       platzhalter: '🔎 Name oder Kürzel …', maxLaenge: 24, hoehe: 38, abstand: 8,
     });
+    /* Löschkreuz am rechten Feldrand. Es liegt ÜBER dem Eingabefeld, der
+       Tastaturfokus fällt beim Tippen also mit hinein — genau wie in den
+       Suchfeldern von Safari und Google: Feld ist leer, Tastatur bleibt
+       offen, man kann sofort neu tippen. */
+    if (String(suche).length) {
+      const k = { x: suchZeile.x + suchZeile.b - 42, y: suchY, b: 40, h: 38 };
+      ui.schreibe('✕', k.x + k.b / 2, k.y + k.h / 2, {
+        groesse: 17, fett: true, farbe: F.gedaempft, ausrichtung: 'center',
+      });
+      ui.merke('btn-suche-leeren', k, 'knopf');
+      if (ui.geklickt(k)) {
+        ui.setzeEingabe('eing-suche', '');
+        /* Der neue Feldwert greift erst im nächsten Bild — ohne diese
+           Anforderung bliebe das Kreuz über dem bereits geleerten Feld
+           stehen, bis irgendetwas anderes ein Neuzeichnen auslöst. */
+        ui.anfordern();
+      }
+    }
 
     /* Sortierung — der aktive Knopf zeigt die Richtung und dreht beim
        erneuten Antippen um. */
@@ -694,11 +714,25 @@ const bildschirme = (function () {
       const feld = { x: rs.x + bs * i + 2, y: rs.y, b: bs - 4, h: rs.h };
       const aktiv = app.sortierung === sorten[i].id;
       ui.fuelleRund(feld.x, feld.y, feld.b, feld.h, ui.RADIUS_KLEIN, aktiv ? F.primaer : F.karte);
-      const beschriftung = aktiv ? sorten[i].text + ' ' + (app.sortAb ? '▾' : '▴') : sorten[i].text;
-      ui.schreibe(ui.kuerze(beschriftung, feld.b - 8, 12, aktiv), feld.x + feld.b / 2, feld.y + feld.h / 2, {
-        groesse: 12, fett: aktiv ? true : false,
-        farbe: aktiv ? F.weiss : F.gedaempft, ausrichtung: 'center',
-      });
+      /* Der Richtungspfeil wird getrennt und deutlich größer gezeichnet.
+         Als Teil der Beschriftung war er auf Zwölf-Punkt-Größe kaum als
+         Richtung zu erkennen — und er ist die eigentliche Information des
+         aktiven Knopfes. */
+      if (aktiv) {
+        const pfeil = app.sortAb ? '▼' : '▲';
+        const textBreite = 14;
+        ui.schreibe(ui.kuerze(sorten[i].text, feld.b - 26, 12, true),
+          feld.x + feld.b / 2 - 7, feld.y + feld.h / 2, {
+            groesse: 12, fett: true, farbe: F.weiss, ausrichtung: 'center',
+          });
+        ui.schreibe(pfeil, feld.x + feld.b - 10, feld.y + feld.h / 2, {
+          groesse: 15, fett: true, farbe: F.weiss, ausrichtung: 'right',
+        });
+      } else {
+        ui.schreibe(ui.kuerze(sorten[i].text, feld.b - 8, 12), feld.x + feld.b / 2, feld.y + feld.h / 2, {
+          groesse: 12, farbe: F.gedaempft, ausrichtung: 'center',
+        });
+      }
       ui.merke('sort-' + sorten[i].id, feld, 'knopf');
       if (ui.geklickt(feld)) app.setzeSortierung(sorten[i]);
     }
@@ -1421,8 +1455,8 @@ const bildschirme = (function () {
     kopfzeile(app);
     newsBlock(app);
     reiter(app, [
-      { id: 'markt', text: 'Markt' },
       { id: 'depot', text: 'Depot' },
+      { id: 'markt', text: 'Markt' },
       { id: 'rang', text: 'Rangliste' },
       { id: 'news', text: 'Archiv' },
     ]);
