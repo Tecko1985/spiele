@@ -10,36 +10,20 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
-    version: '1.3',
+    version: '1.0',
     groups: [
       {
-        title: '250 Werte statt 141',
+        title: 'Worum es geht',
         items: [
-          '109 neue Werte: jetzt 188 Aktien, 44 ETFs und 18 Kryptowährungen — die Mischung bleibt dieselbe, es ist nur mehr Auswahl da',
-          'Die Länder holen auf: Japan hatte einen einzigen Wert und hat jetzt 16, die Schweiz 11 statt 1, Kanada 11 statt 1, Südkorea 8 statt 1, Großbritannien 13 statt 4. Der Anteil der USA sinkt von 38 auf 29 Prozent',
-          'Neu dabei sind unter anderem Toyota, Sony, Nintendo, Samsung, Nestlé, Roche, Tencent, Shopify, Unilever, Boeing und Disney — dazu Länder-ETFs auf Japan, China, Indien und die Eurozone',
-          'Kurse aus dem Ausland kommen jetzt von der Heimatbörse statt über einen dünn gehandelten US-Schein: Tokio in Yen, Zürich in Franken, London in Pence, Seoul in Won, Toronto in kanadischen Dollar',
-          'Bei 9 Aktien fehlt das KGV und bei keinem ETF mehr die laufende Kostenquote — wo eine Kennzahl fehlt, steht weiterhin ein Strich statt einer geschätzten Zahl',
+          'Börsenspiel mit Spielgeld: 250 echte Werte — 188 Aktien, 44 ETFs und 18 Kryptowährungen — mit echten Startkursen und Kennzahlen',
+          'Die Auswahl ist international: neben den USA sind Japan, die Schweiz, Kanada, Südkorea und Großbritannien breit vertreten, dazu Länder-ETFs auf Japan, China, Indien und die Eurozone',
+          'Kurse aus dem Ausland stammen von der Heimatbörse: Tokio in Yen, Zürich in Franken, London in Pence, Seoul in Won, Toronto in kanadischen Dollar — umgerechnet in Euro',
+          'Nachrichten bewegen die Kurse — mit Gerüchten, die sich als falsch herausstellen können',
+          'KGV, Dividendenrendite und Marktkapitalisierung rechnen während der Partie mit. Wo eine Kennzahl fehlt, steht ein Strich statt einer geschätzten Zahl',
+          'Bis zu fünf KI-Mitspieler mit erkennbaren Anlagestilen, auch allein spielbar',
+          'Bestenliste über alle Partien nach Siegen und bester Rendite',
         ],
       },
-      {
-        title: 'Nachrichten treffen wieder gleichmäßig',
-        items: [
-          'Telekomwerte gehörten zu gar keiner Branchengruppe und wurden von Branchenmeldungen nie erfasst',
-          'Die Gruppe "Immobilienwerte" bestand aus zwei Werten, wurde aber genauso oft gezogen wie die größte Gruppe — eine solche Meldung traf in aller Regel kein einziges Depot. Versorger, Telekom und Immobilien bilden jetzt zusammen die Gruppe "Versorger und Netzbetreiber"',
-        ],
-      },
-      {
-        title: 'Unter der Haube',
-        items: [
-          'Die Kurse werden für die wöchentliche Pflege jetzt automatisch abgerufen statt abgeschrieben — 250 Kurse von Hand einzutragen war die sicherste Art, einen Zahlendreher einzubauen',
-        ],
-      },
-    ],
-  },
-  {
-    version: '1.2',
-    groups: [
       {
         title: 'Der Eröffner stellt die Partie ein',
         items: [
@@ -47,27 +31,13 @@ const CHANGELOG = [
           'Ordergebühr wählbar: keine, 0,25 % oder 1 %',
           'Höchstanteil je Wert wählbar: 10, 25, 50 Prozent oder ohne Grenze',
           'Die Einstellungen lassen sich in der Lobby noch ändern, solange die Partie nicht läuft — danach nicht mehr, sonst würde jeder bereits getätigte Kauf rückwirkend anders bewertet',
-          'Auch der Weg "Allein gegen die KI üben" führt jetzt durch die Einstellungen statt sofort loszulaufen',
+          'Auch der Weg "Allein gegen die KI üben" führt durch die Einstellungen',
         ],
       },
-      {
-        title: 'Kleinigkeiten',
-        items: [
-          'Der Startbildschirm sitzt mittig statt am oberen Rand',
-          'Nach einem Neuladen mitten in der Partie landet man wieder im Spiel statt auf dem Startbildschirm',
-          'Der Knopf zum Beenden sitzt jetzt oben rechts in der Kopfzeile und ist in jeder Ansicht erreichbar',
-          'Die Leiste zum Rundenabschluss lag auf dem iPhone unter dem Home-Indicator und war dort nicht zu treffen',
-        ],
-      },
-    ],
-  },
-  {
-    version: '1.1',
-    groups: [
       {
         title: 'Rundenmodus statt Zeitdruck',
         items: [
-          'Das Spiel läuft jetzt in Runden: 20, 50 oder 100 zur Wahl — es tickt keine Uhr mehr mit',
+          'Das Spiel läuft in Runden: 20, 50 oder 100 zur Wahl — es tickt keine Uhr mit',
           'Die Kurse bewegen sich erst, wenn alle Mitspieler die Runde abgeschlossen haben',
           'Unter dem Knopf steht, auf wen noch gewartet wird; der Eröffner kann weiterschalten, wenn jemand nicht mehr reagiert',
           'Wer abgeschlossen hat, kann in dieser Runde nicht mehr handeln — sonst könnte man als Letzter noch zuschlagen',
@@ -79,16 +49,19 @@ const CHANGELOG = [
           'Die Meldungen der laufenden Runde stehen über allem und sind durchblätterbar',
           'Sie wirken erst auf den nächsten Kursschritt — man hat also Zeit, darauf zu reagieren',
           'Der Nachrichtenblock lässt sich zuklappen, wenn der Platz für die Marktliste gebraucht wird',
-          'Der alte News-Reiter heißt jetzt Archiv und sammelt alle bisherigen Meldungen',
+          'Der Reiter Archiv sammelt alle bisherigen Meldungen',
+          'Branchenmeldungen treffen gleichmäßig: die Werte sind zu acht ähnlich großen Gruppen zusammengefasst, damit eine Meldung nicht mal fünfzig und mal zwei Positionen bewegt',
         ],
       },
       {
         title: 'Kopfzeile und Marktliste',
         items: [
-          'Das freie Guthaben steht jetzt in der Kopfzeile — man muss für eine Kaufentscheidung nicht mehr ins Depot wechseln',
+          'Das freie Guthaben steht in der Kopfzeile — man muss für eine Kaufentscheidung nicht ins Depot wechseln',
           'Rundenstand statt Restzeit, mit Fortschrittsbalken',
           'Sortierung dreht beim zweiten Antippen die Richtung um',
-          'Eigene Sortierkriterien je Anlageklasse: ETFs und Kryptowährungen haben weder KGV noch Dividende, die Knöpfe sortierten dort nichts',
+          'Eigene Sortierkriterien je Anlageklasse: ETFs und Kryptowährungen haben weder KGV noch Dividende',
+          'Der Knopf zum Beenden sitzt oben rechts in der Kopfzeile und ist in jeder Ansicht erreichbar',
+          'Nach einem Neuladen mitten in der Partie landet man wieder im Spiel statt auf dem Startbildschirm',
         ],
       },
       {
@@ -97,22 +70,6 @@ const CHANGELOG = [
           'Der Eröffner kann die Partie abbrechen, jeder andere kann aussteigen — beides mit Rückfrage',
           'Wer aussteigt, hält die Runden nicht länger auf; sein Depot bleibt in der Rangliste stehen',
           'Eine abgebrochene Partie zählt nicht für die Bestenliste',
-        ],
-      },
-    ],
-  },
-  {
-    version: '1.0',
-    groups: [
-      {
-        title: 'Erste Fassung',
-        items: [
-          '141 echte Werte: 106 Aktien, 25 ETFs und 10 Kryptowährungen mit echten Startkursen und Kennzahlen',
-          'Nachrichten bewegen die Kurse — mit Gerüchten, die sich als falsch herausstellen können',
-          'KGV, Dividendenrendite und Marktkapitalisierung rechnen während der Partie mit',
-          'Bis zu fünf KI-Mitspieler mit erkennbaren Anlagestilen, auch allein spielbar',
-          'Höchstens 25 % des Depots je Wert beim Kauf, Ordergebühr 0,25 %',
-          'Bestenliste über alle Partien nach Siegen und bester Rendite',
         ],
       },
     ],
