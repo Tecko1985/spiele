@@ -13,8 +13,8 @@
  * WOECHENTLICHE PFLEGE:
  * Die Zahlen holt `node pflege/hole-kurse.js --schreiben` selbst und traegt
  * sie unten ein - je Wert steht seine Quelle in der letzten Spalte. Danach
- * dieses Skript laufen lassen. Der Ablauf im Ganzen steht im Skill
- * `meine-depot-duell-kurse`.
+ * dieses Skript laufen lassen. Der Ablauf im Ganzen steht in
+ * pflege/PFLEGE.md, samt dem Prompt der Routine, die ihn ausloest.
  *
  * Quellen (eine je Wertart, damit die Zahlen zueinander passen):
  *   Aktien   stockanalysis.com    Kurs, KGV, Dividendenrendite
