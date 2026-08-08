@@ -174,6 +174,30 @@ const AKTIEN = [
  * Bitcoin) und erwirtschaften ueberhaupt keine Ertraege, die auszuschuetten
  * waeren.
  */
+/* ==========================================================================
+   OFFEN: Ausbau auf 250 Werte (von Michel am 2026-08-07 beauftragt)
+   ==========================================================================
+   Das Mischungsverhaeltnis soll bleiben, nur die Zahl waechst:
+
+     jetzt   106 Aktien (75,2 %) ·  25 ETFs (17,7 %) · 10 Krypto (7,1 %) = 141
+     Ziel    188 Aktien           ·  44 ETFs          · 18 Krypto        = 250
+     also    +82 Aktien           · +19 ETFs          · +8 Krypto        = 109 neu
+
+   Quellen wie gehabt, damit die Zahlen zueinander passen:
+     Aktien     stockanalysis.com (Kurs, KGV, Dividendenrendite)
+     ETFs       stockanalysis.com/etf/screener + /etf/compare (fuenf TER je Abruf)
+     Krypto     CoinGecko, Kurse direkt in Euro
+
+   Bei den Aktien ist die Laenderverteilung heute stark auf USA (40) und
+   Deutschland (30) gewichtet, dahinter Frankreich (13). Beim Ausbau die
+   duennen Laender mit aufholen lassen - Japan, Schweiz, Kanada, Grossbritannien
+   und Suedkorea haben je nur ein bis vier Werte, eine Laendernachricht trifft
+   dort also fast nichts.
+
+   ⚠️ NICHT schaetzen. Fehlt eine Kennzahl, bleibt sie null und die App zeigt
+   einen Strich - so wie es bei den 19 Aktien ohne KGV schon der Fall ist.
+   ========================================================================== */
+
 const ETF_KOSTEN = {
   'VOO':  { ter: 0.03, ausschuettend: true },
   'QQQ':  { ter: 0.18, ausschuettend: true },
