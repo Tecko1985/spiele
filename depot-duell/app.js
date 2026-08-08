@@ -10,6 +10,34 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.3',
+    groups: [
+      {
+        title: '250 Werte statt 141',
+        items: [
+          '109 neue Werte: jetzt 188 Aktien, 44 ETFs und 18 Kryptowährungen — die Mischung bleibt dieselbe, es ist nur mehr Auswahl da',
+          'Die Länder holen auf: Japan hatte einen einzigen Wert und hat jetzt 16, die Schweiz 11 statt 1, Kanada 11 statt 1, Südkorea 8 statt 1, Großbritannien 13 statt 4. Der Anteil der USA sinkt von 38 auf 29 Prozent',
+          'Neu dabei sind unter anderem Toyota, Sony, Nintendo, Samsung, Nestlé, Roche, Tencent, Shopify, Unilever, Boeing und Disney — dazu Länder-ETFs auf Japan, China, Indien und die Eurozone',
+          'Kurse aus dem Ausland kommen jetzt von der Heimatbörse statt über einen dünn gehandelten US-Schein: Tokio in Yen, Zürich in Franken, London in Pence, Seoul in Won, Toronto in kanadischen Dollar',
+          'Bei 9 Aktien fehlt das KGV und bei keinem ETF mehr die laufende Kostenquote — wo eine Kennzahl fehlt, steht weiterhin ein Strich statt einer geschätzten Zahl',
+        ],
+      },
+      {
+        title: 'Nachrichten treffen wieder gleichmäßig',
+        items: [
+          'Telekomwerte gehörten zu gar keiner Branchengruppe und wurden von Branchenmeldungen nie erfasst',
+          'Die Gruppe "Immobilienwerte" bestand aus zwei Werten, wurde aber genauso oft gezogen wie die größte Gruppe — eine solche Meldung traf in aller Regel kein einziges Depot. Versorger, Telekom und Immobilien bilden jetzt zusammen die Gruppe "Versorger und Netzbetreiber"',
+        ],
+      },
+      {
+        title: 'Unter der Haube',
+        items: [
+          'Die Kurse werden für die wöchentliche Pflege jetzt automatisch abgerufen statt abgeschrieben — 250 Kurse von Hand einzutragen war die sicherste Art, einen Zahlendreher einzubauen',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.2',
     groups: [
       {

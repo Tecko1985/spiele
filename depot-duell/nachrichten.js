@@ -49,8 +49,8 @@ const nachrichten = (function () {
     Pharma: 'gesundheit', Gesundheit: 'gesundheit',
     Konsum: 'konsum', Handel: 'konsum', Nahrung: 'konsum',
     Luxus: 'konsum', Medien: 'konsum',
-    Energie: 'energie', Versorger: 'energie', Chemie: 'energie',
-    Immobilien: 'immobilien',
+    Energie: 'energie', Chemie: 'energie',
+    Versorger: 'infrastruktur', Telekom: 'infrastruktur', Immobilien: 'infrastruktur',
     Krypto: 'krypto',
   };
 
@@ -60,10 +60,25 @@ const nachrichten = (function () {
     industrie: 'Industriewerte',
     gesundheit: 'Gesundheitswerte',
     konsum: 'Konsumwerte',
-    energie: 'Energiewerte',
-    immobilien: 'Immobilienwerte',
+    energie: 'Energie- und Chemiewerte',
+    infrastruktur: 'Versorger und Netzbetreiber',
     krypto: 'Kryptowährungen',
   };
+
+  /* Warum 'infrastruktur' beim Ausbau auf 250 Werte entstanden ist
+     (2026-08-08): 'Telekom' war überhaupt keiner Gruppe zugeordnet und fiel
+     damit in die Sammelgruppe 'breit' zu den ETFs — bei einem Wert (Deutsche
+     Telekom) fiel das nicht auf, bei fünfen schon. Und 'immobilien' war mit
+     zwei Werten von 250 eine eigene Gruppe, wurde aber genauso oft gezogen
+     wie 'breit' mit neunundvierzig: plane() würfelt gleichverteilt über die
+     BELEGTEN Gruppen, nicht gewichtet nach ihrer Größe. Eine Immobilien-
+     meldung traf damit in aller Regel kein einziges Depot.
+     Versorger, Telekom und Immobilien sind jetzt eine Gruppe (12 Werte),
+     Energie und Chemie die andere (13) — die kleinste Gruppe hat damit ein
+     Sechstel der größten statt einem Fünfundzwanzigstel.
+     ⚠️ Wer hier eine Gruppe hinzufügt oder auflöst, ändert die Trefferzahl
+     ALLER Gruppen mit, weil jede Gruppe dieselbe Ziehungswahrscheinlichkeit
+     hat. Danach `node pflege/pruefe-markt.js` (Abschnitt 5). */
 
   /* Alles, was keiner Gruppe zugeordnet ist (ETF-Bereiche wie "USA breit"),
      landet in einer Sammelgruppe statt undefined zu werden — sonst bekämen
@@ -84,7 +99,7 @@ const nachrichten = (function () {
   const STAERKE = { klein: 0.05, mittel: 0.11, gross: 0.2, riesig: 0.34 };
 
   /* Wie breit eine Meldung streut, muss ihre Wucht bestimmen. Eine
-     Einzelwertmeldung trifft einen von 141 Werten — sie darf voll
+     Einzelwertmeldung trifft einen von 250 Werten — sie darf voll
      durchschlagen und ist der Jackpot für den, der ihn hält. Eine
      Marktmeldung trifft dagegen JEDES Depot gleichzeitig; mit voller Stärke
      würde der Gesamtmarkt in jeder zweiten Runde zweistellig springen und
@@ -406,7 +421,7 @@ const nachrichten = (function () {
 
     /* Vorlagen nach Zielart vorsortieren. Wählte man blind aus dem ganzen
        Katalog, entschiede dessen Zusammensetzung über die Mischung — gemessen
-       kamen so 29 Einzelwert- gegen nur 6 Gruppenmeldungen heraus. Bei 141
+       kamen so 29 Einzelwert- gegen nur 6 Gruppenmeldungen heraus. Bei 250
        Werten trifft eine Einzelmeldung aber kaum je ein Depot, und die
        Meldung verpufft. Gruppen- und Marktmeldungen treffen dagegen fast
        jeden, und genau darum geht es: alle lesen dieselbe Schlagzeile und

@@ -16,7 +16,7 @@
    sitzt oder langsamer liest, hätte strukturell verloren.
 
    WARUM DER VERLAUF NICHT ÜBERTRAGEN WIRD:
-   141 Werte über 100 Runden sind über 14.000 Kurswerte je Partie. Würde das
+   250 Werte über 100 Runden sind über 25.000 Kurswerte je Partie. Würde das
    Gerät des Eröffners sie verteilen, flösse mehr Datenverkehr als bei den
    Maulwurf-Positionen (dort gemessen: ~27 MB für zehn Minuten zu fünfzehnt)
    — und die Partie stünde still, sobald er durch ein Funkloch fährt. So
