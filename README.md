@@ -1,6 +1,6 @@
 # 🎲 Spiele
 
-Sammlung kleiner Spiele für Vereinsabende und Trainingspausen — mehrere Mitspieler an verschiedenen Geräten.
+Sammlung kleiner Spiele für Vereinsabende, Trainingspausen und die Busfahrt zum Auswärtsspiel — mehrere Mitspieler an verschiedenen Geräten, ohne Login über einen Raum-Code.
 
 **➡️ [Spiele öffnen](https://sc1911heiligenstadt.github.io/spiele/)**
 
@@ -8,11 +8,12 @@ Sammlung kleiner Spiele für Vereinsabende und Trainingspausen — mehrere Mitsp
 
 | Seite | Wofür |
 |---|---|
-| [Spiele](https://sc1911heiligenstadt.github.io/spiele/) | Mini-Spiele-Sammlung fürs Team: Auto-, Fußball- und Fußball-Vereine-Quartett sowie Der Maulwurf als Verräterspiel (auch solo … |
+| [Spiele](https://sc1911heiligenstadt.github.io/spiele/) | Die Übersicht mit allen fünf Spielen |
 | [Auto-Quartett](https://sc1911heiligenstadt.github.io/spiele/auto-quartett/) | Kartenspiel für mehrere Mitspieler |
 | [Fußball-Quartett](https://sc1911heiligenstadt.github.io/spiele/fussball-quartett/) | Kartenspiel für mehrere Mitspieler |
 | [Fußball-Vereine-Quartett](https://sc1911heiligenstadt.github.io/spiele/fussball-vereine-quartett/) | Kartenspiel für mehrere Mitspieler |
-| [Der Maulwurf](https://sc1911heiligenstadt.github.io/spiele/maulwurf/) | Ratespiel für die Gruppe |
+| [Der Maulwurf](https://sc1911heiligenstadt.github.io/spiele/maulwurf/) | Verräterspiel auf einer gemeinsamen Karte, für 4 bis 15 Mitspielende — auch als Verstecken-Modus |
+| [Depot-Duell](https://sc1911heiligenstadt.github.io/spiele/depot-duell/) | Börsenspiel mit Spielgeld: 250 echte Werte, rundenweise, mit KI-Mitspielern |
 
 ## Zugang
 
@@ -26,7 +27,9 @@ Die Rechte gelten in drei Stufen: **Sehen** (nur ansehen), **Bearbeiten** (Eintr
 
 ## Technik
 
-Vanilla JavaScript ohne Build-Schritt — die Dateien werden so ausgeliefert, wie sie im Repo liegen. Veröffentlicht über GitHub Pages. Die Daten liegen in der Vereins-Nextcloud; der Zugriff läuft ausschließlich über den Login-Worker der Tools-Übersicht, nie mit Zugangsdaten im Browser. Die Live-Daten liegen in einer Firebase-Datenbank, damit mehrere Geräte denselben Stand sehen.
+Vanilla JavaScript ohne Build-Schritt — die Dateien werden so ausgeliefert, wie sie im Repo liegen. Veröffentlicht über GitHub Pages.
+
+**Anders als die übrigen Werkzeuge nutzen die Spiele nicht die Vereins-Nextcloud**, sondern eine Firebase-Datenbank, damit mehrere Geräte denselben Stand sehen. Ein Login ist dafür nicht nötig — man tritt über einen Raum-Code bei. Nur die Kartenverwaltung der Quartetts erkennt Administratoren, und zwar über die Anmeldung in der Tools-Übersicht.
 
 ---
 
