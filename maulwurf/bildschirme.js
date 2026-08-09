@@ -39,10 +39,6 @@ const bildschirme = (function () {
 
   /* ---------------------------------------------------------------- Helfer */
 
-  function zustandJetzt() {
-    return typeof gameService !== "undefined" ? gameService.getZustand() : null;
-  }
-
   function initiale(name) {
     return (name || "?").trim().charAt(0).toUpperCase();
   }

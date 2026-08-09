@@ -116,37 +116,11 @@ const aufgabenModul = (function () {
     return treffer;
   }
 
-  /* Zieht einen Finger innerhalb des Feldes nach und liefert seine Position.
-     Beansprucht ihn, damit er unterwegs keine Knöpfe auslöst. */
-  function zieher(feld, kennung) {
-    return ui.beanspruche(feld, kennung);
-  }
-
   /* Fortschrittsbalken im Pult-Stil */
   function balken(x, y, b, h, anteil, farbe) {
     ui.fuelleRund(x, y, b, h, h / 2, VERTIEFT);
     const a = begrenze(anteil, 0, 1);
     if (a > 0) ui.fuelleRund(x, y, Math.max(h, b * a), h, h / 2, farbe || GUT);
-  }
-
-  /* Ziffernblock 1–9 + 0 + OK, für Aufgaben mit Zahleneingabe. */
-  function ziffernblock(r, wert, opt) {
-    const o = opt || {};
-    const spalten = 5;
-    const zeilen = 2;
-    const luecke = 6;
-    const tb = (r.b - (spalten - 1) * luecke) / spalten;
-    const th = Math.min(46, (r.h - (zeilen - 1) * luecke) / zeilen);
-    const tasten = ["1","2","3","4","5","6","7","8","9","0"];
-    let neu = wert;
-    tasten.forEach((z, i) => {
-      const sp = i % spalten, ze = Math.floor(i / spalten);
-      const tr = { x: r.x + sp * (tb + luecke), y: r.y + ze * (th + luecke), b: tb, h: th };
-      if (taste("ziffer-" + z, tr, z, { groesse: 17 })) {
-        if (neu.length < (o.maxLaenge || 4)) neu += z;
-      }
-    });
-    return neu;
   }
 
   /* ==================================================================== */
