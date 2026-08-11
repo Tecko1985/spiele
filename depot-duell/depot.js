@@ -34,9 +34,10 @@ const depot = (function () {
      ---------------------------------------------------------------------- */
   const VORGABE = {
     startgeld: 100000,
-    gebuehrSatz: 0.0025,   // 0,25 %
-    gebuehrMind: 1,        // mindestens 1 Euro
-    hoechstanteil: 0.25,   // je Wert, siehe pruefeKauf
+    gebuehrSatz: 0.0025,      // 0,25 %
+    gebuehrMind: 1,           // mindestens 1 Euro
+    hoechstanteil: 0.25,      // je Wert, siehe pruefeKauf
+    startdepotAnteil: 0.10,   // schon angelegt zu Partiebeginn, siehe startdepot
   };
 
   /* Nimmt an, was gültig ist, und füllt den Rest aus der Vorgabe. Ein
@@ -49,6 +50,11 @@ const depot = (function () {
       gebuehrMind: r.gebuehrMind >= 0 ? r.gebuehrMind : VORGABE.gebuehrMind,
       hoechstanteil: r.hoechstanteil > 0 && r.hoechstanteil <= 1
         ? r.hoechstanteil : VORGABE.hoechstanteil,
+      /* Null ist ein gültiger Wert (kein Startdepot) und muss deshalb die
+         Vorgabe schlagen — anders als bei den Feldern darüber, wo null
+         unsinnig wäre. */
+      startdepotAnteil: r.startdepotAnteil >= 0 && r.startdepotAnteil < 1
+        ? r.startdepotAnteil : VORGABE.startdepotAnteil,
     };
   }
 
@@ -65,20 +71,149 @@ const depot = (function () {
   }
 
   /* ----------------------------------------------------------------------
+     Startdepot
+
+     Wer bei null anfängt, hat in der ersten Runde nichts zu entscheiden:
+     eine Schlagzeile über einen Wert, den man nicht hält, ist bloß eine
+     Kaufempfehlung. Deshalb liegt zu Partiebeginn ein Teil des Geldes
+     bereits in sechs Positionen — drei Aktien, zwei ETFs, eine
+     Kryptowährung. Damit steht schon vor der ersten Freigabe die Frage im
+     Raum, was man behält und was man loswird.
+
+     Das Depot wird NICHT gespeichert, sondern wie alles andere in diesem
+     Spiel aus der Saat abgeleitet — hier zusätzlich aus der uid, damit
+     jeder ein eigenes bekommt und trotzdem jedes Gerät für jeden
+     Mitspieler dasselbe rechnet. Übertragen wird dafür kein einziges Byte.
+
+     Gekauft wird zum Kurs der Runde 0 und ohne Gebühr. Der Depotwert zu
+     Beginn ist damit auf den Cent das Startgeld, und niemand steht mit
+     einer Rendite unter null da, bevor er das erste Mal gehandelt hat.
+     ---------------------------------------------------------------------- */
+  const STARTDEPOT_MISCHUNG = [
+    { art: 'aktie', anzahl: 3 },
+    { art: 'etf', anzahl: 2 },
+    { art: 'krypto', anzahl: 1 },
+  ];
+  const STARTDEPOT_POSITIONEN = STARTDEPOT_MISCHUNG.reduce(function (s, m) {
+    return s + m.anzahl;
+  }, 0);
+
+  /* Aus der uid eine Zahl. Muss auf jedem Gerät dieselbe sein, deshalb von
+     Hand gerechnet und nicht aus der Laufzeitumgebung geholt. */
+  function saatVonUid(uid) {
+    const s = String(uid || '');
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+  }
+
+  /* Die Werte nach Art, innerhalb der Art nach id sortiert.
+
+     Die Reihenfolge MUSS unabhängig davon sein, wie das Verzeichnis
+     zusammengesetzt wurde: würfelte man über Object.keys, hinge das
+     Startdepot daran, in welcher Reihenfolge die Werteliste einmal gebaut
+     wurde — und eine spätere Umsortierung in werte.js verschöbe rückwirkend
+     jedes Startdepot, ohne dass irgendetwas nach einer Änderung aussieht. */
+  const artenSpeicher = new WeakMap();
+  function nachArt(werteNachId) {
+    const treffer = artenSpeicher.get(werteNachId);
+    if (treffer) return treffer;
+    const raus = {};
+    for (const id of Object.keys(werteNachId).sort()) {
+      const w = werteNachId[id];
+      if (!w || !w.art) continue;
+      if (!raus[w.art]) raus[w.art] = [];
+      raus[w.art].push(w);
+    }
+    artenSpeicher.set(werteNachId, raus);
+    return raus;
+  }
+
+  /* Je Mitspieler einmal gerechnet. Ohne Speicher liefe die Auswahl bei
+     jedem Durchrechnen erneut — und die Bots rechnen ihre Züge rundenweise
+     durch, also hundertfach je Partie. */
+  const startdepotSpeicher = new Map();
+
+  /**
+   * Die Käufe, mit denen ein Mitspieler in die Partie startet.
+   * @returns {Array} Trades in Runde 0, oder [] wenn die Regel aus ist.
+   */
+  function startdepot(lauf, uid, werteNachId, regeln) {
+    const R = normiereRegeln(regeln);
+    if (!lauf || !uid || !werteNachId) return [];
+    if (!(R.startdepotAnteil > 0) || !(R.startgeld > 0)) return [];
+
+    const kennung = lauf.saat + '|' + uid + '|' + R.startgeld + '|' + R.startdepotAnteil;
+    const treffer = startdepotSpeicher.get(kennung);
+    if (treffer) return treffer;
+
+    const rng = markt.zufallsgeber((lauf.saat ^ saatVonUid(uid)) >>> 0);
+    const koerbe = nachArt(werteNachId);
+    const budget = (R.startgeld * R.startdepotAnteil) / STARTDEPOT_POSITIONEN;
+    const trades = [];
+
+    for (const m of STARTDEPOT_MISCHUNG) {
+      /* Nur Werte, von denen mindestens ein Stück ins Budget passt. Sonst
+         käme bei einer 4.000-Euro-Aktie eine Position über null Stücke
+         heraus, und das Depot hätte stillschweigend fünf Einträge statt
+         sechs — bei kleinem Startgeld für jeden anders. */
+      const topf = (koerbe[m.art] || []).filter(function (w) {
+        const k = markt.kurs(lauf, w.id, 0);
+        return k > 0 && rundeStueck(w, budget / k) > 0;
+      });
+      for (let i = 0; i < m.anzahl && topf.length; i++) {
+        const w = topf.splice(Math.floor(rng() * topf.length), 1)[0];
+        const kurs = markt.kurs(lauf, w.id, 0);
+        const stueck = rundeStueck(w, budget / kurs);
+        if (!(stueck > 0)) continue;
+        trades.push({
+          id: w.id,
+          art: 'kauf',
+          stueck: stueck,
+          runde: 0,
+          zeit: 0,            // vor jedem echten Trade, der eine Serverzeit trägt
+          ohneGebuehr: true,
+          start: true,
+        });
+      }
+    }
+
+    if (startdepotSpeicher.size > 200) startdepotSpeicher.clear();
+    startdepotSpeicher.set(kennung, trades);
+    return trades;
+  }
+
+  /* ----------------------------------------------------------------------
      Stand zu einem Zeitpunkt
 
      Rechnet die Trades chronologisch durch. Muss chronologisch laufen, weil
      die Dividende von der Stückzahl abhängt, die zum Zahltag gehalten wurde
      — wer erst danach kauft, bekommt sie nicht.
      ---------------------------------------------------------------------- */
-  function berechne(trades, lauf, bisRunde, werteNachId, regeln) {
+  function berechne(trades, lauf, bisRunde, werteNachId, regeln, uid) {
     const R = normiereRegeln(regeln);
     let cash = R.startgeld;
     let gebuehrenGesamt = 0;
     let dividendenGesamt = 0;
     const bestand = {};   // id -> { stueck, einstand }
 
-    const sortiert = (trades || []).slice().sort(function (a, b) {
+    /* Das Startdepot wird nicht übergeben, sondern hier abgeleitet — an
+       EINER Stelle, damit Depotansicht, Rangliste, Endabrechnung und die
+       KI-Mitspieler unmöglich mit verschiedenen Startbeständen rechnen
+       können. */
+    const eigene = (trades || []).slice();
+    const vorgelegt = startdepot(lauf, uid, werteNachId, R);
+    const startIds = {};
+    for (const h of vorgelegt) startIds[h.id] = true;
+
+    /* Das Startdepot steht VORN, nicht nur wegen `zeit: 0`. Die Züge der
+       KI tragen überhaupt keine Zeit; bei Gleichstand entscheidet die
+       Eingangsreihenfolge (sort ist stabil), und ein Verkauf in Runde 0
+       liefe sonst ins Leere, weil der Bestand noch nicht da wäre. */
+    const sortiert = vorgelegt.concat(eigene).sort(function (a, b) {
       if (a.runde !== b.runde) return a.runde - b.runde;
       return (a.zeit || 0) - (b.zeit || 0);
     });
@@ -97,7 +232,9 @@ const depot = (function () {
 
         if (h.art === 'kauf') {
           const betrag = kurs * h.stueck;
-          const g = gebuehr(betrag, R);
+          /* Das Startdepot ist gestellt, keine Order — sonst begänne jeder
+             mit einer Rendite unter null, ohne etwas getan zu haben. */
+          const g = h.ohneGebuehr ? 0 : gebuehr(betrag, R);
           /* Defensiv: ein Kauf, für den das Geld nicht reicht, wird
              übersprungen statt das Konto ins Minus zu ziehen. Kann nur
              auftreten, wenn jemand am Client vorbei schreibt. */
@@ -150,6 +287,7 @@ const depot = (function () {
       positionen.push({
         id: id,
         wert: w,
+        ausStart: !!startIds[id],
         stueck: b.stueck,
         einstand: b.einstand,
         einstandJeStueck: b.stueck > 0 ? b.einstand / b.stueck : 0,
@@ -161,7 +299,18 @@ const depot = (function () {
     }
     positionen.sort(function (a, b) { return b.marktwert - a.marktwert; });
 
-    const gesamt = cash + anlagewert;
+    /* Auf Cent runden, und zwar BEVOR irgendwer vergleicht.
+
+       Sechs Startkäufe ziehen sechsmal vom Bargeld ab und addieren sechs
+       Positionswerte wieder auf — rechnerisch dasselbe, in Fließkomma aber
+       nicht: heraus kam 99.999,99999999999 statt 100.000. In der Rangliste
+       stand der Mensch damit hinter zwei KI-Mitspielern, die nichts anderes
+       getan hatten, und die Renditespalte zeigte "-0,0 %".
+
+       Gerundet wird nur der Vergleichs- und Anzeigewert. `cash` bleibt roh:
+       ein aufgerundetes Guthaben ließe die Kaufprüfung einen Auftrag
+       durchwinken, den die Verbuchung danach still verwirft. */
+    const gesamt = Math.round((cash + anlagewert) * 100) / 100;
     for (const p of positionen) p.anteil = gesamt > 0 ? p.marktwert / gesamt : 0;
 
     return {
@@ -172,7 +321,10 @@ const depot = (function () {
       positionen: positionen,
       gebuehren: gebuehrenGesamt,
       dividenden: dividendenGesamt,
-      anzahlTrades: sortiert.filter(function (h) { return h.runde <= bis; }).length,
+      /* Nur die eigenen Aufträge. Das gestellte Startdepot mitzuzählen
+         würde in der Rangliste als Handeln erscheinen, das nie stattfand. */
+      anzahlTrades: eigene.filter(function (h) { return h.runde <= bis; }).length,
+      startdepot: vorgelegt.length,
       /* Die Regeln reisen im Ergebnis mit. Dadurch braucht keine der
          Pruefungen unten einen zusaetzlichen Parameter — und es kann nicht
          passieren, dass ein Stand nach den einen und die Kaufpruefung nach
@@ -191,22 +343,24 @@ const depot = (function () {
      ---------------------------------------------------------------------- */
   const speicher = new Map();
 
-  function stand(schluessel, trades, lauf, bisRunde, werteNachId, regeln) {
+  function stand(schluessel, trades, lauf, bisRunde, werteNachId, regeln, uid) {
     const R = normiereRegeln(regeln);
     /* Die Regeln MUESSEN in den Schluessel: sonst liefert der Speicher nach
-       einer Regelaenderung stillschweigend den Stand der alten Regeln. */
-    const kennung = schluessel + '|' + bisRunde + '|' + (trades ? trades.length : 0) + '|' + lauf.saat +
-      '|' + R.startgeld + '|' + R.gebuehrSatz + '|' + R.gebuehrMind + '|' + R.hoechstanteil;
+       einer Regelaenderung stillschweigend den Stand der alten Regeln.
+       Die uid ebenso — sie entscheidet ueber das Startdepot. */
+    const kennung = schluessel + '|' + (uid || '') + '|' + bisRunde + '|' + (trades ? trades.length : 0) + '|' + lauf.saat +
+      '|' + R.startgeld + '|' + R.gebuehrSatz + '|' + R.gebuehrMind + '|' + R.hoechstanteil +
+      '|' + R.startdepotAnteil;
     const treffer = speicher.get(kennung);
     if (treffer) return treffer;
-    const ergebnis = berechne(trades, lauf, bisRunde, werteNachId, R);
+    const ergebnis = berechne(trades, lauf, bisRunde, werteNachId, R, uid);
     /* Klein halten: bei jeder Runde kommt je Mitspieler ein Eintrag dazu. */
     if (speicher.size > 400) speicher.clear();
     speicher.set(kennung, ergebnis);
     return ergebnis;
   }
 
-  function leereSpeicher() { speicher.clear(); }
+  function leereSpeicher() { speicher.clear(); startdepotSpeicher.clear(); }
 
   /* ----------------------------------------------------------------------
      Kaufprüfung
@@ -296,9 +450,12 @@ const depot = (function () {
 
   return {
     VORGABE: VORGABE,
+    STARTDEPOT_MISCHUNG: STARTDEPOT_MISCHUNG,
+    STARTDEPOT_POSITIONEN: STARTDEPOT_POSITIONEN,
     normiereRegeln: normiereRegeln,
     gebuehr: gebuehr,
     rundeStueck: rundeStueck,
+    startdepot: startdepot,
     berechne: berechne,
     stand: stand,
     leereSpeicher: leereSpeicher,

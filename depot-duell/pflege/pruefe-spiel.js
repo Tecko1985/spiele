@@ -194,11 +194,135 @@ pruefe(zweiterStand.gebuehren === 0, 'im gebührenfreien Lauf wurde keine Gebüh
 
 /* Bots müssen mit denselben Regeln rechnen wie die Menschen. */
 const armeBots = B.stelleAuf(lauf, werte, nachId, 3, armeRegeln);
-const armeStaende = armeBots.map((b) => D.berechne(b.trades, lauf, RUNDEN, nachId, armeRegeln));
+const armeStaende = armeBots.map((b) => D.berechne(b.trades, lauf, RUNDEN, nachId, armeRegeln, b.uid));
 pruefe(armeStaende.every((z) => z.cash >= -0.001), 'Bots gehen auch mit 10.000 Startgeld nie ins Minus');
 const reicheBots = B.stelleAuf(lauf, werte, nachId, 3, reicheRegeln);
 pruefe(JSON.stringify(armeBots[0].trades) !== JSON.stringify(reicheBots[0].trades),
   'Bots handeln bei anderem Startgeld anders — die Regeln kommen wirklich bei ihnen an');
+
+/* ====================================================================== */
+console.log('\n2c. START-DEPOT');
+/* ======================================================================
+   Zu Partiebeginn liegen 10 % des Startgeldes bereits in sechs Positionen,
+   je Mitspieler andere. Das Depot wird nirgends gespeichert, sondern aus
+   Saat und uid abgeleitet — die entscheidende Eigenschaft ist deshalb
+   nicht, dass es gut aussieht, sondern dass JEDES Geraet fuer denselben
+   Mitspieler exakt dasselbe herausbekommt. Weicht ein Geraet ab, zeigt es
+   eine andere Rangliste, ohne dass irgendetwas nach einem Fehler aussieht.
+   ====================================================================== */
+
+const UID_A = 'spieler-aaa111';
+const UID_B = 'spieler-bbb222';
+const lauf2 = M.erzeuge(4712, werte, RUNDEN);
+
+const sdA = D.berechne([], lauf, 0, nachId, null, UID_A);
+const artenA = {};
+for (const p of sdA.positionen) artenA[p.wert.art] = (artenA[p.wert.art] || 0) + 1;
+
+pruefe(sdA.positionen.length === 6, 'Start-Depot hat sechs Positionen (' + sdA.positionen.length + ')');
+pruefe(artenA.aktie === 3 && artenA.etf === 2 && artenA.krypto === 1,
+  'Mischung stimmt: 3 Aktien, 2 ETFs, 1 Krypto (' +
+  (artenA.aktie || 0) + '/' + (artenA.etf || 0) + '/' + (artenA.krypto || 0) + ')');
+pruefe(sdA.positionen.every((p) => p.ausStart), 'alle sechs sind als Start-Position gekennzeichnet');
+
+/* Die wichtigste Zahl: der Depotwert zu Beginn MUSS auf den Cent das
+   Startgeld sein. Faellt hier eine Gebuehr an, startet jeder mit einer
+   Rendite unter null, ohne etwas getan zu haben. */
+pruefe(sdA.gesamt === D.VORGABE.startgeld,
+  'Depotwert zu Beginn ist exakt das Startgeld (' + sdA.gesamt.toFixed(4) + ')');
+/* Nicht "fast null": die Rangliste sortiert nach diesem Wert. Ein Rest von
+   0,00000000001 aus sechs Fliesskomma-Abzuegen reicht, um den Menschen
+   hinter eine KI zu setzen, die genau dasselbe hat. */
+pruefe(sdA.rendite === 0 && sdA.gesamt === D.berechne([], lauf, 0, nachId).gesamt,
+  'kein Fliesskomma-Rest gegenueber einem Depot ohne Start-Positionen');
+pruefe(sdA.gebuehren === 0, 'auf das gestellte Depot faellt keine Gebuehr an');
+pruefe(sdA.rendite === 0, 'Rendite startet bei null');
+pruefe(sdA.anzahlTrades === 0,
+  'das Start-Depot zaehlt NICHT als eigener Auftrag (' + sdA.anzahlTrades + ')');
+
+/* Angelegt sein sollen 10 %. Durch das Abrunden auf ganze Stuecke bleibt
+   ein Rest liegen — viel darf das nicht sein, sonst ist die Vorgabe nur
+   noch dem Namen nach eingehalten. */
+const anteilA = sdA.anlagewert / sdA.gesamt;
+pruefe(anteilA > 0.085 && anteilA <= 0.1001,
+  'angelegt sind ' + (anteilA * 100).toFixed(2) + ' % (Ziel 10 %, Rest durch ganze Stueckzahlen)');
+
+/* Bestimmtheit — ohne sie waere das ganze Verfahren wertlos. */
+D.leereSpeicher();
+const sdAerneut = D.berechne([], lauf, 0, nachId, null, UID_A);
+pruefe(JSON.stringify(D.startdepot(lauf, UID_A, nachId, null)) ===
+  JSON.stringify(D.startdepot(lauf, UID_A, nachId, null)),
+  'zweimal derselbe Aufruf ergibt dasselbe Depot');
+pruefe(Math.abs(sdAerneut.gesamt - sdA.gesamt) < 1e-9,
+  'auch nach geleertem Zwischenspeicher dasselbe Ergebnis');
+
+const sdB = D.berechne([], lauf, 0, nachId, null, UID_B);
+pruefe(sdA.positionen.map((p) => p.id).join() !== sdB.positionen.map((p) => p.id).join(),
+  'zwei Mitspieler bekommen verschiedene Depots');
+pruefe(Math.abs(sdB.gesamt - D.VORGABE.startgeld) < 0.005,
+  'auch beim zweiten Mitspieler stimmt der Startwert auf den Cent');
+
+const andereSaat = D.berechne([], lauf2, 0, nachId, null, UID_A);
+pruefe(sdA.positionen.map((p) => p.id).join() !== andereSaat.positionen.map((p) => p.id).join(),
+  'andere Partie-Saat ergibt fuer denselben Spieler ein anderes Depot');
+
+/* GEGENPROBE: die Auswahl darf nicht davon abhaengen, in welcher
+   Reihenfolge die Werteliste einmal zusammengesetzt wurde. Sonst
+   verschoebe eine spaetere Umsortierung in werte.js rueckwirkend jedes
+   Start-Depot — und niemand kaeme auf die Idee, dort zu suchen. */
+const nachIdRueckwaerts = {};
+for (const w of werte.slice().reverse()) nachIdRueckwaerts[w.id] = w;
+const sdRueckwaerts = D.berechne([], lauf, 0, nachIdRueckwaerts, null, UID_A);
+pruefe(sdA.positionen.map((p) => p.id).sort().join() === sdRueckwaerts.positionen.map((p) => p.id).sort().join(),
+  'umgekehrt aufgebautes Werteverzeichnis ergibt dasselbe Depot');
+
+/* Abschaltbar — und dann wirklich leer. */
+const ohneStart = D.normiereRegeln({ startdepotAnteil: 0 });
+pruefe(ohneStart.startdepotAnteil === 0,
+  'null schlaegt die Vorgabe (sonst waere das Start-Depot nicht abschaltbar)');
+pruefe(D.berechne([], lauf, 0, nachId, ohneStart, UID_A).positionen.length === 0,
+  'bei "aus" beginnt das Depot leer');
+pruefe(D.normiereRegeln({}).startdepotAnteil === D.VORGABE.startdepotAnteil,
+  'fehlendes Feld faellt auf die Vorgabe zurueck');
+
+/* Verkaufen koennen ist der ganze Zweck der Sache. */
+const raus = sdA.positionen[0];
+const verkauft = D.berechne(
+  [{ art: 'verkauf', id: raus.id, stueck: raus.stueck, runde: 0, zeit: 1 }],
+  lauf, 0, nachId, null, UID_A);
+pruefe(verkauft.positionen.length === 5,
+  'eine Start-Position laesst sich in Runde 0 vollstaendig verkaufen');
+pruefe(verkauft.cash > sdA.cash,
+  'der Erloes landet im Bargeld (' + Math.round(sdA.cash) + ' -> ' + Math.round(verkauft.cash) + ')');
+pruefe(verkauft.gebuehren > 0,
+  'der Verkauf kostet dagegen sehr wohl Gebuehr (' + verkauft.gebuehren.toFixed(2) + ' EUR)');
+pruefe(D.pruefeVerkauf(sdA, raus.wert, raus.stueck).ok,
+  'die Verkaufspruefung kennt den geerbten Bestand');
+
+/* Keine Start-Position darf ueber dem Hoechstanteil liegen — auch nicht
+   bei einer scharf gestellten Grenze. */
+const engeRegeln = D.normiereRegeln({ hoechstanteil: 0.1 });
+const sdEng = D.berechne([], lauf, 0, nachId, engeRegeln, UID_A);
+pruefe(sdEng.positionen.every((p) => p.anteil <= 0.1 + 1e-9),
+  'keine Start-Position sprengt selbst eine 10-Prozent-Grenze (groesste ' +
+  (Math.max(...sdEng.positionen.map((p) => p.anteil)) * 100).toFixed(2) + ' %)');
+
+/* Kleines Startgeld: teure Aktien passen dann nicht mehr ins Budget je
+   Position. Das darf die Mischung ausduennen, aber nicht den Startwert
+   verfaelschen. */
+const armStart = D.berechne([], lauf, 0, nachId, armeRegeln, UID_A);
+pruefe(Math.abs(armStart.gesamt - 10000) < 0.005,
+  'auch mit 10.000 Startgeld stimmt der Depotwert auf den Cent (' + armStart.gesamt.toFixed(4) + ')');
+pruefe(armStart.positionen.length >= 5,
+  'mit 10.000 Startgeld kommen noch ' + armStart.positionen.length + ' von 6 Positionen zustande');
+
+/* Dieselbe Falle wie beim Zwischenspeicher der Regeln: gleicher
+   Schluessel, andere uid. */
+D.leereSpeicher();
+const cacheA = D.stand('ich', [], lauf, 0, nachId, null, UID_A);
+const cacheB = D.stand('ich', [], lauf, 0, nachId, null, UID_B);
+pruefe(cacheA.positionen.map((p) => p.id).join() !== cacheB.positionen.map((p) => p.id).join(),
+  'Zwischenspeicher verwechselt zwei Mitspieler NICHT, wenn der Schluessel gleich ist');
 
 /* ====================================================================== */
 console.log('\n3. KI-MITSPIELER');
@@ -225,11 +349,15 @@ pruefe(
    Erfolg — niemanden zum Verkauf zu zwingen, weil sein Wert gestiegen ist,
    wäre absurd und in echten Depots auch nicht üblich. Geprüft wird deshalb
    jeder einzelne Kauf gegen den Stand unmittelbar davor. */
-function pruefeKaufregelTreue(trades, l) {
+function pruefeKaufregelTreue(trades, l, uid) {
   const bisher = [];
   for (const h of trades) {
     if (h.art === 'kauf') {
-      const davor = D.berechne(bisher, l, h.runde, nachId);
+      /* Die uid MUSS mit: sie entscheidet ueber das Startdepot. Ohne sie
+         rechnet die Pruefung auf einem Bestand, den der Bot nie hatte —
+         seine Verkaeufe aus dem Startdepot liefen ins Leere, das Geld
+         fehlte, und ein voellig regeltreuer Kauf saehe nach Verstoss aus. */
+      const davor = D.berechne(bisher, l, h.runde, nachId, null, uid);
       const p = D.pruefeKauf(davor, nachId[h.id], h.stueck, M.kurs(l, h.id, h.runde));
       if (!p.ok) return { ok: false, wo: h };
     }
@@ -239,7 +367,7 @@ function pruefeKaufregelTreue(trades, l) {
 }
 
 for (const b of feld1) {
-  const z = D.berechne(b.trades, lauf, RUNDEN, nachId);
+  const z = D.berechne(b.trades, lauf, RUNDEN, nachId, null, b.uid);
   const maxAnteil = z.positionen.reduce((m, p) => Math.max(m, p.anteil), 0);
   const investiert = z.anlagewert / z.gesamt;
   console.log(
@@ -252,7 +380,7 @@ for (const b of feld1) {
   );
   pruefe(b.trades.length > 0, b.name + ' handelt überhaupt');
   pruefe(z.cash >= 0, b.name + ' hat nie ein negatives Konto');
-  const treue = pruefeKaufregelTreue(b.trades, lauf);
+  const treue = pruefeKaufregelTreue(b.trades, lauf, b.uid);
   pruefe(treue.ok, b.name + ' hält bei JEDEM Kauf die Regeln ein');
 }
 
@@ -278,7 +406,7 @@ for (let i = 0; i < LAEUFE; i++) {
   let bester = null;
   let bestwert = -1e18;
   for (const b of feld) {
-    const z = D.berechne(b.trades, l, RUNDEN, nachId);
+    const z = D.berechne(b.trades, l, RUNDEN, nachId, null, b.uid);
     summeRendite[b.name] += z.rendite;
     if (z.gesamt > bestwert) { bestwert = z.gesamt; bester = b.name; }
   }

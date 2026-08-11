@@ -131,6 +131,7 @@ const app = {
     gebuehrSatz: depot.VORGABE.gebuehrSatz,
     gebuehrMind: depot.VORGABE.gebuehrMind,
     hoechstanteil: depot.VORGABE.hoechstanteil,
+    startdepotAnteil: depot.VORGABE.startdepotAnteil,
   },
 
   zustand: {
@@ -176,7 +177,7 @@ const app = {
       return depot.berechne([], { saat: 0, runden: 0, rundenJeJahr: 10, kurse: {}, gewinne: {}, meldungen: [] }, 0, {}, this.regeln());
     }
     const meine = this.zustand.trades[this.zustand.uid] || [];
-    return depot.stand('ich', meine, this.lauf, this.runde(), this.wertNachId, this.regeln());
+    return depot.stand('ich', meine, this.lauf, this.runde(), this.wertNachId, this.regeln(), this.zustand.uid);
   },
 
   rangliste: function () {
@@ -189,7 +190,7 @@ const app = {
     const spieler = this.zustand.raum.spieler || {};
     for (const uid in spieler) {
       const trades = this.zustand.trades[uid] || [];
-      const stand = depot.stand(uid, trades, this.lauf, t, this.wertNachId, R);
+      const stand = depot.stand(uid, trades, this.lauf, t, this.wertNachId, R, uid);
       raus.push({
         uid: uid, name: spieler[uid].name, zeichen: null, istBot: false,
         raus: !!spieler[uid].raus, fertig: !!bereitJetzt[uid],
@@ -197,7 +198,7 @@ const app = {
       });
     }
     for (const b of this.botFeld) {
-      const stand = depot.stand(b.uid, b.trades, this.lauf, t, this.wertNachId, R);
+      const stand = depot.stand(b.uid, b.trades, this.lauf, t, this.wertNachId, R, b.uid);
       raus.push({
         uid: b.uid, name: b.name, zeichen: b.zeichen, istBot: true,
         raus: false, fertig: true,
@@ -309,6 +310,7 @@ const app = {
       gebuehrSatz: R.gebuehrSatz,
       gebuehrMind: R.gebuehrMind,
       hoechstanteil: R.hoechstanteil,
+      startdepotAnteil: R.startdepotAnteil,
     };
     this.ansicht = 'lobby-neu';
   },

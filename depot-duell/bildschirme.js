@@ -529,6 +529,18 @@ const bildschirme = (function () {
         groesse: 13, abstand: 14,
       });
 
+      ui.absatz('Start-Depot', { fett: true, farbe: F.text, abstand: 6 });
+      const gewaehltStart = wahlReihe('startdepot', [
+        { wert: 0, text: 'aus' },
+        { wert: 0.05, text: '5 %' },
+        { wert: 0.1, text: '10 %' },
+        { wert: 0.25, text: '25 %' },
+      ], e.startdepotAnteil, { groesse: 14 });
+      if (gewaehltStart !== null) e.startdepotAnteil = gewaehltStart;
+      ui.absatz('So viel vom Startgeld liegt schon vor der ersten Runde angelegt — drei Aktien, zwei ETFs und eine Kryptowährung, für jeden andere. Dadurch hat die erste Schlagzeile sofort etwas zu bedeuten: man kann nicht nur kaufen, sondern auch loswerden. Bei "aus" fängt jeder mit reinem Bargeld an.', {
+        groesse: 13, abstand: 14,
+      });
+
       ui.absatz('KI-Mitspieler', { fett: true, farbe: F.text, abstand: 6 });
       const gewaehltBots = wahlReihe('bots', [0, 1, 2, 3, 4, 5].map(function (i) {
         return { wert: i, text: String(i) };
@@ -596,7 +608,10 @@ const bildschirme = (function () {
         (stufe ? stufe.runden + ' Runden (' + stufe.unter + ')' : '—') +
         '  ·  ' + euro(R.startgeld, 0) + ' Startgeld' +
         '  ·  ' + (R.gebuehrSatz ? (R.gebuehrSatz * 100).toFixed(2).replace('.', ',') + ' % Gebühr' : 'ohne Gebühr') +
-        '  ·  höchstens ' + (R.hoechstanteil >= 1 ? 'alles' : Math.round(R.hoechstanteil * 100) + ' %') + ' je Wert',
+        '  ·  höchstens ' + (R.hoechstanteil >= 1 ? 'alles' : Math.round(R.hoechstanteil * 100) + ' %') + ' je Wert' +
+        '  ·  ' + (R.startdepotAnteil > 0
+          ? Math.round(R.startdepotAnteil * 100) + ' % Start-Depot'
+          : 'ohne Start-Depot'),
         { zentriert: true, groesse: 13, abstand: 14 }
       );
 
@@ -1015,6 +1030,13 @@ const bildschirme = (function () {
       }
 
       ui.absatz('Positionen', { fett: true, farbe: F.text, abstand: 6 });
+      /* Nur in Runde 0: danach weiß man, woher der Bestand kommt, und der
+         Hinweis stünde jede Runde im Weg. */
+      if (stand.startdepot > 0 && app.runde() === 0) {
+        ui.absatz('Diese ' + stand.startdepot + ' Positionen lagen schon da, als die Partie begann — bei jedem andere. Was nicht zur Nachrichtenlage passt, wirfst du am besten jetzt raus: der Kurs ist noch derselbe wie beim Anlegen.', {
+          groesse: 12, abstand: 8,
+        });
+      }
       for (const p of stand.positionen) {
         const zeile = ui.reserviere(66, { abstand: 6 });
         ui.fuelleRund(zeile.x, zeile.y, zeile.b, zeile.h, ui.RADIUS_KLEIN, F.karte);
@@ -1025,7 +1047,8 @@ const bildschirme = (function () {
         ui.schreibe(stueckText(p.wert, p.stueck) + ' × ' + kursText(p.kurs), zeile.x + 12, zeile.y + 38, {
           groesse: 12, farbe: F.gedaempft,
         });
-        ui.schreibe('Anteil ' + (p.anteil * 100).toFixed(1).replace('.', ',') + ' %', zeile.x + 12, zeile.y + 55, {
+        ui.schreibe('Anteil ' + (p.anteil * 100).toFixed(1).replace('.', ',') + ' %' +
+          (p.ausStart ? '  ·  aus dem Start-Depot' : ''), zeile.x + 12, zeile.y + 55, {
           groesse: 11, farbe: F.gedaempft,
         });
 
@@ -1407,6 +1430,7 @@ const bildschirme = (function () {
         ['Ihr bestimmt das Tempo', 'Es läuft keine Uhr. In jeder Runde erscheinen Nachrichten, jeder handelt so lange er will, und erst wenn ALLE die Runde abgeschlossen haben, bewegen sich die Kurse. Wer noch fehlt, steht unter dem Knopf. Der Eröffner kann weiterschalten, wenn jemand nicht mehr reagiert.'],
         ['Die Werte sind echt', WERTE.werte.length + ' Werte mit echten Startkursen und Kennzahlen vom ' + WERTE.stand.split('-').reverse().join('.') + ': ' + WERTE.werte.filter(function (w) { return w.art === 'aktie'; }).length + ' Aktien, ' + WERTE.werte.filter(function (w) { return w.art === 'etf'; }).length + ' ETFs und ' + WERTE.werte.filter(function (w) { return w.art === 'krypto'; }).length + ' Kryptowährungen.'],
         ['Der Verlauf ist erfunden', 'Ab dem Start läuft eine Simulation. Die Kursentwicklung hat nichts mit der Wirklichkeit zu tun und ist keine Vorhersage.'],
+        ['Du erbst ein Depot', 'Ein Teil des Startgeldes liegt schon angelegt da, wenn die Partie beginnt — voreingestellt zehn Prozent in sechs Positionen: drei Aktien, zwei ETFs, eine Kryptowährung. Jeder bekommt andere. Dadurch hat die allererste Schlagzeile sofort Gewicht: du kannst nicht nur kaufen, sondern auch loswerden. Angelegt wird zum Startkurs und ohne Gebühr, dein Depot ist also zu Beginn auf den Cent das Startgeld wert. Der Eröffner kann den Anteil ändern oder das Start-Depot ganz abschalten.'],
         ['Nachrichten entscheiden', 'Die Meldungen einer Runde stehen ganz oben — sie bewegen die Kurse erst beim Rundenwechsel. Du hast also Zeit, sie zu lesen und zu handeln, bevor sie wirken. Vorsicht bei Gerüchten: sie werden zwei Runden später bestätigt oder dementiert, und ein Dementi dreht die Bewegung stärker zurück, als sie hingegangen ist.'],
         ['Kennzahlen rechnen mit', 'Das KGV ist keine Zierzahl: es wird laufend aus Kurs und Gewinn je Aktie neu gerechnet. Ein Wert mit KGV 8 ist günstig bewertet, einer mit KGV 90 heiß gelaufen.'],
         ['Streuen ist Pflicht', 'Der eingestellte Höchstanteil gilt beim KAUF. Wächst eine Position danach darüber hinaus, darfst du sie behalten — das hast du dir verdient. Die Grenze lässt sich beim Eröffnen bis auf "alles" öffnen; dann kann ein einziger Treffer die Partie entscheiden.'],

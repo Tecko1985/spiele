@@ -205,6 +205,11 @@ const bots = (function () {
     const rng = markt.zufallsgeber((lauf.saat ^ Math.imul(platz + 1, 0x9e3779b9)) >>> 0);
     const trades = [];
     const takt = TAKT[charakterId] || 12;
+    /* MUSS dieselbe uid sein wie in stelleAuf: sie entscheidet über das
+       Startdepot. Rechnete der Bot seine Züge auf einem anderen Startbestand
+       als die Rangliste später anzeigt, verkaufte er Werte, die er dort
+       nie hatte — und die Rangliste zeigte einen Stand, der nie entstand. */
+    const uid = 'bot-' + charakterId;
 
     /* Versetzter Start, sonst kaufen alle Bots in derselben Runde. */
     let naechster = Math.floor(rng() * takt);
@@ -213,7 +218,7 @@ const bots = (function () {
       if (t < naechster) continue;
       naechster = t + Math.max(1, takt + Math.floor(rng() * 3) - 1);
 
-      const zustand = depot.berechne(trades, lauf, t, werteNachId, regeln);
+      const zustand = depot.berechne(trades, lauf, t, werteNachId, regeln, uid);
       strategie(rng, lauf, werte, zustand, t, trades, werteNachId);
     }
 
