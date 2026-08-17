@@ -56,8 +56,13 @@ pruefe(
   'Kauf zieht Betrag UND Gebühr ab (Gebühr ' + erwarteteGebuehr.toFixed(2) + ' EUR)'
 );
 pruefe(nachKauf.positionen.length === 1 && nachKauf.positionen[0].stueck === 100, '100 Stück im Bestand');
+/* `gesamt` kommt aus depot.js auf Cent gerundet (Absicht, sonst sortiert die
+   Rangliste nach Fliesskomma-Resten). Der Erwartungswert muss deshalb genauso
+   gerundet werden — sonst haengt diese Pruefung am Tageskurs: die Gebuehr ist
+   Kurs * 0.25, und die trifft nur dann einen vollen Cent, wenn der Kurs in
+   Cent durch 4 teilbar ist. Bei SAP 177.96 ging es auf, bei 180.14 nicht. */
 pruefe(
-  Math.abs(nachKauf.gesamt - (D.VORGABE.startgeld - erwarteteGebuehr)) < 0.001,
+  Math.abs(nachKauf.gesamt - Math.round((D.VORGABE.startgeld - erwarteteGebuehr) * 100) / 100) < 0.001,
   'Depotwert direkt nach dem Kauf = Startbudget minus Gebühr'
 );
 
