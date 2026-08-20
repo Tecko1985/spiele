@@ -64,10 +64,20 @@ const depot = (function () {
     return Math.max(R.gebuehrMind, betrag * R.gebuehrSatz);
   }
 
-  /* Krypto in Bruchteilen, alles andere nur in ganzen Stücken. */
+  /* Krypto in Bruchteilen, alles andere nur in ganzen Stücken.
+
+     ⚠️ Abschneiden allein genügt nicht. `0,32739999 * 1e8` ergibt in
+     Fließkomma 32739998,999999996 — `Math.floor` macht daraus 32739998 und
+     verschluckt ein Hundertmillionstel. Beim Verkauf blieb dadurch ein Rest
+     im Depot liegen, den man nie wieder los wurde: das Feld zeigte den vollen
+     Bestand, ausgeführt wurde ein Hundertmillionstel weniger, und beim
+     nächsten Versuch begann dasselbe von vorn. Landet die Multiplikation
+     also hauchdünn unter einer ganzen Zahl, ist diese gemeint. */
   function rundeStueck(wert, stueck) {
-    if (wert.art === 'krypto') return Math.floor(stueck * 1e8) / 1e8;
-    return Math.floor(stueck);
+    const faktor = wert.art === 'krypto' ? 1e8 : 1;
+    const roh = stueck * faktor;
+    const ganz = Math.round(roh);
+    return (Math.abs(roh - ganz) < 1e-6 ? ganz : Math.floor(roh)) / faktor;
   }
 
   /* ----------------------------------------------------------------------
@@ -441,6 +451,23 @@ const depot = (function () {
     const bestand = bestandVon(zustand, wert.id);
     if (bestand <= 0) return { ok: false, grund: 'Diesen Wert hältst du nicht.', hoechstStueck: 0 };
     stueck = rundeStueck(wert, stueck);
+
+    /* "Fast alles" heißt alles.
+
+       Ein Kryptobestand entsteht als Summe und Differenz von Vielfachen eines
+       Hundertmillionstels und trägt deshalb einen Fließkommarest. Der Weg über
+       das Eingabefeld rundet ihn auf acht Nachkommastellen, `rundeStueck`
+       schneidet danach ab — je nach Richtung landet man knapp unter dem
+       Bestand (ein unverkäuflicher Staubrest bleibt für immer im Depot liegen)
+       oder knapp darüber (die Prüfung meldet "So viele hältst du nicht",
+       obwohl der Spieler nur auf "100 %" gedrückt hat).
+
+       Beides ist derselbe Fehler, und beide Richtungen gehören deshalb hier
+       abgefangen — NICHT in der Oberfläche: der Handel läuft auch über Bots
+       und über wiederhergestellte Trades. */
+    const zumBestand = Math.max(2e-8, bestand * 1e-9);
+    if (Math.abs(stueck - bestand) < zumBestand) stueck = bestand;
+
     if (!(stueck > 0)) return { ok: false, grund: 'Stückzahl muss größer als null sein.', hoechstStueck: bestand };
     if (stueck > bestand + 1e-9) {
       return { ok: false, grund: 'So viele hältst du nicht. Möglich sind ' + bestand + '.', hoechstStueck: bestand };

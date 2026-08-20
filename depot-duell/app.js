@@ -10,6 +10,20 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.1',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Ein Knopf löst wieder das aus, was daraufsteht. Wenn eine Liste nach dem Wischen noch nachlief, rutschte sie unter dem aufliegenden Finger weiter — beim Loslassen lag an derselben Stelle eine andere Zeile, und statt "Zurück" öffnete sich ein beliebiger Wert. Ein aufsetzender Finger stoppt das Nachlaufen jetzt sofort',
+          'Dasselbe beim Wechsel zwischen Marktliste und Wertansicht: das Nachlaufen von vorhin fror ein und lief beim Zurückkommen weiter. Beim Betreten steht die Liste jetzt still',
+          '"100 %" verkauft wirklich alles. Bei Kryptowährungen blieb bisher ein Hundertmillionstel im Depot liegen, das man nie wieder los wurde — oder der Verkauf wurde mit "So viele hältst du nicht" abgelehnt, obwohl man nur auf 100 % gedrückt hatte',
+          'Große Stückzahlen werden im Handelsfenster richtig übernommen. Aus 12.345 Stück wurden vorher stillschweigend 12',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0',
     groups: [
       {

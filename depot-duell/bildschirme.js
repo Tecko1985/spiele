@@ -59,6 +59,51 @@ const bildschirme = (function () {
     return String(Math.round(stueck));
   }
 
+  /* Dieselbe Zahl fürs EINGABEFELD, aber ohne Tausenderpunkte.
+
+     Der Weg dort ist ein Rundweg: die Oberfläche schreibt eine Zahl hinein,
+     liest sie im nächsten Bild als Text wieder heraus und rechnet damit den
+     Auftrag. Mit Gruppierung geschrieben ist "12.345,678" von "12,345678"
+     nicht mehr zu unterscheiden — ein Druck auf "100 %" hätte statt 12.345
+     Stück ganze zwölf verkauft, ohne dass etwas nach einem Fehler aussieht. */
+  function stueckEingabe(wert, stueck) {
+    if (wert.art === 'krypto') {
+      return stueck.toLocaleString('de-DE', {
+        minimumFractionDigits: 0, maximumFractionDigits: 8, useGrouping: false,
+      });
+    }
+    return String(Math.round(stueck));
+  }
+
+  /* Getippte Stückzahl lesen — deutsch wie von der Tastatur.
+
+     Beide Gewohnheiten müssen durchgehen: "1.234,5" und "1234.5". Die
+     naheliegende Kurzfassung (alle Punkte raus, Komma zu Punkt) macht aus
+     "0.5" still eine 5. Deshalb: gibt es ein Komma, ist das letzte davon das
+     Dezimaltrennzeichen und alle Punkte sind Trenner; gibt es nur einen Punkt,
+     entscheidet die Zahl der Ziffern dahinter — genau drei heißt Tausender. */
+  function zahlAus(text) {
+    const roh = String(text === null || text === undefined ? '' : text).trim().replace(/\s/g, '');
+    if (!/^[0-9.,]+$/.test(roh)) return 0;
+    let norm;
+    if (roh.indexOf(',') >= 0) {
+      const schnitt = roh.lastIndexOf(',');
+      norm = roh.slice(0, schnitt).replace(/[.,]/g, '') + '.' + roh.slice(schnitt + 1).replace(/[.,]/g, '');
+    } else {
+      const teile = roh.split('.');
+      /* Mehr als ein Punkt kann nur Tausendertrennung sein. Bei genau einem
+         entscheidet die Zahl der Ziffern dahinter — außer hinter einer
+         führenden Null: "0.123" ist immer ein Krypto-Bruchteil, denn niemand
+         trennt Tausender hinter einer Null. */
+      const tausender = teile.length > 2 ||
+        (teile.length === 2 && teile[1].length === 3 &&
+         teile[0] !== '' && teile[0].charAt(0) !== '0');
+      norm = tausender ? teile.join('') : roh;
+    }
+    const n = parseFloat(norm);
+    return isFinite(n) && n > 0 ? n : 0;
+  }
+
   function kursText(kurs) {
     if (kurs >= 1) return euro(kurs, 2);
     return euro(kurs, 4);
@@ -1233,16 +1278,21 @@ const bildschirme = (function () {
       });
       ui.merke('anteil-' + i, feld, 'knopf');
       if (ui.geklickt(feld)) {
-        h.stueck = depot.rundeStueck(w, hoechst * anteile[i]);
-        ui.setzeEingabe('eing-stueck', stueckText(w, h.stueck));
+        /* Bei "100 %" den Bestand UNGERUNDET übernehmen. `rundeStueck` schneidet
+           nach dem achten Hundertmillionstel ab, und schon dieser Schnitt ließe
+           beim Verkauf einen Rest liegen, den man nie wieder los wird. Die
+           Prüfung in `depot.pruefeVerkauf` fängt den Rest zwar ohnehin ab —
+           aber der Spieler soll auch sehen, was er verkauft. */
+        h.stueck = anteile[i] === 1 ? hoechst : depot.rundeStueck(w, hoechst * anteile[i]);
+        ui.setzeEingabe('eing-stueck', stueckEingabe(w, h.stueck));
       }
     }
 
     const eingetippt = ui.eingabe('eing-stueck', {
       platzhalter: 'Stückzahl', maxLaenge: 14, abstand: 8,
-      setze: h.stueck !== null ? stueckText(w, h.stueck) : '',
+      setze: h.stueck !== null ? stueckEingabe(w, h.stueck) : '',
     });
-    const stueck = depot.rundeStueck(w, parseFloat(String(eingetippt).replace(',', '.')) || 0);
+    const stueck = depot.rundeStueck(w, zahlAus(eingetippt));
 
     ui.absatz(istKauf
       ? 'Möglich sind ' + stueckText(w, hoechst) + ' Stück.'
@@ -1251,6 +1301,11 @@ const bildschirme = (function () {
     /* Vorschau: Betrag und Gebühr, bevor bestätigt wird. */
     let hinweis = null;
     let erlaubt = false;
+    /* Ausgeführt wird, was die PRÜFUNG zurückgibt, nicht was im Feld steht:
+       sie hebt einen Verkauf, dem nur ein Rundungsstaub zum ganzen Bestand
+       fehlt, auf den vollen Bestand an. Führte man die getippte Zahl aus,
+       bliebe genau dieser Rest im Depot liegen. */
+    let auftragStueck = stueck;
     if (stueck > 0) {
       const pruefung = istKauf
         ? depot.pruefeKauf(stand, w, stueck, kurs)
@@ -1258,7 +1313,8 @@ const bildschirme = (function () {
       erlaubt = pruefung.ok;
       if (!pruefung.ok) hinweis = pruefung.grund;
       else {
-        const betrag = kurs * stueck;
+        auftragStueck = pruefung.stueck;
+        const betrag = kurs * auftragStueck;
         const geb = depot.gebuehr(betrag);
         hinweis = (istKauf ? 'Kosten ' : 'Erlös ') +
           euro(istKauf ? betrag + geb : betrag - geb) +
@@ -1278,7 +1334,7 @@ const bildschirme = (function () {
     if (ui.knopf('btn-handel-los', istKauf ? 'Kaufen' : 'Verkaufen', {
       aus: !erlaubt, abstand: 8,
     })) {
-      app.fuehreHandelAus(w, stueck);
+      app.fuehreHandelAus(w, auftragStueck);
     }
     if (ui.knopf('btn-handel-abbrechen', 'Abbrechen', { art: 'zweit', hoehe: 40 })) {
       app.handel = null;
@@ -1512,6 +1568,11 @@ const bildschirme = (function () {
     prozent: prozent,
     kursText: kursText,
     stueckText: stueckText,
+    /* Nach außen nur, damit `pflege/pruefe-spiel.js` den Rundweg des
+       Stückzahlfeldes gegen den ECHTEN Code prüfen kann statt gegen einen
+       Nachbau — genau dieser Rundweg war der Fehler. */
+    stueckEingabe: stueckEingabe,
+    zahlAus: zahlAus,
     farbeFuer: farbeFuer,
   };
 })();

@@ -433,5 +433,77 @@ pruefe(Math.max(...quoten) < 0.72, 'keine Strategie gewinnt fast immer (' + (Mat
 pruefe(Math.min(...quoten) > 0.005, 'jede Strategie gewinnt zumindest gelegentlich (' + (Math.min(...quoten) * 100).toFixed(1) + ' %)');
 pruefe(dauer / LAEUFE < 900, 'Partiestart mit fünf Bots unter 900 ms (' + (dauer / LAEUFE).toFixed(0) + ' ms)');
 
+
+/* ====================================================================== */
+console.log('\n5. STÜCKZAHLFELD — DER RUNDWEG');
+/* ====================================================================== */
+/* Das Feld im Handelsdialog ist ein Rundweg: die Oberfläche SCHREIBT eine
+   Zahl hinein und LIEST sie im nächsten Bild als Text wieder heraus. Bricht
+   eine der beiden Richtungen, verkauft ein Druck auf "100 %" den falschen
+   Betrag — ohne Fehlermeldung, weil die kleinere Zahl völlig gültig ist.
+   Geprüft wird der ECHTE Code aus `bildschirme.js`, nicht ein Nachbau. */
+
+globalThis.ui = { F: {} };
+const bildSrc = fs.readFileSync(path.join(__dirname, '..', 'bildschirme.js'), 'utf8');
+const BS = new Function(bildSrc + '\nreturn bildschirme;')();
+
+/* Beide Tippgewohnheiten müssen durchgehen — deutsch und von der Tastatur. */
+const zahlFaelle = [
+  ['1234', 1234], ['1.234', 1234], ['1234,5', 1234.5], ['1.234,5', 1234.5],
+  ['1234.5', 1234.5], ['0,5', 0.5], ['0.5', 0.5], ['12,5', 12.5], ['12.5', 12.5],
+  ['0,00000001', 1e-8], ['1.234.567', 1234567], ['', 0], ['abc', 0], ['12abc', 0],
+];
+for (const f of zahlFaelle) {
+  const ist = BS.zahlAus(f[0]);
+  pruefe(Math.abs(ist - f[1]) < 1e-12,
+    'zahlAus("' + f[0] + '") = ' + f[1] + (ist === f[1] ? '' : '  — ist ' + ist));
+}
+
+/* Der eigentliche Rundweg: was die Oberfläche schreibt, muss sie auch wieder
+   lesen können — sonst wird aus 12.345 Stück still eine 12. */
+const rundwegFaelle = [
+  [{ art: 'aktie' }, 1234], [{ art: 'aktie' }, 12345], [{ art: 'aktie' }, 7],
+  [{ art: 'krypto' }, 0.12345678], [{ art: 'krypto' }, 12345.678],
+  [{ art: 'krypto' }, 1234.56789012], [{ art: 'krypto' }, 0.00000001],
+];
+for (const f of rundwegFaelle) {
+  const zurueck = D.rundeStueck(f[0], BS.zahlAus(BS.stueckEingabe(f[0], f[1])));
+  const abweichung = Math.abs(zurueck - f[1]) / Math.max(1, f[1]);
+  pruefe(abweichung < 1e-8,
+    f[0].art + ' ' + f[1] + ' → "' + BS.stueckEingabe(f[0], f[1]) + '" → ' + zurueck);
+}
+
+/* Gegenprobe zum eigentlichen Fehler: nach "100 %" darf KEIN Rest im Depot
+   liegen bleiben, und abgelehnt100 werden darf der Auftrag erst recht nicht.
+   Ein Kryptobestand entsteht als Summe von Vielfachen eines
+   Hundertmillionstels und trägt deshalb einen Fließkommarest — genau der
+   überlebte den Rundweg, mal nach oben (Ablehnung), mal nach unten (Rest). */
+let resteGefunden = 0;
+let abgelehnt100 = 0;
+let geprueft100 = 0;
+for (let i = 0; i < 400; i++) {
+  const w = i % 2 === 0 ? btc : sap;
+  /* Bestand wie im echten Spiel: zwei Käufe, ein Teilverkauf. */
+  const trades = [
+    { art: 'kauf', id: w.id, stueck: D.rundeStueck(w, (0.7 + i * 0.013) * (w === btc ? 0.31 : 41)), runde: 0 },
+    { art: 'kauf', id: w.id, stueck: D.rundeStueck(w, (0.3 + i * 0.007) * (w === btc ? 0.17 : 23)), runde: 1 },
+    { art: 'verkauf', id: w.id, stueck: D.rundeStueck(w, (0.11 + i * 0.003) * (w === btc ? 0.09 : 13)), runde: 2 },
+  ];
+  const z = D.berechne(trades, lauf, 3, nachId);
+  const bestand = D.bestandVon(z, w.id);
+  if (!(bestand > 0)) continue;
+  geprueft100++;
+
+  /* Genau der Weg des Dialogs: 100 % → ins Feld → zurücklesen → prüfen. */
+  const p = D.pruefeVerkauf(z, w, D.rundeStueck(w, BS.zahlAus(BS.stueckEingabe(w, bestand))));
+  if (!p.ok) { abgelehnt100++; continue; }
+  const danach = D.berechne(
+    trades.concat([{ art: 'verkauf', id: w.id, stueck: p.stueck, runde: 3 }]), lauf, 3, nachId);
+  if (D.bestandVon(danach, w.id) !== 0) resteGefunden++;
+}
+pruefe(geprueft100 > 300, geprueft100 + ' Bestände durchgerechnet');
+pruefe(abgelehnt100 === 0, '"100 %" wird nie abgelehnt (' + abgelehnt100 + ' Ablehnungen)');
+pruefe(resteGefunden === 0, '"100 %" lässt nie einen Rest im Depot (' + resteGefunden + ' Reste)');
+
 console.log('\n' + (fehler === 0 ? 'ALLES GRÜN' : fehler + ' PRÜFUNG(EN) FEHLGESCHLAGEN'));
 process.exit(fehler === 0 ? 0 : 1);
