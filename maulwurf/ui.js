@@ -85,6 +85,9 @@ const ui = (function () {
   let szene = null;        // Funktion, die die Oberfläche beschreibt
   let laeuft = false;
   let bildAngefordert = false;
+  /* Fortlaufende Nummer des gezeichneten Bildes. Ein Rollbereich erkennt
+     daran, ob er im vorigen Bild überhaupt sichtbar war. */
+  let bildNr = 0;
   let dauerlauf = false;   // true, solange das Spielfeld läuft
   let letzteZeit = 0;
   let delta = 0;
@@ -241,6 +244,7 @@ const ui = (function () {
 
   function bild(zeit) {
     bildAngefordert = false;
+    bildNr++;
     delta = letzteZeit ? Math.min(zeit - letzteZeit, 100) : 16;
     letzteZeit = zeit;
 
@@ -1109,12 +1113,29 @@ const ui = (function () {
      tatsächliche Höhe wird dabei gemessen und begrenzt im nächsten Bild. */
   function scroll(id, h, inhalt, opt) {
     const o = opt || {};
-    const z = zustand(id, { versatz: 0, inhaltH: 0, schwung: 0 });
+    const z = zustand(id, { versatz: 0, inhaltH: 0, schwung: 0, bild: 0 });
     const r = reserviere(h, o);
     merkeElement(id, r, "rollbereich");
 
+    /* War dieser Bereich im vorigen Bild gar nicht zu sehen (Ansichtswechsel,
+       Dialog davor), dann liegt hier noch der eingefrorene Schwung von damals.
+       Er liefe beim Wiedereintritt weiter, die Liste rutschte unter dem Finger
+       weg, und der nächste Tipper träfe eine andere Zeile als die, auf die er
+       gezielt hat. */
+    if (z.bild !== bildNr - 1) z.schwung = 0;
+    z.bild = bildNr;
+
     const maxVersatz = Math.max(0, z.inhaltH - h);
     const drin = inRechteck(zeiger.x, zeiger.y, r);
+
+    /* Ein Finger, der hier aufsetzt, stoppt die Trägheit sofort — so wie jede
+       Liste des Betriebssystems. Ohne das läuft der Inhalt unter dem
+       aufliegenden Finger weiter (ein Tipper zieht ja nicht, der Zweig unten
+       greift also nicht), und beim Loslassen liegt an derselben Bildschirm-
+       stelle ein anderes Element als beim Aufsetzen: man drückt "Zurück" und
+       öffnet einen Wert. `geklickt()` merkt davon nichts, weil es Start- und
+       Endpunkt gegen dasselbe, inzwischen verschobene Rechteck prüft. */
+    if (drin && zeiger.gedrueckt) z.schwung = 0;
 
     if (drin && radAbstand) z.versatz += radAbstand;
     if (drin && zeiger.unten && zeiger.gezogen) {

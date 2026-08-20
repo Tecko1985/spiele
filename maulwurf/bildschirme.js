@@ -227,7 +227,7 @@ const bildschirme = (function () {
 
       const k = ui.beginneKarte("info-changelog");
         ui.titel("Änderungen", { groesse: 17 });
-        APP_CHANGELOG.forEach(eintrag => {
+        CHANGELOG.forEach(eintrag => {
           ui.luecke(6);
           ui.absatz("Version " + eintrag.version, { groesse: 14, fett: true, farbe: F.primaer, abstand: 6 });
           eintrag.groups.forEach(gruppe => {
