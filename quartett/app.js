@@ -795,6 +795,16 @@ function szene() {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.1",
+    groups: [
+      { title: "Behoben", items: [
+          "Der Info-Reiter geht wieder auf. Er blieb komplett schwarz — die Änderungsliste war unter einem falschen Namen abgelegt, und der Fehler riss die ganze Seite mit, nicht nur die Liste.",
+          "Ein Knopf löst wieder das aus, was daraufsteht. Lief eine Liste nach dem Wischen noch nach, rutschte sie unter dem aufliegenden Finger weiter — beim Loslassen lag an derselben Stelle eine andere Zeile, und statt „Zurück“ öffnete sich irgendetwas anderes. Ein aufsetzender Finger stoppt das Nachlaufen jetzt sofort.",
+          "Dasselbe beim Wechsel zwischen zwei Ansichten: Das Nachlaufen von vorhin fror ein und lief beim Zurückkommen weiter — die Liste rutschte also genau dann, wenn man zielte. Beim Betreten steht sie jetzt still."
+      ]}
+    ]
+  },
+  {
     version: "1.0",
     groups: [
       { title: "Spielen", items: [

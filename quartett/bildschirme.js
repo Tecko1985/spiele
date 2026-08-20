@@ -563,7 +563,7 @@ const bildschirme = {
 
       const griff2 = ui.beginneKarte("info-changelog");
       ui.titel("Änderungen", { groesse: 17, farbe: ui.F.primaer, abstand: 8 });
-      APP_CHANGELOG.forEach(eintrag => {
+      CHANGELOG.forEach(eintrag => {
         ui.absatz("Version " + eintrag.version, { groesse: 14, fett: true, farbe: ui.F.primaer, abstand: 6 });
         eintrag.groups.forEach(gruppe => {
           ui.absatz(gruppe.title, { groesse: 13, fett: "halb", farbe: ui.F.text, abstand: 4 });
