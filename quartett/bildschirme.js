@@ -60,11 +60,6 @@ const bildschirme = {
       if (ansicht.fehler) {
         ui.absatz(ansicht.fehler, { farbe: ui.F.gefahr, groesse: 14, zentriert: true });
       }
-
-      ui.luecke(6);
-      if (ui.knopf("btn-bestenliste", "🏆 Bestenliste", { art: "link" })) {
-        oeffneBestenliste();
-      }
     }, { zentriert: true, maxBreite: 480 });
   },
 
@@ -282,52 +277,6 @@ const bildschirme = {
       ui.luecke(10);
       if (ui.knopf("btn-abbruch-zurueck", "Zurück zum Start")) gameService.neuesSpiel();
     }, { zentriert: true, maxBreite: 420 });
-  },
-
-  /* ------------------------------------------------------------ Bestenliste */
-  bestenliste: function (zustand) {
-    ui.seite("bestenliste", function () {
-      ui.titel("🏆 Bestenliste", { groesse: 24 });
-
-      if (ansicht.bestenliste === null) {
-        ui.absatz("Lade Bestenliste …", { groesse: 15 });
-      } else if (ansicht.bestenlisteFehler) {
-        ui.absatz(ansicht.bestenlisteFehler, { groesse: 15, farbe: ui.F.gefahr });
-      } else if (ansicht.bestenliste.length === 0) {
-        ui.absatz("Noch keine beendeten Spiele.", { groesse: 15 });
-      } else {
-        /* Kopfzeile der Tabelle */
-        const k = ui.reserviere(28, { abstand: 0 });
-        const spalte = (i) => k.x + k.b - (3 - i) * (k.b * 0.17) - 4;
-        ui.schreibe("Name", k.x + 4, k.y + 14, { groesse: 13, fett: "halb", farbe: ui.F.gedaempft });
-        ["Gespielt", "Gewonnen", "%"].forEach((t, i) => {
-          ui.schreibe(t, spalte(i) + k.b * 0.17 - 4, k.y + 14, {
-            groesse: 13, fett: "halb", farbe: ui.F.gedaempft, ausrichtung: "right"
-          });
-        });
-
-        ansicht.bestenliste.forEach(e => {
-          const z = ui.reserviere(38, { abstand: 0 });
-          ui.ctx.strokeStyle = ui.F.rand;
-          ui.ctx.lineWidth = 1;
-          ui.ctx.beginPath();
-          ui.ctx.moveTo(z.x, z.y + 0.5);
-          ui.ctx.lineTo(z.x + z.b, z.y + 0.5);
-          ui.ctx.stroke();
-          ui.schreibe(ui.kuerze(e.name, z.b * 0.45, 14), z.x + 4, z.y + z.h / 2, { groesse: 14 });
-          [e.gespielt, e.gewonnen, e.prozent + "%"].forEach((wert, i) => {
-            ui.schreibe(String(wert), spalte(i) + z.b * 0.17 - 4, z.y + z.h / 2, {
-              groesse: 14, ausrichtung: "right", fett: i === 2 ? "halb" : null
-            });
-          });
-        });
-      }
-
-      ui.luecke(10);
-      if (ui.knopf("btn-bestenliste-zurueck", "Zurück", { art: "link" })) {
-        ansicht.ueberlagert = null;
-      }
-    }, { maxBreite: 520 });
   },
 
   /* ------------------------------------------------------- Kartenverwaltung */

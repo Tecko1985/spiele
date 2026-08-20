@@ -2,7 +2,7 @@
    ui.js — Canvas-Oberfläche für „Der Maulwurf"
    ----------------------------------------------------------------------------
    Die gesamte Oberfläche wird auf EINE Zeichenfläche gemalt: Kopfzeile, Reiter,
-   Menüs, Lobby, Besprechung, Bestenliste, Aufgaben-Dialoge und das Spielfeld.
+   Menüs, Lobby, Besprechung, Aufgaben-Dialoge und das Spielfeld.
    Im Dokument steht nur noch das Canvas plus ein unsichtbares Eingabefeld.
 
    Arbeitsweise: unmittelbarer Modus (immediate mode). Die App beschreibt bei

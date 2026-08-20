@@ -411,7 +411,7 @@ const bildschirme = (function () {
         zentriert: true, groesse: 14, abstand: 18,
       });
       ui.titel('Wer bist du?', { zentriert: true, groesse: 21, abstand: 6 });
-      ui.absatz('Der Name steht in der Rangliste und in der Bestenliste.', {
+      ui.absatz('Der Name steht in der Rangliste.', {
         zentriert: true, abstand: 14,
       });
 
@@ -444,10 +444,6 @@ const bildschirme = (function () {
       }
 
       ui.trenner('', { abstand: 12 });
-      if (ui.knopf('btn-bestenliste', '🏆 Bestenliste', { art: 'link', abstand: 4 })) {
-        app.ladeBestenliste();
-        app.ansicht = 'bestenliste';
-      }
       if (ui.knopf('btn-info', 'ℹ️ Wie es funktioniert', { art: 'link' })) app.ansicht = 'info';
     }, { zentriert: true });
   }
@@ -591,7 +587,7 @@ const bildschirme = (function () {
         return { wert: i, text: String(i) };
       }), e.botAnzahl, { hoehe: 44, groesse: 17 });
       if (gewaehltBots !== null) e.botAnzahl = gewaehltBots;
-      ui.absatz('KI-Mitspieler halten die Partie nie auf — sie sind sofort fertig. Mit ihnen zählt das Ergebnis aber nicht für die Bestenliste.', {
+      ui.absatz('KI-Mitspieler halten die Partie nie auf — sie sind sofort fertig.', {
         groesse: 13, abstand: 16,
       });
 
@@ -1166,7 +1162,7 @@ const bildschirme = (function () {
         if (ui.knopf('btn-abbrechen', 'Partie abbrechen', { art: 'zweit', abstand: 6 })) {
           app.abbruchFrage = true;
         }
-        ui.absatz('Beendet die Partie für alle. Das Ergebnis zählt dann nicht für die Bestenliste.', {
+        ui.absatz('Beendet die Partie für alle.', {
           groesse: 11, zentriert: true, abstand: 4,
         });
       } else {
@@ -1193,7 +1189,7 @@ const bildschirme = (function () {
       groesse: 19, abstand: 6,
     });
     ui.absatz(istHost
-      ? 'Die Partie endet sofort für alle Mitspieler. Ihr seht noch die Abrechnung, aber das Ergebnis zählt nicht für die Bestenliste.'
+      ? 'Die Partie endet sofort für alle Mitspieler. Ihr seht noch die Abrechnung.'
       : 'Du steigst aus und kannst nicht zurück. Die anderen spielen ohne dich weiter — dein jetziges Depot bleibt in ihrer Rangliste stehen.',
       { groesse: 14, abstand: 14 });
 
@@ -1358,7 +1354,7 @@ const bildschirme = (function () {
     ui.scroll('roll-ende', ui.hoeheRest(), function () {
       ui.titel(z.abgebrochen ? 'Partie abgebrochen' : 'Abgerechnet!', { zentriert: true, abstand: 4 });
       ui.absatz(z.abgebrochen
-        ? 'Die Partie wurde vorzeitig beendet. Das Ergebnis zählt nicht für die Bestenliste.'
+        ? 'Die Partie wurde vorzeitig beendet.'
         : (z.runden || markt.STANDARD_RUNDEN) + ' Runden, ' +
           Math.round((z.runden || markt.STANDARD_RUNDEN) / markt.RUNDEN_JE_JAHR) + ' Börsenjahre.', {
         zentriert: true, abstand: 14,
@@ -1419,57 +1415,8 @@ const bildschirme = (function () {
   }
 
   /* ======================================================================
-     10. BESTENLISTE UND INFO
+     10. INFO
      ====================================================================== */
-
-  function bestenliste(app) {
-    ui.beginneSeite();
-    kopfzeile(app);
-
-    ui.scroll('roll-beste', ui.hoeheRest(), function () {
-      if (ui.knopf('btn-beste-zurueck', '‹ Zurück', { art: 'link', abstand: 6 })) app.ansicht = 'start';
-      ui.titel('🏆 Bestenliste', { abstand: 4 });
-      ui.absatz('Nur Partien gegen echte Mitspieler zählen — sonst könnte man seine Zahlen gegen schwache KI aufpolieren.', {
-        groesse: 13, abstand: 12,
-      });
-
-      if (app.bestenlisteLaedt) {
-        ui.absatz('Wird geladen …', { zentriert: true });
-        return;
-      }
-      if (!app.bestenlisteDaten || !app.bestenlisteDaten.length) {
-        ui.absatz('Noch keine Einträge. Spielt die erste Partie!', { zentriert: true });
-        return;
-      }
-
-      const kopf = ui.reserviere(26, { abstand: 4 });
-      ui.schreibe('Name', kopf.x + 12, kopf.y + 13, { groesse: 12, fett: 'halb', farbe: F.gedaempft });
-      ui.schreibe('Siege', kopf.x + kopf.b - 108, kopf.y + 13, {
-        groesse: 12, fett: 'halb', farbe: F.gedaempft, ausrichtung: 'right',
-      });
-      ui.schreibe('beste Rendite', kopf.x + kopf.b - 12, kopf.y + 13, {
-        groesse: 12, fett: 'halb', farbe: F.gedaempft, ausrichtung: 'right',
-      });
-
-      for (const e of app.bestenlisteDaten) {
-        const zeile = ui.reserviere(44, { abstand: 4 });
-        ui.fuelleRund(zeile.x, zeile.y, zeile.b, zeile.h, ui.RADIUS_KLEIN, F.karte);
-        ui.schreibe(ui.kuerze(e.name, zeile.b - 200, 14, true), zeile.x + 12, zeile.y + 16, {
-          groesse: 14, fett: 'halb', farbe: F.text,
-        });
-        ui.schreibe(e.partien + ' Partien', zeile.x + 12, zeile.y + 33, {
-          groesse: 11, farbe: F.gedaempft,
-        });
-        ui.schreibe(String(e.siege), zeile.x + zeile.b - 108, zeile.y + zeile.h / 2, {
-          groesse: 15, fett: true, farbe: F.text, ausrichtung: 'right',
-        });
-        ui.schreibe(e.besteRendite === null ? '—' : prozent(e.besteRendite, 0),
-          zeile.x + zeile.b - 12, zeile.y + zeile.h / 2, {
-            groesse: 14, fett: 'halb', farbe: farbeFuer(e.besteRendite || 0), ausrichtung: 'right',
-          });
-      }
-    });
-  }
 
   function info(app) {
     ui.beginneSeite();
@@ -1559,7 +1506,6 @@ const bildschirme = (function () {
     spiel: spiel,
     detail: detail,
     ende: ende,
-    bestenliste: bestenliste,
     info: info,
     handelDialog: handelDialog,
     abbruchDialog: abbruchDialog,

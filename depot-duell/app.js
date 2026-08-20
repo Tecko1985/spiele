@@ -10,6 +10,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.2',
+    groups: [
+      {
+        title: 'Geändert',
+        items: [
+          'Die Bestenliste ist entfernt. Es werden keine Ergebnisse mehr gespeichert, und der Knopf auf dem Startbildschirm ist weg',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.1',
     groups: [
       {
@@ -35,7 +46,6 @@ const CHANGELOG = [
           'Nachrichten bewegen die Kurse — mit Gerüchten, die sich als falsch herausstellen können',
           'KGV, Dividendenrendite und Marktkapitalisierung rechnen während der Partie mit. Wo eine Kennzahl fehlt, steht ein Strich statt einer geschätzten Zahl',
           'Bis zu fünf KI-Mitspieler mit erkennbaren Anlagestilen, auch allein spielbar',
-          'Bestenliste über alle Partien nach Siegen und bester Rendite',
         ],
       },
       {
@@ -83,7 +93,6 @@ const CHANGELOG = [
         items: [
           'Der Eröffner kann die Partie abbrechen, jeder andere kann aussteigen — beides mit Rückfrage',
           'Wer aussteigt, hält die Runden nicht länger auf; sein Depot bleibt in der Rangliste stehen',
-          'Eine abgebrochene Partie zählt nicht für die Bestenliste',
         ],
       },
     ],
@@ -122,7 +131,7 @@ const app = {
   APP_VERSION: APP_VERSION,
   CHANGELOG: CHANGELOG,
 
-  ansicht: 'start',       // start | beitreten | lobby-neu | lobby | spiel | detail | ende | bestenliste | info
+  ansicht: 'start',       // start | beitreten | lobby-neu | lobby | spiel | detail | ende | info
   reiter: 'markt',        // markt | depot | rang | news
   klasse: 'aktie',
   sortierung: 'name',
@@ -158,9 +167,6 @@ const app = {
   wertNachId: {},
   werteListe: [],
 
-  bestenlisteDaten: null,
-  bestenlisteLaedt: false,
-  ergebnisGemeldet: false,
 
   /* --------------------------------------------------------------------
      Die Runde
@@ -415,7 +421,6 @@ const app = {
       self.ansicht = 'start';
       self.lauf = null;
       self.botFeld = [];
-      self.ergebnisGemeldet = false;
       ui.anfordern();
     });
   },
@@ -426,7 +431,6 @@ const app = {
       self.ansicht = 'start';
       self.lauf = null;
       self.botFeld = [];
-      self.ergebnisGemeldet = false;
       ui.anfordern();
     });
   },
@@ -445,14 +449,6 @@ const app = {
       console.warn('Auftrag abgelehnt:', f);
       ui.anfordern();
     });
-  },
-
-  ladeBestenliste: function () {
-    const self = this;
-    this.bestenlisteLaedt = true;
-    gameService.ladeBestenliste()
-      .then(function (l) { self.bestenlisteDaten = l; self.bestenlisteLaedt = false; ui.anfordern(); })
-      .catch(function () { self.bestenlisteDaten = []; self.bestenlisteLaedt = false; ui.anfordern(); });
   },
 
   /* --------------------------------------------------------------------
@@ -474,7 +470,6 @@ const app = {
         ? bots.stelleAuf(this.lauf, this.werteListe, this.wertNachId, z.raum.botAnzahl, this.regeln())
         : [];
       depot.leereSpeicher();
-      this.ergebnisGemeldet = false;
     }
 
     /* Neue Runde: die neuen Meldungen sollen sichtbar sein und von vorn
@@ -488,7 +483,7 @@ const app = {
     /* Ansicht nachziehen, wenn sich die Phase geändert hat. */
     if (z.raum) {
       if (z.raum.phase === 'lobby' && this.ansicht !== 'lobby' && this.ansicht !== 'info' &&
-          this.ansicht !== 'bestenliste' && this.ansicht !== 'lobby-neu') {
+          this.ansicht !== 'lobby-neu') {
         this.ansicht = 'lobby';
       }
       /* 'start' MUSS mit in die Liste. Nach einem Neuladen mitten in der
@@ -518,24 +513,6 @@ const app = {
     if (this.ansicht === 'spiel' || this.ansicht === 'detail') this.ansicht = 'ende';
     this.abbruchFrage = false;
     this.handel = null;
-
-    /* Jedes Gerät meldet NUR sein eigenes Ergebnis. Ein Gerät, das für alle
-       schreibt, müsste dafür verbunden bleiben — und wer als Letzter
-       rausgeht, hätte die Liste in der Hand. */
-    if (this.ergebnisGemeldet) return;
-    const reihen = this.rangliste();
-    if (!reihen.length) return;
-    const eigener = reihen.find((e) => e.uid === this.zustand.uid);
-    if (!eigener) return;
-    this.ergebnisGemeldet = true;
-    /* Eine abgebrochene Partie zählt nicht — sonst bräche der Führende
-       genau dann ab, wenn er vorn liegt. */
-    gameService.meldeErgebnis(
-      eigener.name,
-      eigener.rendite,
-      reihen[0].uid === this.zustand.uid,
-      this.botFeld.length > 0 || this.zustand.abgebrochen
-    );
   },
 };
 
@@ -552,7 +529,6 @@ function szene() {
   else if (a.ansicht === 'lobby') bildschirme.lobby(a);
   else if (a.ansicht === 'detail') bildschirme.detail(a);
   else if (a.ansicht === 'ende') bildschirme.ende(a);
-  else if (a.ansicht === 'bestenliste') bildschirme.bestenliste(a);
   else if (a.ansicht === 'info') bildschirme.info(a);
   else bildschirme.spiel(a);
 

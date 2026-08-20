@@ -20,7 +20,6 @@ const GLEICHSTAND_VERZOEGERUNG_MS = 1800;
 const KARTEN_PRO_SPIELER_NACH_DECKGROESSE = { klein: 5, normal: 10, gross: null }; // null = ganzer Kartenpool
 const RAEUME_PFAD = "fussballVereineQuartett/raeume";
 const GEHEIME_KARTEN_PFAD = "fussballVereineQuartett/geheime_karten";
-const BESTENLISTE_PFAD = "fussballVereineQuartett/bestenliste";
 const KARTEN_UEBERSTEUERUNGEN_PFAD = "fussballVereineQuartett/kartenUebersteuerungen";
 
 // Merged eine Basiskarte aus mock-data.js mit einer optionalen, in Firebase gespeicherten
@@ -68,26 +67,6 @@ function holeVollstaendigesDeck(ueberschreibungen) {
     .filter(id => !basisIds.has(id))
     .map((id, index) => baueKarteAusUebersteuerung(id, ueberschreibungen[id], index));
   return basisDeck.concat(neueKarten);
-}
-
-function slugifyName(name) {
-  return (name || "").trim().toLowerCase().replace(/[.#$\[\]/]/g, "_") || "unbekannt";
-}
-
-// Erhoeht "gespielt" fuer alle realen (nicht simulierten) Spieler:innen im uebergebenen
-// spieler-Objekt und "gewonnen" zusaetzlich fuer gewinnerUid. Mutiert das updates-Objekt,
-// damit die Statistik im selben atomaren db.ref().update() wie der Spielende-Zustand landet.
-function fuegeStatistikUpdatesHinzu(updates, spieler, gewinnerUid) {
-  Object.keys(spieler).forEach(uid => {
-    if (spieler[uid].istSimuliert) return;
-    const slug = slugifyName(spieler[uid].name);
-    const basis = `${BESTENLISTE_PFAD}/${slug}`;
-    updates[`${basis}/name`] = spieler[uid].name;
-    updates[`${basis}/gespielt`] = firebase.database.ServerValue.increment(1);
-    if (uid === gewinnerUid) {
-      updates[`${basis}/gewonnen`] = firebase.database.ServerValue.increment(1);
-    }
-  });
 }
 
 let eigeneUid = null;
@@ -452,24 +431,6 @@ async function neuesSpiel() {
   return { erfolg: true };
 }
 
-async function ladeBestenliste() {
-  await authBereit;
-  const snap = await db.ref(BESTENLISTE_PFAD).once("value");
-  const daten = snap.val() || {};
-  return Object.values(daten)
-    .map(eintrag => {
-      const gespielt = eintrag.gespielt || 0;
-      const gewonnen = eintrag.gewonnen || 0;
-      return {
-        name: eintrag.name || "?",
-        gespielt,
-        gewonnen,
-        prozent: gespielt > 0 ? Math.round((gewonnen / gespielt) * 100) : 0
-      };
-    })
-    .sort((a, b) => b.prozent - a.prozent || b.gewonnen - a.gewonnen);
-}
-
 // --- Kartenverwaltung (Karten bearbeiten + Fotos hinterlegen) ---
 // Zugriff ist admin-only (app.js blendet den Button ein/aus je nach ToolsUebersicht-Login);
 // hier keine eigene Passwort-/Familiencode-Logik.
@@ -642,9 +603,6 @@ async function entferneSpielerUndVerteileKartenAlsHost(verlassenerUid) {
         updates[`${RAEUME_PFAD}/${code}/phase`] = "beendet";
         updates[`${RAEUME_PFAD}/${code}/siegerSpielerId`] = verbleibendeUids[0];
         updates[`${RAEUME_PFAD}/${code}/amZugSpielerId`] = null;
-        const spielerOhneVerlassenen = { ...raum.spieler };
-        delete spielerOhneVerlassenen[verlassenerUid];
-        fuegeStatistikUpdatesHinzu(updates, spielerOhneVerlassenen, verbleibendeUids[0]);
       } else if (raum.amZugSpielerId === verlassenerUid) {
         updates[`${RAEUME_PFAD}/${code}/amZugSpielerId`] = verbleibendeUids[0];
       }
@@ -791,7 +749,6 @@ async function fuehreRundenTransferAusAlsHost() {
     updates[`${RAEUME_PFAD}/${code}/phase`] = "beendet";
     updates[`${RAEUME_PFAD}/${code}/siegerSpielerId`] = siegerUid;
     updates[`${RAEUME_PFAD}/${code}/amZugSpielerId`] = null;
-    fuegeStatistikUpdatesHinzu(updates, raum.spieler, siegerUid);
   } else {
     updates[`${RAEUME_PFAD}/${code}/phase`] = "amZug";
     updates[`${RAEUME_PFAD}/${code}/amZugSpielerId`] = gewinnerUid;
@@ -831,7 +788,6 @@ const gameService = {
   neuesSpiel,
   getZustand,
   onZustandsAenderung,
-  ladeBestenliste,
   ladeKartenZurBearbeitung,
   speichereKartenUebersteuerung,
   setzeKarteZurueck,

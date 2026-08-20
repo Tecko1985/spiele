@@ -37,7 +37,6 @@ const gameService = (function () {
   const TRADES_PFAD = NAMENSRAUM + '/trades';
   const BEREIT_PFAD = NAMENSRAUM + '/bereit';
   const WEITER_PFAD = NAMENSRAUM + '/weiter';
-  const BESTENLISTE_PFAD = NAMENSRAUM + '/bestenliste';
 
   /* Eigener Schlüssel — alle Spiele des Hubs teilen sich Origin UND
      Pfadpräfix, ein geteilter Name würde die Räume gegenseitig überschreiben. */
@@ -546,8 +545,6 @@ const gameService = (function () {
 
   /**
    * Bricht die laufende Partie ab. Nur der Host.
-   * Das Ergebnis zählt nicht für die Bestenliste — eine abgebrochene Partie
-   * ist kein Ergebnis, und wer vorn liegt, könnte sonst genau dann abbrechen.
    */
   async function brichAb() {
     if (!raumRef || !raumZustand || raumZustand.hostId !== eigeneUid) return;
@@ -610,54 +607,6 @@ const gameService = (function () {
     });
   }
 
-  /* ----------------------------------------------------------------------
-     Bestenliste
-
-     Jedes Gerät trägt NUR sein eigenes Ergebnis ein. Ein Gerät, das für
-     alle schreibt, müsste dafür verbunden bleiben — und wer als Letzter
-     rausgeht, hätte am Ende die Liste in der Hand.
-
-     Partien mit KI zählen bewusst nicht: sonst poliert man seine Zahlen
-     gegen schwache Bots auf.
-     ---------------------------------------------------------------------- */
-  async function meldeErgebnis(name, rendite, gewonnen, mitBots) {
-    if (mitBots) return;
-    if (!name) return;
-    const schluessel = String(name).trim().slice(0, 24).replace(/[.#$/\[\]]/g, '_');
-    if (!schluessel) return;
-    const ref = db.ref(BESTENLISTE_PFAD + '/' + schluessel);
-    try {
-      await ref.transaction(function (alt) {
-        const neu = alt || { partien: 0, siege: 0, besteRendite: -1e9 };
-        neu.partien = (neu.partien || 0) + 1;
-        if (gewonnen) neu.siege = (neu.siege || 0) + 1;
-        if (rendite > (neu.besteRendite === undefined ? -1e9 : neu.besteRendite)) neu.besteRendite = rendite;
-        return neu;
-      });
-    } catch (f) {
-      console.warn('Bestenliste nicht aktualisiert:', f);
-    }
-  }
-
-  async function ladeBestenliste() {
-    const s = await db.ref(BESTENLISTE_PFAD).once('value');
-    const roh = s.val() || {};
-    const liste = [];
-    for (const name in roh) {
-      liste.push({
-        name: name,
-        partien: roh[name].partien || 0,
-        siege: roh[name].siege || 0,
-        besteRendite: roh[name].besteRendite === undefined ? null : roh[name].besteRendite,
-      });
-    }
-    liste.sort(function (a, b) {
-      if (b.siege !== a.siege) return b.siege - a.siege;
-      return (b.besteRendite || -1e9) - (a.besteRendite || -1e9);
-    });
-    return liste;
-  }
-
   return {
     MAX_SPIELER: MAX_SPIELER,
     RUNDENSTUFEN: RUNDENSTUFEN,
@@ -679,7 +628,5 @@ const gameService = (function () {
     getZustand: getZustand,
     verlasseRaum: verlasseRaum,
     raeumeRaumAuf: raeumeRaumAuf,
-    meldeErgebnis: meldeErgebnis,
-    ladeBestenliste: ladeBestenliste,
   };
 })();

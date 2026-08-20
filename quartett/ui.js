@@ -15,7 +15,7 @@
    in einer Datei brächte mehr Fallen als es Arbeit spart.
 
    Die gesamte Oberfläche wird auf EINE Zeichenfläche gemalt: Kopfzeile, Reiter,
-   Start, Warteraum, Spielkarte, Vergleich, Bestenliste und Kartenverwaltung.
+   Start, Warteraum, Spielkarte, Vergleich und Kartenverwaltung.
    Im Dokument stehen nur noch das Canvas, ein unsichtbares Eingabefeld und ein
    verstecktes Dateifeld (eine Dateiauswahl lässt sich nicht zeichnen).
 

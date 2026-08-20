@@ -889,38 +889,17 @@ function render(zustand) {
   ui.anfordern();
 }
 
-// Nutzt dieselbe Anmeldung wie die ToolsUebersicht-Landingpage (gleicher Origin
-// sc1911heiligenstadt.github.io, localStorage-Key "tu_session_token") — kein eigenes Login hier.
-// Reiner UI-Gate ohne Backend-Durchsetzung, fail-closed bei jedem Fehler.
-const TU_WORKER_URL = "https://landingpage.michel-brunner.workers.dev";
-const TU_TOKEN_KEY = "tu_session_token";
-let istAdmin = false;
-
-async function pruefeAdminStatus() {
-  let token = null;
-  try {
-    token = localStorage.getItem(TU_TOKEN_KEY);
-  } catch (e) {
-    // unkritisch, falls localStorage nicht verfügbar ist
-  }
-  if (!token) { istAdmin = false; return; }
-  try {
-    const resp = await fetch(TU_WORKER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-      body: JSON.stringify({ action: "me" })
-    });
-    const daten = resp.ok ? await resp.json() : null;
-    istAdmin = !!(daten && daten.isAdmin);
-  } catch (e) {
-    istAdmin = false; // fail-closed
-  }
-  ui.anfordern();
-}
-
 // ---------- Info-Tab / Versionshistorie ----------
 const APP_VERSION = "1.0";
 const CHANGELOG = [
+  {
+    version: "1.2",
+    groups: [
+      { title: "Geändert", items: [
+          "Die Bestenliste ist entfernt. Es werden keine Ergebnisse mehr gespeichert, und die Knöpfe dazu sind weg."
+      ]}
+    ]
+  },
   {
     version: "1.1",
     groups: [
@@ -971,7 +950,7 @@ const CHANGELOG = [
           "Fremde Rollen sind serverseitig gesperrt, nicht nur ausgeblendet."
       ]},
       { title: "Aussehen und Bedienung", items: [
-          "Die ganze Oberfläche wird gezeichnet: Menüs, Warteraum, Besprechung, Aufgaben und Bestenliste laufen auf derselben Fläche wie das Spielfeld. Das Spiel sieht dadurch überall gleich aus.",
+          "Die ganze Oberfläche wird gezeichnet: Menüs, Warteraum, Besprechung, Aufgaben laufen auf derselben Fläche wie das Spielfeld. Das Spiel sieht dadurch überall gleich aus.",
           "Alles ist dunkel gehalten, passend zum Spielfeld. Leuchtfarben gibt es nur, wo etwas bedeutet oder bedienbar ist: Cyan für Schaltflächen, Rot für Gefahr, Gelb für Sabotagen. Auf dem Handy färbt sich die Statusleiste mit.",
           "Jeder Raum tönt seinen Boden ein wenig ein — der Motorraum ins Rostrote, die Cafeteria ins Warme, die Krankenstation ins Grüne. Gedacht für den Augenwinkel: man weiß, wo man ist, ohne den Namen zu lesen. Lager und Kommunikation bleiben absichtlich neutral.",
           "Die Spielerfarben sind kräftig und gut zu unterscheiden, auch auf dem dunklen Boden.",
@@ -986,7 +965,6 @@ const CHANGELOG = [
           "Die Aufgaben-Minispiele sitzen im dunklen Pult-Look, im Querformat gut lesbar und mit großen Bedienflächen für den Daumen."
       ]},
       { title: "Drumherum", items: [
-          "Bestenliste über alle Partien.",
           "KI-Mitspieler zum Ausprobieren, wenn gerade niemand sonst da ist.",
           "Neue Runde mit denselben Leuten und neu gemischten Rollen."
       ]}
@@ -1023,7 +1001,6 @@ function starteOberflaeche() {
   ctx = ui.ctx;
 
   gameService.onZustandsAenderung(render);
-  pruefeAdminStatus();
   render(gameService.getZustand());
 
   if ("serviceWorker" in navigator) {

@@ -2,11 +2,11 @@
    bildschirme.js — alle Menü-Oberflächen auf der Zeichenfläche
    ----------------------------------------------------------------------------
    Enthält Kopfzeile, Reiter, Info, Start, Namenseingabe, Warteraum, Rollen-
-   ziehung, Besprechung, Ende, Abbruch und Bestenliste. Das Spielfeld selbst
+   ziehung, Besprechung, Ende und Abbruch. Das Spielfeld selbst
    und die Aufgaben-Dialoge liegen weiter in app.js bzw. aufgaben.js.
 
    Wird NACH app.js geladen und nutzt dessen globale Zustandsvariablen
-   (`ausstehenderModus`, `raumcodeEingabe`, `meineStimme`, `istAdmin`,
+   (`ausstehenderModus`, `raumcodeEingabe`, `meineStimme`,
    `letzteZustand`) sowie `gameService`, `rollenModul` und `karte`. Klassische
    Skripte teilen sich einen globalen Gültigkeitsbereich — deshalb steht hier
    alles in einer Kapsel und nur `bildschirme` ist nach außen sichtbar.
@@ -25,9 +25,6 @@ const bildschirme = (function () {
 
   /* Eigener Zustand dieser Oberfläche — nichts davon gehört zum Spiel. */
   let reiter = "spiel";                 // "spiel" | "info"
-  let bestenlisteOffen = false;
-  let bestenlisteDaten = null;          // null = lädt noch
-  let bestenlisteLaeuft = false;
   let startFehler = "";
   let nameFehler = "";
   let lobbyHinweis = "";
@@ -146,7 +143,7 @@ const bildschirme = (function () {
     ui.fuelleRund(vR.x, vR.y, vR.b, vR.h, 10, "rgba(34,211,238,0.16)");
     ui.schreibe(vTxt, vR.x + vB / 2, vR.y + 10, { groesse: 11, fett: "halb", farbe: F.primaer, ausrichtung: "center" });
     ui.merke("version-badge", vR, "plakette");
-    if (ui.geklickt(vR)) { reiter = "info"; bestenlisteOffen = false; }
+    if (ui.geklickt(vR)) { reiter = "info"; }
     x += vB + 10;
 
     /* Verlassen — nur in den Phasen, in denen es etwas zu verlassen gibt. */
@@ -206,7 +203,7 @@ const bildschirme = (function () {
       ui.ctx.fillRect(x + 14, y + REITER_HOEHE - 3, b - 28, 3);
     }
     ui.merke("reiter-" + name, r, "reiter");
-    if (ui.geklickt(r)) { reiter = name; bestenlisteOffen = false; }
+    if (ui.geklickt(r)) { reiter = name; }
   }
 
   /* ------------------------------------------------------------------ Info */
@@ -307,9 +304,6 @@ const bildschirme = (function () {
       }
 
       if (startFehler) ui.absatz(startFehler, { zentriert: true, groesse: 13, farbe: F.gefahr });
-
-      ui.luecke(4);
-      if (ui.knopf("btn-bestenliste-oeffnen", "🏆 Bestenliste", { art: "link" })) oeffneBestenliste();
     }, { zentriert: true });
   }
 
@@ -796,7 +790,6 @@ const bildschirme = (function () {
         if (ui.knopf("btn-neue-runde", "Neue Runde (gleiche Leute)")) gameService.neueRunde();
       }
       if (ui.knopf("btn-ende-verlassen", "Zurück zum Start", { art: "zweit" })) gameService.raeumeRaumAuf();
-      if (ui.knopf("btn-ende-bestenliste", "🏆 Bestenliste", { art: "link" })) oeffneBestenliste();
     });
   }
 
@@ -808,88 +801,6 @@ const bildschirme = (function () {
       ui.luecke(6);
       if (ui.knopf("btn-abbruch-zurueck", "Zurück zum Start")) gameService.raeumeRaumAuf();
     }, { zentriert: true });
-  }
-
-  /* ------------------------------------------------------------ Bestenliste */
-
-  function oeffneBestenliste() {
-    bestenlisteOffen = true;
-    bestenlisteDaten = null;
-    ladeBestenliste();
-  }
-
-  async function ladeBestenliste() {
-    if (bestenlisteLaeuft) return;
-    bestenlisteLaeuft = true;
-    try {
-      bestenlisteDaten = await gameService.ladeBestenliste();
-    } catch (e) {
-      bestenlisteDaten = [];
-    }
-    bestenlisteLaeuft = false;
-    ui.anfordern();
-  }
-
-  function bestenlisteBildschirm() {
-    ui.seite("bestenliste", function () {
-      ui.titel("🏆 Bestenliste", { groesse: 22 });
-
-      if (bestenlisteDaten === null) {
-        ui.absatz("Wird geladen …", { zentriert: true, groesse: 14 });
-      } else if (!bestenlisteDaten.length) {
-        ui.absatz("Noch keine beendeten Partien.", { zentriert: true, groesse: 14 });
-      } else {
-        tabelle(bestenlisteDaten);
-      }
-
-      ui.luecke(6);
-      if (istAdmin && bestenlisteDaten && bestenlisteDaten.length) {
-        if (ui.knopf("btn-bestenliste-zuruecksetzen", "🗑️ Bestenliste zurücksetzen", { art: "gefahr" })) {
-          abfrage = {
-            text: "Bestenliste wirklich unwiderruflich zurücksetzen?",
-            jaText: "Zurücksetzen",
-            beiJa: async function () {
-              await gameService.setzeBestenlisteZurueck();
-              bestenlisteDaten = null;
-              ladeBestenliste();
-            }
-          };
-        }
-      }
-      if (ui.knopf("btn-bestenliste-zurueck", "Zurück", { art: "link" })) bestenlisteOffen = false;
-    });
-  }
-
-  /* Vier Spalten als gezeichnetes Raster — ersetzt die `<table>`. */
-  function tabelle(eintraege) {
-    const k = ui.beginneKarte("bl-tabelle", { polster: 0 });
-      const spalten = [0.46, 0.18, 0.2, 0.16];
-      const kopf = ui.reserviere(38, { abstand: 0 });
-      ui.fuelleRund(kopf.x, kopf.y, kopf.b, kopf.h, 0, "rgba(255,255,255,0.05)");
-      spaltenText(kopf, spalten, ["Name", "Gespielt", "Gewonnen", "%"], 12, "halb", F.gedaempft);
-
-      eintraege.forEach((e, i) => {
-        const r = ui.reserviere(40, { abstand: 0 });
-        if (i % 2 === 1) {
-          ui.ctx.fillStyle = "rgba(255,255,255,0.03)";
-          ui.ctx.fillRect(r.x, r.y, r.b, r.h);
-        }
-        spaltenText(r, spalten, [e.name, String(e.gespielt), String(e.gewonnen), e.prozent + "%"],
-                    14, i === 0 ? "halb" : null, F.text);
-      });
-    ui.beendeKarte(k);
-  }
-
-  function spaltenText(r, anteile, texte, groesse, fett, farbe) {
-    let x = r.x + 12;
-    anteile.forEach((anteil, i) => {
-      const b = r.b * anteil;
-      const rechts = i > 0;
-      ui.schreibe(ui.kuerze(texte[i], b - 10, groesse, fett),
-                  rechts ? x + b - 14 : x, r.y + r.h / 2,
-                  { groesse: groesse, fett: fett, farbe: farbe, ausrichtung: rechts ? "right" : "left" });
-      x += b;
-    });
   }
 
   /* -------------------------------------------------------------- Rückfrage */
@@ -925,7 +836,6 @@ const bildschirme = (function () {
 
   function welcherBildschirm(zustand) {
     if (reiter === "info") return "info";
-    if (bestenlisteOffen) return "bestenliste";
     if (!zustand || zustand.phase === "start") return zeigeNameEingabe ? "name" : "start";
     if (zustand.phase === "laeuft" && zustand.meeting) return "meeting:" + zustand.meeting.unterphase;
     return zustand.phase;
@@ -958,7 +868,6 @@ const bildschirme = (function () {
     }
 
     if (reiter === "info") { infoReiter(); }
-    else if (bestenlisteOffen) { bestenlisteBildschirm(); }
     else if (!zustand || zustand.phase === "start") {
       if (zeigeNameEingabe) nameBildschirm(); else startBildschirm();
     }
@@ -989,10 +898,9 @@ const bildschirme = (function () {
       lobbyHinweis = "";
       nameFehler = "";
       if (phase !== "start") { startFehler = ""; }
-      if (phase === "lobby" || phase === "start") bestenlisteOffen = false;
       if (phase !== "start") zeigeNameEingabe = false;
     },
-    zurueckZumStart: function () { zeigeNameEingabe = false; bestenlisteOffen = false; reiter = "spiel"; },
+    zurueckZumStart: function () { zeigeNameEingabe = false; reiter = "spiel"; },
     get reiter() { return reiter; },
     set reiter(v) { reiter = v; },
     get imMenue() { return true; },

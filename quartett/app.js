@@ -23,7 +23,7 @@
 ============================================================================ */
 
 /* Welcher Bildschirm gehört zu welcher Spielphase. Alles, was NICHT aus der
-   Phase folgt (Bestenliste, Kartenverwaltung), steht in `ansicht.ueberlagert`
+   Phase folgt (Kartenverwaltung), steht in `ansicht.ueberlagert`
    und geht vor — sonst risse ein Firebase-Update die geöffnete
    Kartenverwaltung wieder weg. */
 const BILDSCHIRM_FUER_PHASE = {
@@ -64,15 +64,13 @@ const EIGENSCHAFT_HOEHE = 44;
 -------------------------------------------------------------------------- */
 const ansicht = {
   reiter: "spiel",            // "spiel" | "info"
-  ueberlagert: null,          // null | "name" | "bestenliste" | "verwaltung" | "bearbeiten" | "kriterien"
+  ueberlagert: null,          // null | "name" | "verwaltung" | "bearbeiten" | "kriterien"
   fehler: "",                 // Meldung unter dem gerade offenen Formular
   modus: null,                // "erstellen" | "beitreten" — was nach der Namenseingabe passiert
   deckgroesse: "normal",
   beitrittsCode: "",
   grossansicht: null,         // Bildquelle der Foto-Großansicht
   frage: null,                // {text, ja, jaText, art} — ersetzt window.confirm
-  bestenliste: null,          // null = noch nicht geladen
-  bestenlisteFehler: "",
   verwaltungsKarten: null,
   verwaltungsFehler: "",
   suche: "",
@@ -506,21 +504,6 @@ function bestaetigeNamen() {
   });
 }
 
-function oeffneBestenliste() {
-  ansicht.ueberlagert = "bestenliste";
-  ansicht.bestenliste = null;
-  ansicht.bestenlisteFehler = "";
-  ui.loeseFokus();
-  gameService.ladeBestenliste().then(eintraege => {
-    ansicht.bestenliste = eintraege;
-    ui.anfordern();
-  }).catch(() => {
-    ansicht.bestenliste = [];
-    ansicht.bestenlisteFehler = "Bestenliste konnte nicht geladen werden.";
-    ui.anfordern();
-  });
-}
-
 function oeffneVerwaltung() {
   ansicht.ueberlagert = "verwaltung";
   ansicht.verwaltungsKarten = null;
@@ -795,6 +778,14 @@ function szene() {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.2",
+    groups: [
+      { title: "Geändert", items: [
+          "Die Bestenliste ist entfernt. Es werden keine Ergebnisse mehr gespeichert, und der Knopf auf dem Startbildschirm ist weg."
+      ]}
+    ]
+  },
+  {
     version: "1.1",
     groups: [
       { title: "Behoben", items: [
@@ -821,10 +812,7 @@ const CHANGELOG = [
       { title: "Oberfläche", items: [
           "Das ganze Spiel läuft auf einer einzigen Zeichenfläche statt auf HTML-Bildschirmen — flüssig auf dem Handy und überall gleich.",
           "Die Karte ist groß und gut lesbar, Werte stehen mit Tausenderpunkten.",
-          "Kartenverwaltung, Bestenliste und Info laufen auf derselben Fläche; Sicherheitsabfragen erscheinen als Dialog im Spiel statt als Systemfenster."
-      ]},
-      { title: "Drumherum", items: [
-          "Bestenliste über alle bisherigen Partien."
+          "Kartenverwaltung und Info laufen auf derselben Fläche; Sicherheitsabfragen erscheinen als Dialog im Spiel statt als Systemfenster."
       ]}
     ]
   }

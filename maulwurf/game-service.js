@@ -90,7 +90,6 @@ const CHAT_PFAD = "maulwurf/chat";
 const ROLLEN_PFAD = "maulwurf/geheime_rollen";
 const TEAM_PFAD = "maulwurf/maulwurf_team";
 const AUFDECKUNG_PFAD = "maulwurf/aufdeckung";
-const BESTENLISTE_PFAD = "maulwurf/bestenliste";
 
 const POSITION_INTERVALL_MS = 200;   // 5 Hz, siehe Schreibvolumen-Rechnung oben
 const POSITION_MINDEST_DELTA = 1.5;  // darunter wird gar nicht geschrieben
@@ -221,10 +220,6 @@ function faengerGesperrt(raum, uid) {
   return istVersteckModus(raum) && raum.faengerUid === uid && serverJetzt() < vorsprungBis(raum);
 }
 
-function slugifyName(name) {
-  return (name || "").trim().toLowerCase().replace(/[.#$\[\]/]/g, "_") || "unbekannt";
-}
-
 function mischeListe(liste) {
   const kopie = liste.slice();
   for (let i = kopie.length - 1; i > 0; i--) {
@@ -234,21 +229,6 @@ function mischeListe(liste) {
     kopie[j] = merk;
   }
   return kopie;
-}
-
-// KI-Mitspieler zählen nicht für die Bestenliste — sonst würde jede Solo-Übungspartie die
-// eigene Quote verzerren (gleiche Regel wie beim Elfmeterschießen in diesem Hub).
-// "gewonnen" wird hier bewusst NICHT vergeben: der auflösende Client kennt die Rollen der
-// anderen nicht. Jedes Gerät trägt seinen eigenen Sieg selbst nach, siehe
-// meldeEigenenAusgang().
-function fuegeStatistikUpdatesHinzu(updates, spieler) {
-  Object.keys(spieler).forEach(uid => {
-    if (spieler[uid].istSimuliert) return;
-    const slug = slugifyName(spieler[uid].name);
-    const basis = `${BESTENLISTE_PFAD}/${slug}`;
-    updates[`${basis}/name`] = spieler[uid].name;
-    updates[`${basis}/gespielt`] = firebase.database.ServerValue.increment(1);
-  });
 }
 
 let eigeneUid = null;
@@ -280,7 +260,6 @@ let botZuteilungLaeuft = false;
 let rollenNachladenLaeuft = false;
 let revealTimerFuerRunde = null;
 let meetingUebergangGeplantFuer = null;
-let ausgangGemeldetFuerRunde = null;
 let aufdeckungGeschriebenFuerRunde = null;
 let aufdeckungListenerAktiv = false;
 let botTimer = null;
@@ -466,7 +445,6 @@ function verwerfeRundendaten() {
   // Der Listener der Vorrunde muss mit weg: uebernehmeEigeneRolle hängt ihn nur an, wenn noch
   // keiner steht, und würde ihn sonst nie erneuern.
   if (teamRef) { teamRef.off(); teamRef = null; }
-  ausgangGemeldetFuerRunde = null;
   aufdeckungGeschriebenFuerRunde = null;
   revealTimerFuerRunde = null;
   zuteilungLaeuft = false;
@@ -948,7 +926,6 @@ function verarbeiteRaumZustand(raum) {
   }
 
   if (raum.phase === "beendet") {
-    meldeEigenenAusgang(raum);
     schreibeEigeneAufdeckung(raum);
     ladeAufdeckung();
     if (botTimer) { clearInterval(botTimer); botTimer = null; }
@@ -1647,28 +1624,9 @@ function beanspracheSieg(raum, seite, grund) {
       updates[`${RAEUME_PFAD}/${code}/siegGrund`] = grund;
       updates[`${RAEUME_PFAD}/${code}/meeting`] = null;
       updates[`${RAEUME_PFAD}/${code}/sabotage`] = null;
-      fuegeStatistikUpdatesHinzu(updates, raum.spieler);
       await db.ref().update(updates);
     }
   );
-}
-
-// Jedes Gerät trägt seinen eigenen Sieg in der Bestenliste nach — der auflösende Client
-// kennt die Rollen der anderen nicht und könnte das nicht für alle entscheiden.
-async function meldeEigenenAusgang(raum) {
-  if (ausgangGemeldetFuerRunde === raum.runde) return;
-  if (!meineRolle || !raum.sieger || !raum.spieler[eigeneUid] || raum.spieler[eigeneUid].istSimuliert) return;
-  ausgangGemeldetFuerRunde = raum.runde;
-  const habeGewonnen = (raum.sieger === "team" && meineRolle === "team") || (raum.sieger === "maulwuerfe" && meineRolle === "maulwurf");
-  if (!habeGewonnen) return;
-  const slug = slugifyName(raum.spieler[eigeneUid].name);
-  // Der Name wird hier mitgeschrieben, obwohl ihn auch beanspracheSieg() setzt: geht dessen
-  // Write verloren (Gerät offline im entscheidenden Moment), stünde sonst ein Eintrag ohne
-  // Namen in der Liste und würde als "?" mit 0 % angezeigt.
-  await db.ref(`${BESTENLISTE_PFAD}/${slug}`).update({
-    name: raum.spieler[eigeneUid].name,
-    gewonnen: firebase.database.ServerValue.increment(1)
-  }).catch(() => {});
 }
 
 // Rollen-Aufdeckung am Ende: jedes Gerät schreibt nur die EIGENE Rolle. Die Rule lässt das
@@ -1988,27 +1946,6 @@ async function raeumeRaumAuf() {
   return { erfolg: true };
 }
 
-// --- Bestenliste ---
-
-async function ladeBestenliste() {
-  await authBereit;
-  const snap = await db.ref(BESTENLISTE_PFAD).once("value");
-  const daten = snap.val() || {};
-  return Object.values(daten)
-    .map(eintrag => {
-      const gespielt = eintrag.gespielt || 0;
-      const gewonnen = eintrag.gewonnen || 0;
-      return { name: eintrag.name || "?", gespielt, gewonnen, prozent: gespielt > 0 ? Math.round((gewonnen / gespielt) * 100) : 0 };
-    })
-    .sort((a, b) => b.prozent - a.prozent || b.gewonnen - a.gewonnen);
-}
-
-async function setzeBestenlisteZurueck() {
-  await authBereit;
-  await db.ref(BESTENLISTE_PFAD).remove();
-  return { erfolg: true };
-}
-
 function onZustandsAenderung(callback) {
   listener = callback;
   let gespeicherterCode = null;
@@ -2035,7 +1972,7 @@ const gameService = {
   kameraZusehen, kameraWegsehen, KAMERA_TAKT_MS,
   schuetze, verkleideDich,
   verlasseSpiel, neueRunde, raeumeRaumAuf,
-  getZustand, onZustandsAenderung, ladeBestenliste, setzeBestenlisteZurueck,
+  getZustand, onZustandsAenderung,
   serverJetzt,
   // für Verifikation direkt aufrufbar (reine Funktionen, kein Firebase-Zugriff):
   SICHTBARE_WIRKUNG_MS,
