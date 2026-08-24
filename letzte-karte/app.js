@@ -17,6 +17,26 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.1',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Die angetippte Karte hebt sich sofort an. Vorher konnte es beliebig lange dauern, bis die Auswahl überhaupt zu sehen war — besonders dann, wenn keine KI mitspielte und man selbst am Zug war',
+          'Der Tisch füllt jetzt den ganzen Bildschirm. Karten und Stapel wachsen mit dem Gerät; vorher blieb auf einem großen Handy fast die halbe Höhe leer und alles wirkte zusammengedrängt und winzig',
+          'Die eigenen Karten stehen in so wenigen Reihen wie möglich und werden dabei so groß wie möglich — sieben Karten in zwei Reihen sind besser zu treffen als sieben gedrängt in einer',
+          'Die Kartenzahl der Mitspieler zeigt ein gezeichnetes Kartensymbol. Vorher stand dort ein Sonderzeichen, das auf vielen Android-Geräten als leeres Kästchen erschien',
+        ],
+      },
+      {
+        title: 'Geändert',
+        items: [
+          'Auf dem Startbildschirm und der Kachel im Spiele-Hub steht jetzt „Uno-Klon" dabei, damit auf einen Blick klar ist, worum es geht',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0',
     groups: [
       {
