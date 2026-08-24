@@ -335,6 +335,19 @@ function szene() {
 
   ui.zeichneOffeneListen();
   ui.beendeKasten();
+
+  /* ⚠️ NACH JEDEM TIPPER EIN WEITERES BILD.
+     Im unmittelbaren Modus wird eine Karte gezeichnet, BEVOR geprüft wird,
+     ob sie getroffen wurde. Was ein Klick am Zustand ändert — eine
+     angehobene Karte, ein gewählter Modus — ist deshalb erst im nächsten
+     Bild zu sehen. `bild()` fordert von sich aus keins an (nur im
+     Dauerlauf), und so blieb die Auswahl hängen, bis zufällig etwas anderes
+     ein Neuzeichnen auslöste: ein Firebase-Update, ein Bot-Zug, der nächste
+     Tipper. Genau das war die Meldung "es dauert recht lang, bis die Karte
+     ausgewählt ist" — ohne Bots am Tisch konnte es beliebig lange dauern.
+     Diese eine Zeile deckt jede Klickstelle ab, auch künftige; ein
+     `ui.anfordern()` je Bedienelement wäre eine Liste, die man vergisst. */
+  if (ui.zeiger.losgelassen) ui.anfordern();
 }
 
 /* ==========================================================================
