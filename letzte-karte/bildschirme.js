@@ -20,8 +20,58 @@
 const bildschirme = (function () {
   'use strict';
 
-  const KARTE_B = 58;
-  const KARTE_H = 86;
+  /* Das Seitenverhältnis einer Spielkarte. Alle Kartenmaße werden daraus
+     gerechnet — feste Pixelgrößen wären auf einem großen Handy verloren und
+     auf einem kleinen zu groß. */
+  const KARTE_VERHAELTNIS = 58 / 86;
+
+  /* Feste Anteile des Tisches. Was übrig bleibt, gehört der Mitte. */
+  const KOPF_H = 60;
+  const PROTOKOLL_H = 30;
+
+  /**
+   * Teilt die Bildschirmhöhe auf.
+   *
+   * ⚠️ Gerechnet wird von UNTEN: die Hand bekommt ihren Anteil zuerst, denn
+   * dort liegt der Daumen und dort passiert das Spiel. Der erste Entwurf
+   * reservierte feste Höhen von oben nach unten und deckelte die Karten bei
+   * 86 px — auf einem 390×844-Handy blieben dadurch 410 Pixel unter der Hand
+   * einfach leer, und alles wirkte oben zusammengedrängt und winzig.
+   */
+  function masze() {
+    const h = ui.hoehe;
+    const b = ui.breite;
+
+    const mitspieler = Math.round(Math.max(62, Math.min(84, h * 0.085)));
+    const aktion = Math.round(Math.max(46, Math.min(58, h * 0.062)));
+
+    /* Die Hand bekommt gut ein Drittel — genug für zwei Kartenreihen, ohne
+       der Tischmitte den Platz zu nehmen. */
+    let hand = Math.round(h * 0.34);
+    const festeAnteile = KOPF_H + mitspieler + PROTOKOLL_H + aktion;
+    let mitte = h - festeAnteile - hand;
+
+    /* Auf sehr flachen Bildschirmen (altes iPhone SE quer, Tastatur offen)
+       geht der Mitte zuerst der Platz aus. Dann von der Hand abgeben, bis
+       beide eine brauchbare Höhe haben. */
+    const MITTE_MIN = 150;
+    if (mitte < MITTE_MIN) {
+      const fehlt = MITTE_MIN - mitte;
+      hand = Math.max(96, hand - fehlt);
+      mitte = h - festeAnteile - hand;
+    }
+
+    return {
+      mitspieler: mitspieler,
+      aktion: aktion,
+      mitte: Math.max(120, mitte),
+      hand: hand,
+      breite: b,
+    };
+  }
+
+  /** Kartenhöhe zu einer gegebenen Breite und umgekehrt. */
+  function kartenBreiteZuHoehe(h) { return Math.round(h * KARTE_VERHAELTNIS); }
 
   /* ----------------------------------------------------------------------
      Eine Karte zeichnen
@@ -366,6 +416,7 @@ const bildschirme = (function () {
     const m = karten.modus(t.modus);
     const binDran = regeln.dran({ tisch: t }) === z.uid;
     const hand = z.hand || [];
+    const M = masze();
 
     kopf(app, m.name, {
       unter: t.dunkel ? 'Dunkle Seite' : null,
@@ -374,25 +425,25 @@ const bildschirme = (function () {
     });
 
     /* ---- Mitspieler oben ---- */
-    mitspielerReihe(app, t, z);
+    mitspielerReihe(app, t, z, M);
 
     /* ---- Tischmitte ---- */
-    tischMitte(app, t, z, binDran);
+    tischMitte(app, t, z, binDran, M);
 
     /* ---- Protokoll ---- */
     const prot = z.protokoll || [];
+    const pr = ui.reserviere(PROTOKOLL_H, { links: 12, rechts: 12, abstand: 0 });
     if (prot.length) {
-      const pr = ui.reserviere(30, { links: 12, rechts: 12 });
       ui.fuelleRund(pr.x, pr.y, pr.b, pr.h, 8, 'rgba(17,24,39,0.05)');
       ui.schreibe(ui.kuerze(prot[prot.length - 1], pr.b - 16, 12), pr.x + pr.b / 2, pr.y + pr.h / 2,
         { groesse: 12, farbe: ui.F.gedaempft, ausrichtung: 'center' });
     }
 
     /* ---- Aktionsleiste ---- */
-    aktionsLeiste(app, t, z, binDran, hand);
+    aktionsLeiste(app, t, z, binDran, hand, M);
 
     /* ---- Die eigene Hand ---- */
-    handFaecher(app, t, z, binDran, hand);
+    handFaecher(app, t, z, binDran, hand, M);
   }
 
   function ladeBild(text) {
@@ -402,14 +453,14 @@ const bildschirme = (function () {
     }, { zentriert: true });
   }
 
-  function mitspielerReihe(app, t, z) {
+  function mitspielerReihe(app, t, z, M) {
     const alle = t.reihenfolge || [];
     const andere = alle.filter(function (u) { return u !== z.uid; });
-    if (!andere.length) return;
+    if (!andere.length) { ui.luecke(M.mitspieler); return; }
 
-    const r = ui.reserviere(66, { links: 8, rechts: 8, abstand: 4 });
+    const r = ui.reserviere(M.mitspieler, { links: 8, rechts: 8, abstand: 0 });
     const lueckeB = 5;
-    const b = Math.min(84, (r.b - lueckeB * (andere.length - 1)) / andere.length);
+    const b = Math.min(96, (r.b - lueckeB * (andere.length - 1)) / andere.length);
     const gesamt = b * andere.length + lueckeB * (andere.length - 1);
     let x = r.x + (r.b - gesamt) / 2;
 
@@ -425,22 +476,33 @@ const bildschirme = (function () {
       ui.rahmeRund(x, r.y, b, r.h, 10, dranJetzt ? ui.F.primaer : ui.F.rand, dranJetzt ? 2 : 1);
       ui.ctx.stroke();
 
+      /* Die drei Zeilen sitzen auf Anteilen der Kachelhöhe, nicht auf festen
+         Pixeln — die Kachel wächst mit dem Bildschirm. */
       const name = app.nameVon(uid);
-      ui.schreibe(ui.kuerze(name, b - 8, 12, 'halb'), x + b / 2, r.y + 15,
+      ui.schreibe(ui.kuerze(name, b - 8, 12, 'halb'), x + b / 2, r.y + r.h * 0.23,
         { groesse: 12, fett: 'halb', farbe: raus ? ui.F.gedaempft : ui.F.text, ausrichtung: 'center' });
 
+      const mitte = r.y + r.h * 0.56;
       if (raus) {
-        ui.schreibe('raus', x + b / 2, r.y + 38, { groesse: 13, fett: true, farbe: ui.F.gefahr, ausrichtung: 'center' });
+        ui.schreibe('raus', x + b / 2, mitte, { groesse: 13, fett: true, farbe: ui.F.gefahr, ausrichtung: 'center' });
       } else if (fertig) {
-        ui.schreibe('fertig', x + b / 2, r.y + 38, { groesse: 13, fett: true, farbe: ui.F.erfolg, ausrichtung: 'center' });
+        ui.schreibe('fertig', x + b / 2, mitte, { groesse: 13, fett: true, farbe: ui.F.erfolg, ausrichtung: 'center' });
       } else {
-        ui.schreibe('🂠 ' + anzahl, x + b / 2, r.y + 38, {
-          groesse: 15, fett: true, farbe: anzahl === 1 ? ui.F.gefahr : ui.F.text, ausrichtung: 'center',
+        /* Ein gezeichnetes Kartensymbol statt eines Schriftzeichens: das
+           Unicode-Zeichen für eine Spielkartenrückseite fehlt auf vielen
+           Android-Geräten und erscheint dort als leeres Kästchen. */
+        const zh = Math.max(15, r.h * 0.26);
+        const zb = kartenBreiteZuHoehe(zh);
+        const zx = x + b / 2 - (zb + 6 + ui.textBreite(String(anzahl), 17, true)) / 2;
+        const zy = mitte - zh / 2;
+        ui.fuelleRund(zx, zy, zb, zh, 3, anzahl === 1 ? ui.F.gefahr : '#243043');
+        ui.schreibe(String(anzahl), zx + zb + 6, mitte, {
+          groesse: 17, fett: true, farbe: anzahl === 1 ? ui.F.gefahr : ui.F.text, ausrichtung: 'left',
         });
       }
 
       if (anzahl === 1 && !raus && !fertig) {
-        ui.schreibe(erwischbar ? 'still …' : 'letzte Karte', x + b / 2, r.y + 55, {
+        ui.schreibe(erwischbar ? 'still …' : 'letzte Karte', x + b / 2, r.y + r.h * 0.85, {
           groesse: 9, fett: 'halb', farbe: erwischbar ? ui.F.warnung : ui.F.gedaempft, ausrichtung: 'center',
         });
       }
@@ -453,19 +515,30 @@ const bildschirme = (function () {
     }
   }
 
-  function tischMitte(app, t, z, binDran) {
-    const r = ui.reserviere(126, { abstand: 4 });
+  function tischMitte(app, t, z, binDran, M) {
+    const r = ui.reserviere(M.mitte, { abstand: 0 });
     const mx = r.x + r.b / 2;
 
-    /* Nachziehstapel links, Ablage rechts daneben. */
-    const kb = 66, kh = 98;
-    const stapelX = mx - kb - 16;
-    const ablageX = mx + 16;
-    const ky = r.y + 10;
+    /* Die beiden Stapel füllen die Mitte aus. Unten bleibt Platz für die
+       Statuszeile, seitlich muss das Paar plus Abstand in die Breite passen —
+       auf einem schmalen Gerät begrenzt die Breite, auf einem hohen die Höhe. */
+    const STATUS_H = 34;
+    const lueckeMitte = Math.round(Math.max(24, r.b * 0.10));
+    const nachHoehe = r.h - STATUS_H - 18;
+    const nachBreite = kartenBreiteZuHoehe(1) > 0
+      ? (r.b - lueckeMitte - 24) / 2 / KARTE_VERHAELTNIS
+      : nachHoehe;
+    const kh = Math.round(Math.max(84, Math.min(nachHoehe, nachBreite, 190)));
+    const kb = kartenBreiteZuHoehe(kh);
+
+    const ky = r.y + Math.max(6, (r.h - STATUS_H - kh) / 2);
+    const stapelX = Math.round(mx - lueckeMitte / 2 - kb);
+    const ablageX = Math.round(mx + lueckeMitte / 2);
 
     zeichneKarte(stapelX, ky, kb, kh, null, t.dunkel, { rueckseite: true });
-    ui.schreibe(String(t.stapelRest || 0), stapelX + kb / 2, ky + kh + 12,
-      { groesse: 11, farbe: ui.F.gedaempft, ausrichtung: 'center' });
+    ui.schreibe(String(t.stapelRest || 0), stapelX + kb / 2, ky + kh / 2, {
+      groesse: Math.round(kh * 0.22), fett: true, farbe: 'rgba(255,255,255,0.92)', ausrichtung: 'center',
+    });
 
     const stapelFeld = { x: stapelX, y: ky, b: kb, h: kh };
     ui.merke('stapel', stapelFeld, 'knopf');
@@ -473,39 +546,44 @@ const bildschirme = (function () {
 
     zeichneKarte(ablageX, ky, kb, kh, t.ablage, t.dunkel, {});
 
-    /* Die geltende Farbe steht als Punkt über der Ablage — bei einer
+    /* Die geltende Farbe sitzt als Punkt an der Ecke der Ablage — bei einer
        Farbwahlkarte ist sie sonst nirgends abzulesen. */
     const ctx = ui.ctx;
+    const punktR = Math.round(Math.max(10, kh * 0.11));
     ctx.beginPath();
-    ctx.arc(ablageX + kb - 6, ky - 4, 11, 0, Math.PI * 2);
+    ctx.arc(ablageX + kb - punktR * 0.5, ky - punktR * 0.35, punktR, 0, Math.PI * 2);
     ctx.fillStyle = karten.FARBWERT[t.farbe] || '#888';
     ctx.fill();
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.strokeStyle = '#fff';
     ctx.stroke();
 
-    /* Richtung und offene Strafe */
+    /* Richtungspfeil zwischen den Stapeln. */
     ui.schreibe(t.richtung === 1 ? '↻' : '↺', mx, ky + kh / 2, {
-      groesse: 24, fett: true, farbe: ui.F.gedaempft, ausrichtung: 'center',
+      groesse: Math.round(Math.max(20, lueckeMitte * 0.8)), fett: true,
+      farbe: ui.F.gedaempft, ausrichtung: 'center',
     });
 
+    /* Statuszeile unten in der Mitte — immer an derselben Stelle, egal wie
+       groß die Karten geraten sind. */
+    const sy = r.y + r.h - STATUS_H;
     if (t.strafe > 0) {
-      const sr = { x: r.x + 12, y: r.y + kh + 20, b: r.b - 24, h: 26 };
+      const sr = { x: r.x + 12, y: sy, b: r.b - 24, h: 28 };
       ui.fuelleRund(sr.x, sr.y, sr.b, sr.h, 8, '#fdecec');
-      ui.schreibe('Es liegen ' + t.strafe + ' Karten an — kontern oder nehmen.',
+      ui.schreibe(ui.kuerze('Es liegen ' + t.strafe + ' Karten an — kontern oder nehmen.', sr.b - 16, 12, 'halb'),
         sr.x + sr.b / 2, sr.y + sr.h / 2,
         { groesse: 12, fett: 'halb', farbe: ui.F.gefahr, ausrichtung: 'center' });
     } else {
       const wer = t.reihenfolge[t.dranIdx];
       const text = binDran ? 'Du bist dran.' : app.nameVon(wer) + ' ist dran.';
-      ui.schreibe(text, mx, r.y + kh + 32, {
-        groesse: 13, fett: 'halb', farbe: binDran ? ui.F.primaer : ui.F.gedaempft, ausrichtung: 'center',
+      ui.schreibe(ui.kuerze(text, r.b - 24, 14, 'halb'), mx, sy + 14, {
+        groesse: 14, fett: 'halb', farbe: binDran ? ui.F.primaer : ui.F.gedaempft, ausrichtung: 'center',
       });
     }
   }
 
-  function aktionsLeiste(app, t, z, binDran, hand) {
-    const r = ui.reserviere(46, { links: 10, rechts: 10, abstand: 4 });
+  function aktionsLeiste(app, t, z, binDran, hand, M) {
+    const r = ui.reserviere(M.aktion, { links: 10, rechts: 10, abstand: 0 });
     const knoepfe = [];
 
     if (binDran) {
@@ -556,32 +634,66 @@ const bildschirme = (function () {
    * nötig — mindestens 15 Pixel bleiben sichtbar, sonst wäre eine einzelne
    * Karte nicht mehr zu treffen. Gebrochen wird auf bis zu drei Reihen.
    */
-  function handFaecher(app, t, z, binDran, hand) {
-    const platz = ui.hoeheRest();
-    const r = ui.reserviere(Math.max(110, platz - 6), { links: 6, rechts: 6, abstand: 0 });
+  function handFaecher(app, t, z, binDran, hand, M) {
+    /* Den ganzen Rest nehmen, nicht nur den zugeteilten Anteil: Rundungen in
+       den Zeilen darüber sollen nicht als leerer Streifen am unteren Rand
+       liegen bleiben. */
+    const r = ui.reserviere(Math.max(M.hand, ui.hoeheRest()), { links: 6, rechts: 6, abstand: 0 });
 
     if (!hand.length) {
-      ui.schreibe('Keine Karten mehr.', r.x + r.b / 2, r.y + 40,
-        { groesse: 15, fett: 'halb', farbe: ui.F.erfolg, ausrichtung: 'center' });
+      ui.schreibe('Keine Karten mehr.', r.x + r.b / 2, r.y + r.h / 2,
+        { groesse: 16, fett: 'halb', farbe: ui.F.erfolg, ausrichtung: 'center' });
       return;
     }
 
-    /* So WENIGE Reihen wie möglich, nicht so viele wie erlaubt.
-       Zuerst ausrechnen, wie viele Karten bei der engsten noch zumutbaren
-       Überlappung in eine Reihe passen (MIN_SCHRITT), daraus die nötige
-       Reihenzahl. Andersherum gerechnet — Karten gleichmäßig auf die
-       Höchstzahl Reihen verteilt — stünden sieben Karten in drei Reihen,
-       obwohl sie bequem in eine passen. */
-    const MIN_SCHRITT = 22;
-    const reihenMax = r.h >= 200 ? 3 : (r.h >= 150 ? 2 : 1);
-    const passenInEineReihe = Math.max(1, Math.floor((r.b - KARTE_B) / MIN_SCHRITT) + 1);
-    const reihen = Math.max(1, Math.min(reihenMax, Math.ceil(hand.length / passenInEineReihe)));
+    const HINWEIS_H = 18;
+    const RAND_OBEN = 8;
+    const REIHEN_LUECKE = 6;
+    const nutzbar = r.h - HINWEIS_H - RAND_OBEN;
+
+    /* WIE VIELE REIHEN? Die, bei der die Karten am GRÖSSTEN werden.
+       Zwei Grenzen begrenzen die Kartenhöhe gegeneinander:
+         · die Höhe   — mehr Reihen heißt flachere Karten
+         · die Breite — mehr Karten je Reihe heißt schmalere Karten, denn
+                        sie sollen sich höchstens zu gut der Hälfte
+                        überdecken; sonst stehen sie fast deckungsgleich
+                        übereinander und man sieht von keiner mehr etwas
+       Beide gegeneinander laufen zu lassen und die beste Reihenzahl zu
+       nehmen, ist ehrlicher als eine Faustregel: sieben Karten passen zwar
+       in eine Reihe, werden dort aber so breit gedrängt, dass zwei Reihen
+       deutlich größere Karten ergeben. Bei Gleichstand gewinnt die kleinere
+       Reihenzahl. */
+    const UEBERDECKUNG = 0.55;
+    const reihenMax = nutzbar >= 250 ? 3 : (nutzbar >= 150 ? 2 : 1);
+
+    function hoeheBei(reihen) {
+      const proReihe = Math.ceil(hand.length / reihen);
+      const nachHoehe = (nutzbar - REIHEN_LUECKE * (reihen - 1)) / reihen;
+      const kbMax = r.b / (1 + UEBERDECKUNG * Math.max(0, proReihe - 1));
+      return Math.min(nachHoehe, kbMax / KARTE_VERHAELTNIS, ui.hoehe * 0.22);
+    }
+
+    let reihen = 1;
+    let beste = hoeheBei(1);
+    for (let n = 2; n <= Math.min(reihenMax, hand.length); n++) {
+      const h = hoeheBei(n);
+      if (h > beste + 0.5) { beste = h; reihen = n; }
+    }
+
     const proReihe = Math.ceil(hand.length / reihen);
-    const kh = Math.min(KARTE_H, Math.floor((r.h - 14) / reihen) - 6);
-    const kb = Math.round(kh * (KARTE_B / KARTE_H));
+    const kh = Math.round(Math.max(64, beste));
+    const kb = kartenBreiteZuHoehe(kh);
+
+    /* Unter dieser Schrittweite ist eine verdeckte Karte nicht mehr zu
+       treffen. Sie greift nur bei sehr vollen Händen auf schmalen Geräten. */
+    const MIN_SCHRITT = 22;
 
     /* Schrittweite: volle Kartenbreite, wenn Platz ist, sonst gedrängt. */
     const schritt = Math.max(MIN_SCHRITT, Math.min(kb + 4, Math.floor((r.b - kb) / Math.max(1, proReihe - 1))));
+
+    /* Der Block sitzt UNTEN in seiner Fläche — dort liegt der Daumen. */
+    const blockH = reihen * kh + (reihen - 1) * REIHEN_LUECKE;
+    const blockY = r.y + Math.max(RAND_OBEN, r.h - HINWEIS_H - blockH);
 
     const treffer = [];
     for (let reihe = 0; reihe < reihen; reihe++) {
@@ -590,17 +702,18 @@ const bildschirme = (function () {
       const anzahl = bis - von;
       const breiteReihe = (anzahl - 1) * schritt + kb;
       const startX = r.x + Math.max(0, (r.b - breiteReihe) / 2);
-      const y = r.y + 8 + reihe * (kh + 6);
+      const y = blockY + reihe * (kh + REIHEN_LUECKE);
+      const hub = Math.round(kh * 0.11);
 
       for (let i = von; i < bis; i++) {
         const x = startX + (i - von) * schritt;
         const gewaehlt = app.gewaehlt === i;
         const legbar = binDran && regeln.passt(t, hand[i]);
-        zeichneKarte(x, gewaehlt ? y - 10 : y, kb, kh, hand[i], t.dunkel, {
+        zeichneKarte(x, gewaehlt ? y - hub : y, kb, kh, hand[i], t.dunkel, {
           angehoben: gewaehlt,
           gedaempft: binDran && !legbar,
         });
-        treffer.push({ i: i, feld: { x: x, y: gewaehlt ? y - 10 : y, b: kb, h: kh } });
+        treffer.push({ i: i, feld: { x: x, y: gewaehlt ? y - hub : y, b: kb, h: kh } });
       }
     }
 
@@ -619,8 +732,8 @@ const bildschirme = (function () {
     if (app.gewaehlt !== null && app.gewaehlt < hand.length) {
       const legbar = binDran && regeln.passt(t, hand[app.gewaehlt]);
       ui.schreibe(legbar ? 'Nochmal antippen zum Legen' : (binDran ? 'Diese Karte passt nicht' : 'Du bist nicht dran'),
-        r.x + r.b / 2, r.y + r.h - 8,
-        { groesse: 11, fett: 'halb', farbe: legbar ? ui.F.primaer : ui.F.gedaempft, ausrichtung: 'center' });
+        r.x + r.b / 2, r.y + r.h - HINWEIS_H / 2,
+        { groesse: 12, fett: 'halb', farbe: legbar ? ui.F.primaer : ui.F.gedaempft, ausrichtung: 'center' });
     }
   }
 
