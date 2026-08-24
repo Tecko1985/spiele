@@ -221,7 +221,11 @@ const bildschirme = (function () {
     ui.seite('start', function () {
       ui.luecke(6);
       ui.titel('Letzte Karte', { zentriert: true, groesse: 27 });
-      ui.absatz('Das Kartenspiel für die Busfahrt. Wer als Erster keine Karte mehr hat, gewinnt.',
+      /* „Uno-Klon" steht hier als BESCHREIBUNG, nicht als Name — man darf
+         sagen, wonach das eigene Spiel gemacht ist. Der Name der App bleibt
+         eigenständig, und der Satz im Info-Tab, dass keine Verbindung zu
+         Mattel besteht, gehört seitdem erst recht dazu. */
+      ui.absatz('Der Uno-Klon für die Busfahrt. Wer als Erster keine Karte mehr hat, gewinnt.',
         { zentriert: true });
       ui.luecke(10);
 
