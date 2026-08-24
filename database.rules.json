@@ -142,6 +142,56 @@
           ".write": "auth != null && root.child('maulwurf/raeume/' + $code + '/phase').val() === 'beendet'"
         }
       }
+    },
+
+    "letzteKarte": {
+      "raeume": {
+        ".read": true,
+        "$code": {
+          ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid) || (!newData.exists() && data.child('hostId').val() === auth.uid && data.child('phase').val() === 'beendet'))",
+          "phase": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "startZeit": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "botListe": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "tisch": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "protokoll": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "abgebrochen": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "regeln": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid && root.child('letzteKarte/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "spieler": {
+            "$uid": {
+              ".write": "auth != null && ($uid === auth.uid || root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid) && (data.exists() || root.child('letzteKarte/raeume/' + $code + '/phase').val() === 'lobby')"
+            }
+          }
+        }
+      },
+
+      "haende": {
+        "$code": {
+          ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && $uid === auth.uid"
+          }
+        }
+      },
+
+      "geheim": {
+        "$code": {
+          ".read": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid",
+          ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid"
+        }
+      },
+
+      "zuege": {
+        "$code": {
+          ".read": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid",
+          ".write": "auth != null && !newData.exists() && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            "$zug": {
+              ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists()",
+              ".validate": "newData.hasChildren(['art','zeit']) && newData.child('zeit').val() === now && newData.child('art').isString()"
+            }
+          }
+        }
+      }
     }
   }
 }
