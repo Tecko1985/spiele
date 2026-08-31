@@ -19,7 +19,7 @@ Sammlung kleiner Spiele für Vereinsabende, Trainingspausen und die Busfahrt zum
 
 Die Anmeldung läuft über die [Tools-Übersicht](https://sc1911heiligenstadt.github.io/ToolsUebersicht/) — dort einmal anmelden, danach ist dieses Werkzeug offen.
 
-Die Rechte gelten in drei Stufen: **Sehen** (nur ansehen), **Bearbeiten** (Einträge pflegen) und **Administrieren** (Einstellungen und Verwaltung). Wer welche Stufe hat, legt die Tools-Übersicht fest.
+Gespielt wird ohne Rechte-Stufen — wer die Sammlung sieht, kann jedes Spiel starten. Ob das Werkzeug überhaupt sichtbar ist, legt die Tools-Übersicht fest.
 
 ## Lokal starten
 
