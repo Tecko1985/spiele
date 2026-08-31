@@ -222,6 +222,22 @@ const bildschirme = (function () {
         "mischt nur einen anonymen Stapel Rollen, jedes Handy zieht sich danach selbst eine " +
         "daraus. Die gezogene Rolle ist serverseitig auf das eigene Gerät beschränkt.");
 
+      // ⚠️ Art. 13 DSGVO. Der Anzeigename ist frei gewählt, aber viele tippen ihren
+      // echten Vornamen ein -- und er landet samt Position und Spielstand bei Google
+      // Firebase. Der Standardsatz der Flotte ("Server in Deutschland") gilt hier
+      // NICHT: die Datenbank liegt in europe-west1 (Belgien).
+      infoKarte("info-datenschutz", "Daten und Datenschutz",
+        "Gespeichert werden nur dein selbst gewählter Anzeigename, deine Position auf der Karte " +
+        "und der Spielstand der laufenden Partie. Die Anmeldung ist anonym — es gibt kein Konto, " +
+        "keine E-Mail-Adresse und keine Verbindung zu deinen Vereinsdaten. Mit dem Ende der " +
+        "Partie wird der Raum gelöscht.\n\n" +
+        "Die Spieldaten laufen über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum " +
+        "in Belgien. Wenn du das nicht möchtest, gib einen Spitznamen statt deines Namens ein.\n\n" +
+        "Verantwortlich: 1. SC 1911 Heiligenstadt e.V., Leineberg 2, 37308 Heilbad Heiligenstadt, " +
+        "info@sc1911-heiligenstadt.de. Auskunft, Berichtigung, Löschung und Widerspruch unter " +
+        "dieser Anschrift; Beschwerden beim Thüringer Landesbeauftragten für den Datenschutz und " +
+        "die Informationsfreiheit.");
+
       const k = ui.beginneKarte("info-changelog");
         ui.titel("Änderungen", { groesse: 17 });
         CHANGELOG.forEach(eintrag => {

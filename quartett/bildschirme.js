@@ -510,6 +510,22 @@ const bildschirme = {
       ui.absatz("Version " + APP_VERSION, { groesse: 13, fett: "halb", farbe: ui.F.primaer });
       ui.beendeKarte(griff);
 
+      // ⚠️ Art. 13 DSGVO. Der Anzeigename ist frei gewählt, aber viele tippen ihren
+      // echten Vornamen ein -- und er landet samt Spielstand bei Google Firebase.
+      // Der Standardsatz der Flotte ("Server in Deutschland") gilt hier NICHT:
+      // die Datenbank liegt in europe-west1 (Belgien) und wird von Google betrieben.
+      // Vorlage ist der Text im Info-Tab von letzte-karte.
+      // Diese eine Stelle deckt alle DREI Quartetts ab.
+      const griffDs = ui.beginneKarte("info-datenschutz");
+      ui.titel("Daten und Datenschutz", { groesse: 17, farbe: ui.F.primaer, abstand: 8 });
+      ui.absatz("Gespeichert werden nur dein selbst gewählter Anzeigename und der Spielstand der laufenden Partie. Die Anmeldung ist anonym — es gibt kein Konto, keine E-Mail-Adresse und keine Verbindung zu deinen Vereinsdaten. Mit dem Ende der Partie wird der Raum gelöscht.",
+        { groesse: 13, zeilenhoehe: 1.55, abstand: 6 });
+      ui.absatz("Die Spieldaten laufen über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien. Wenn du das nicht möchtest, gib einen Spitznamen statt deines Namens ein.",
+        { groesse: 13, zeilenhoehe: 1.55, abstand: 6 });
+      ui.absatz("Verantwortlich: 1. SC 1911 Heiligenstadt e.V., Leineberg 2, 37308 Heilbad Heiligenstadt, info@sc1911-heiligenstadt.de. Auskunft, Berichtigung, Löschung und Widerspruch unter dieser Anschrift; Beschwerden beim Thüringer Landesbeauftragten für den Datenschutz und die Informationsfreiheit.",
+        { groesse: 13, zeilenhoehe: 1.55 });
+      ui.beendeKarte(griffDs);
+
       const griff2 = ui.beginneKarte("info-changelog");
       ui.titel("Änderungen", { groesse: 17, farbe: ui.F.primaer, abstand: 8 });
       CHANGELOG.forEach(eintrag => {

@@ -1460,6 +1460,21 @@ const bildschirme = (function () {
       });
       ui.beendeKarte(griffW);
 
+      // ⚠️ Art. 13 DSGVO. Der Anzeigename ist frei gewählt, aber viele tippen ihren
+      // echten Vornamen ein -- und er landet samt Trades bei Google Firebase. Der
+      // Standardsatz der Flotte ("Server in Deutschland") gilt hier NICHT: die
+      // Datenbank liegt in europe-west1 (Belgien).
+      ui.luecke(6);
+      const griffDs = ui.beginneKarte('info-datenschutz');
+      ui.absatz('Daten und Datenschutz', { fett: true, farbe: F.text, groesse: 15, abstand: 6 });
+      ui.absatz('Gespeichert werden nur dein selbst gewählter Anzeigename und deine Käufe und Verkäufe in der laufenden Partie. Die Anmeldung ist anonym — es gibt kein Konto, keine E-Mail-Adresse und keine Verbindung zu deinen Vereinsdaten. Mit dem Ende der Partie wird der Raum gelöscht.',
+        { groesse: 12, abstand: 6 });
+      ui.absatz('Die Spieldaten laufen über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien. Wenn du das nicht möchtest, gib einen Spitznamen statt deines Namens ein.',
+        { groesse: 12, abstand: 6 });
+      ui.absatz('Verantwortlich: 1. SC 1911 Heiligenstadt e.V., Leineberg 2, 37308 Heilbad Heiligenstadt, info@sc1911-heiligenstadt.de. Auskunft, Berichtigung, Löschung und Widerspruch unter dieser Anschrift; Beschwerden beim Thüringer Landesbeauftragten für den Datenschutz und die Informationsfreiheit.',
+        { groesse: 12, abstand: 0 });
+      ui.beendeKarte(griffDs);
+
       ui.luecke(12);
       ui.absatz('Änderungen', { fett: true, farbe: F.text, abstand: 6 });
       for (const v of app.CHANGELOG) {

@@ -778,6 +778,17 @@ function szene() {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.3",
+    groups: [
+      { title: "Im Info-Bereich steht jetzt, wo die Spieldaten liegen", items: [
+          "Bisher stand dort nur, dass die Daten auf Servern in Deutschland liegen. Das stimmt für dieses Spiel nicht: damit mehrere Geräte dieselbe Partie sehen, laufen die Daten über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien.",
+          "Der Hinweis sagt das jetzt offen — zusammen mit der Bitte, einen Spitznamen statt des echten Namens einzugeben, wenn man das nicht möchte.",
+          "Neu dabei: die vollständige Anschrift des Vereins und die Beschwerdestelle.",
+          "Am Spiel selbst ändert sich nichts."
+      ]}
+    ]
+  },
+  {
     version: "1.2",
     groups: [
       { title: "Geändert", items: [

@@ -955,7 +955,12 @@ const bildschirme = (function () {
       ui.titel('Daten und Datenschutz', { groesse: 17 });
       ui.absatz('Gespeichert werden nur dein selbst gewählter Anzeigename und der Spielstand der laufenden Partie. Die Anmeldung ist anonym — es gibt kein Konto, keine E-Mail-Adresse und keine Verbindung zu deinen Vereinsdaten. Mit dem Ende der Partie wird der Raum gelöscht.',
         { groesse: 12 });
-      ui.absatz('Verantwortlich: 1. SC 1911 Heiligenstadt e.V. Fragen zum Datenschutz an info@sc1911-heiligenstadt.de.',
+      // ⚠️ Wo die Daten liegen, stand hier nicht. Der Standardsatz der Flotte
+      // ("Server in Deutschland") gilt für dieses Repo NICHT: die Echtzeit-Datenbank
+      // ist Google Firebase in europe-west1 (Belgien).
+      ui.absatz('Die Spieldaten laufen über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien. Wenn du das nicht möchtest, gib einen Spitznamen statt deines Namens ein.',
+        { groesse: 12 });
+      ui.absatz('Verantwortlich: 1. SC 1911 Heiligenstadt e.V., Leineberg 2, 37308 Heilbad Heiligenstadt, info@sc1911-heiligenstadt.de. Auskunft, Berichtigung, Löschung und Widerspruch unter dieser Anschrift; Beschwerden beim Thüringer Landesbeauftragten für den Datenschutz und die Informationsfreiheit.',
         { groesse: 12 });
       ui.luecke(4);
       ui.absatz('"Letzte Karte" ist ein eigenständiges Spiel des Vereins nach dem klassischen Ablegespiel-Prinzip. Es steht in keiner Verbindung zu Mattel oder einer seiner Marken.',
