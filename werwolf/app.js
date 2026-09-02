@@ -13,6 +13,19 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.2',
+    groups: [
+      {
+        title: 'Bugjagd',
+        items: [
+          'Tippten zwei Spieler gleichzeitig, ging eine Aktion verloren — sechs Stimmen, eine gezählt. Der Erzähler arbeitet Aktionen jetzt nacheinander ab und liest alle fünf Sekunden nach, was noch liegt.',
+          '„… schläft wieder ein" wurde nie gesprochen, weil die nächste Ansage sie sofort abbrach. Beide Sätze kommen jetzt als eine Ansage.',
+          'Lehnt der Erzähler eine Aktion ab, sehen es jetzt beide: der Spieler als Meldung auf seinem Handy, der Erzähler als Hinweis mit Namen.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.1',
     groups: [
       {
@@ -67,6 +80,7 @@ const app = (function () {
   let warDran = false;
   let warJaeger = false;
   let letztePhase = null;
+  let gezeigterFehler = null;   // zeit der zuletzt gezeigten Ablehnung aus der privaten Sicht
 
   const $ = function (id) { return document.getElementById(id); };
 
@@ -141,6 +155,9 @@ const app = (function () {
     $('inhalt').className = leiste ? 'mit-leiste' : '';
 
     if (z.fehler) zeigeMeldung(z.fehler);
+    /* Der Erzähler hat eine meiner Aktionen abgelehnt — sonst hinge mein Schritt stumm. */
+    const ab = z.privat && z.privat.letzterFehler;
+    if (ab && ab.zeit !== gezeigterFehler) { gezeigterFehler = ab.zeit; zeigeMeldung(ab.text); }
 
     /* Sekundentakt nur, wenn eine Uhr läuft. */
     const brauchtUhr = z.istHost && (a === 'nacht' || a === 'tag') || (a === 'tag' && z.sicht.tag && z.sicht.tag.schritt === 'diskussion');

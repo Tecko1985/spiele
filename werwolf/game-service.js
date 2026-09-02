@@ -71,8 +71,24 @@ const gameService = (function () {
   let hostUhr = null;
   let schreibtGerade = false;
   let nochmalSchreiben = false;
-  let inArbeit = false;
   let angesagt = null;        // Schlüssel des zuletzt angesagten Zustands
+  let ansageVorspann = null;  // „… schläft wieder ein" — kommt VOR die nächste Ansage
+
+  /* ⚠️ Alles, was `spiel` verändert, läuft NACHEINANDER über diese Kette.
+     Der erste Entwurf hatte stattdessen einen Guard (`if (inArbeit) return`)
+     — der warf jede Aktion weg, die während eines Netz-Roundtrips eintraf.
+     Bugjagd 2026-09-02: sechs Stimmen gleichzeitig, eine gezählt, fünf
+     blieben für immer in aktionen/<code> liegen. Eine Kette verliert nichts. */
+  let kette = Promise.resolve();
+  function nacheinander(fn) {
+    const p = kette.then(fn, fn);
+    kette = p.catch(function () { /* Fehler meldet fn selbst */ });
+    return p;
+  }
+  let gesehen = {};            // uid/aktionsId → schon in der Kette (gegen Doppelverarbeitung)
+  let ablehnungen = {};        // uid → { text, zeit } — letzte abgelehnte Aktion, für die private Sicht
+  let tickLaeuft = false;
+  let tickZaehler = 0;
 
   /* ----------------------------------------------------------------------
      Anmeldung
@@ -277,6 +293,9 @@ const gameService = (function () {
       for (const s of spiel.spieler) {
         const sicht = regeln.sichtFuer(spiel, s.uid);
         sicht.jaeger = regeln.jaegerSicht(spiel, s.uid);
+        /* Eine abgelehnte Aktion muss den Spieler erreichen — sonst hängt sein
+           Schritt, und niemand weiß warum (Bugjagd 2026-09-02, Fund 3). */
+        sicht.letzterFehler = ablehnungen[s.uid] || null;
         daten[PRIVAT_PFAD + '/' + code + '/' + s.uid] = sauber(sicht);
       }
       daten[GEHEIM_PFAD + '/' + code] = sauber({ spiel: spiel, schrittSeit: schrittSeit });
@@ -341,9 +360,12 @@ const gameService = (function () {
     const eintrag = sauber(aktion);
     eintrag.zeit = firebase.database.ServerValue.TIMESTAMP;
     if (istHost() && spiel) {
-      const r = wendeAktionAn(eigeneUid, eintrag);
-      await veroeffentliche();
-      melde();
+      const r = await nacheinander(async function () {
+        const r = wendeAktionAn(eigeneUid, eintrag);
+        await veroeffentliche();
+        melde();
+        return r;
+      });
       if (!r.ok) throw new Error(r.fehler);
       return;
     }
@@ -378,13 +400,16 @@ const gameService = (function () {
      Erzähler-Befehle
      ---------------------------------------------------------------------- */
 
-  async function hostBefehl(fn) {
-    if (!istHost() || !spiel) return;
-    const r = fn(spiel);
-    if (r && r.ok === false) { fehlerText = r.fehler; melde(); return; }
-    nachAenderung();
-    await veroeffentliche();
-    melde();
+  function hostBefehl(fn) {
+    if (!istHost() || !spiel) return Promise.resolve();
+    return nacheinander(async function () {
+      if (!spiel) return;
+      const r = fn(spiel);
+      if (r && r.ok === false) { fehlerText = r.fehler; melde(); return; }
+      nachAenderung();
+      await veroeffentliche();
+      melde();
+    });
   }
 
   function nachtBeginnen() {
@@ -397,6 +422,7 @@ const gameService = (function () {
 
   function schrittErzwingen() {
     return hostBefehl(function (sp) {
+      merkeSchlafEin(sp);
       const r = regeln.schrittErzwingen(sp);
       if (r.ok) schrittSeit = serverJetzt();
       return r;
@@ -423,38 +449,76 @@ const gameService = (function () {
   function starteHostUhr() {
     stoppeHostUhr();
     aktionenRef = db.ref(AKTIONEN_PFAD + '/' + aktuellerCode);
-    aktionenRef.on('child_added', function (spielerSchnappschuss) {
-      const uid = spielerSchnappschuss.key;
-      spielerSchnappschuss.forEach(function (a) { verarbeite(uid, a); });
-    });
-    aktionenRef.on('child_changed', function (spielerSchnappschuss) {
-      const uid = spielerSchnappschuss.key;
-      spielerSchnappschuss.forEach(function (a) { verarbeite(uid, a); });
-    });
+    gesehen = {};
+    aktionenRef.on('child_added', reiheEin);
+    aktionenRef.on('child_changed', reiheEin);
     hostUhr = setInterval(tick, 1000);
     sageAn();
+  }
+
+  function reiheEin(spielerSchnappschuss) {
+    const uid = spielerSchnappschuss.key;
+    spielerSchnappschuss.forEach(function (a) { verarbeite(uid, a); });
   }
 
   function stoppeHostUhr() {
     if (aktionenRef) { aktionenRef.off(); aktionenRef = null; }
     if (hostUhr) { clearInterval(hostUhr); hostUhr = null; }
+    gesehen = {};
+    ablehnungen = {};
+    ansageVorspann = null;
   }
 
-  async function verarbeite(uid, schnappschuss) {
-    if (!spiel || inArbeit) return;
-    const a = schnappschuss.val();
-    if (!a) return;
-    inArbeit = true;
-    try {
-      wendeAktionAn(uid, a);
-      await schnappschuss.ref.remove();
-      await veroeffentliche();
-      melde();
-    } catch (f) {
-      fehlerText = 'Aktion konnte nicht angewendet werden: ' + f.message;
-    } finally {
-      inArbeit = false;
-    }
+  /**
+   * Reiht eine Aktion in die Kette ein. Jede Aktion genau einmal —
+   * child_added und child_changed liefern dieselbe Aktion gern zweimal.
+   */
+  function verarbeite(uid, schnappschuss) {
+    const schluessel = uid + '/' + schnappschuss.key;
+    if (gesehen[schluessel]) return;
+    gesehen[schluessel] = true;
+    nacheinander(async function () {
+      if (!spiel) return;
+      const a = schnappschuss.val();
+      if (!a) return;
+      try {
+        const r = wendeAktionAn(uid, a);
+        if (r.ok) delete ablehnungen[uid];
+        else {
+          ablehnungen[uid] = { text: r.fehler, zeit: serverJetzt() };
+          fehlerText = 'Abgelehnt (' + nameVon(uid) + '): ' + r.fehler;
+        }
+        await schnappschuss.ref.remove();
+        await veroeffentliche();
+        melde();
+      } catch (f) {
+        fehlerText = 'Aktion konnte nicht angewendet werden: ' + f.message;
+        melde();
+      }
+    });
+  }
+
+  function nameVon(uid) {
+    const s = spiel && spiel.spieler.find(function (x) { return x.uid === uid; });
+    return s ? s.name : 'unbekannt';
+  }
+
+  /**
+   * Nachlese: liest aktionen/<code> einmal ganz und reiht ein, was noch
+   * liegt. Fängt alles, was ein Horcher-Ereignis je verpassen könnte
+   * (Verbindungsabriss, Neustart). Dank `gesehen` doppelt nichts.
+   */
+  function nachlese() {
+    if (!aktuellerCode || !spiel) return;
+    db.ref(AKTIONEN_PFAD + '/' + aktuellerCode).once('value').then(function (s) {
+      s.forEach(function (spielerSchnappschuss) { reiheEin(spielerSchnappschuss); return false; });
+    }).catch(function () { /* nächster Versuch beim nächsten Takt */ });
+  }
+
+  /** Der Text, mit dem der laufende Schritt schlafen geht — kommt vor die nächste Ansage. */
+  function merkeSchlafEin(sp) {
+    const alt = regeln.aktuellerSchritt(sp);
+    if (alt && alt.schlafEin) ansageVorspann = alt.schlafEin;
   }
 
   /** Wie viele Sekunden der laufende Nachtschritt mindestens noch steht. */
@@ -473,8 +537,17 @@ const gameService = (function () {
   }
 
   /** Sekundentakt des Erzählers. */
-  async function tick() {
-    if (!spiel || inArbeit) return;
+  function tick() {
+    if (!spiel || tickLaeuft) return;
+    if (++tickZaehler % 5 === 0) nachlese();
+    tickLaeuft = true;
+    nacheinander(async function () {
+      try { await tickInnen(); } finally { tickLaeuft = false; }
+    });
+  }
+
+  async function tickInnen() {
+    if (!spiel) return;
 
     if (spiel.phase === 'nacht' && spiel.nacht && spiel.nacht.schritt) {
       /* Ein Schritt endet erst, wenn die Mindestzeit um ist UND alle
@@ -482,29 +555,25 @@ const gameService = (function () {
          stehen genau die Mindestzeit — von außen nicht zu unterscheiden. */
       if (restWartezeit() > 0) return;
       if (!regeln.schrittFertig(spiel)) return;
-      inArbeit = true;
-      try {
-        const alt = regeln.aktuellerSchritt(spiel);
-        if (alt && alt.schlafEin && ansager) ansager(alt.schlafEin, 'schlafEin');
-        regeln.weiter(spiel);
-        schrittSeit = serverJetzt();
-        nachAenderung();
-        await veroeffentliche();
-        melde();
-      } finally { inArbeit = false; }
+      /* „… schläft wieder ein" wird NICHT einzeln gesprochen — die nächste
+         Ansage bräche sie sofort ab (sprich() beginnt mit cancel()). Sie
+         wird der nächsten Ansage vorangestellt. */
+      merkeSchlafEin(spiel);
+      regeln.weiter(spiel);
+      schrittSeit = serverJetzt();
+      nachAenderung();
+      await veroeffentliche();
+      melde();
       return;
     }
 
     if (spiel.phase === 'tag' && spiel.tag && spiel.tag.schritt === 'diskussion') {
       if (!spiel.tag.diskussionStart) { regeln.diskussionGestartet(spiel, serverJetzt()); await veroeffentliche(); melde(); return; }
       if (restDiskussion() > 0) { melde(); return; }
-      inArbeit = true;
-      try {
-        regeln.tagWeiter(spiel);
-        nachAenderung();
-        await veroeffentliche();
-        melde();
-      } finally { inArbeit = false; }
+      regeln.tagWeiter(spiel);
+      nachAenderung();
+      await veroeffentliche();
+      melde();
     }
   }
 
@@ -562,7 +631,8 @@ const gameService = (function () {
     const k = zustandsSchluessel();
     if (k === angesagt) return;
     angesagt = k;
-    const text = ansageText();
+    let text = ansageText();
+    if (ansageVorspann) { text = ansageVorspann + (text ? ' ' + text : ''); ansageVorspann = null; }
     if (text) ansager(text, spiel.phase);
   }
 
