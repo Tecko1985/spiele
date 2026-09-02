@@ -8,13 +8,15 @@
 <meta name="theme-color" content="#14110f">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="style.css?v=1.0">
+<link rel="stylesheet" href="style.css?v=1.1">
 </head>
 <body>
 
 <div id="app">
-  <header class="kopf" id="kopf"></header>
-  <nav class="reiter" id="reiter"></nav>
+  <div class="oben">
+    <header class="kopf" id="kopf"></header>
+    <nav class="reiter" id="reiter"></nav>
+  </div>
   <main id="inhalt"><p class="leise mitte">Verbinde …</p></main>
   <div id="erzaehler"></div>
   <div id="meldung" hidden></div>
@@ -28,11 +30,11 @@
      bildschirme -> app. Jede Datei benutzt die vorherigen; app.js startet
      die Oberfläche und kommt zuletzt. -->
 <script src="rollen.js?v=1.0"></script>
-<script src="regeln.js?v=1.0"></script>
+<script src="regeln.js?v=1.1"></script>
 <script src="sprecher.js?v=1.0"></script>
 <script src="game-service.js?v=1.0"></script>
-<script src="bildschirme.js?v=1.0"></script>
-<script src="app.js?v=1.0"></script>
+<script src="bildschirme.js?v=1.1"></script>
+<script src="app.js?v=1.1"></script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(function () {});

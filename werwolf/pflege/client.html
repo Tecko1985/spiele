@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Werwolf — Testgerät</title>
-<link rel="stylesheet" href="../style.css?v=1.0">
+<link rel="stylesheet" href="../style.css?v=1.1">
 </head>
 <body>
 <!--
@@ -13,8 +13,10 @@
   kommt aus der Adresse (?uid=...). Kein Service Worker.
 -->
 <div id="app">
-  <header class="kopf" id="kopf"></header>
-  <nav class="reiter" id="reiter"></nav>
+  <div class="oben">
+    <header class="kopf" id="kopf"></header>
+    <nav class="reiter" id="reiter"></nav>
+  </div>
   <main id="inhalt"><p class="leise mitte">Verbinde …</p></main>
   <div id="erzaehler"></div>
   <div id="meldung" hidden></div>

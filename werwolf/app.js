@@ -13,6 +13,20 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.1',
+    groups: [
+      {
+        title: 'Abnahme: Datenschutz, Sicherheit, Handy',
+        items: [
+          'Die Chronik in der Übersicht verriet mitten im Spiel, wen Amor verkuppelt, wen die Seherin ansieht, wen Beschützer und Hexe wählen — und beim Tod immer die Rolle, auch bei „Rollen aufdecken: aus". Geheime Einträge erscheinen jetzt erst am Ende, Rollen nur, wenn aufgedeckt wird.',
+          'Datenbank-Regeln: ein Spielereintrag hat genau Name (1–24 Zeichen), Beitrittszeit und Platz und lässt sich nur im Warteraum schreiben.',
+          'Der Datenschutz-Hinweis sagt jetzt ehrlich, was mit einem Raum passiert, der nicht geschlossen wird, und dass Firebase eine Kennung im Browser ablegt.',
+          'Handy: Schalter-Zeilen sind ganz antippbar (auch der Heiltrank der Hexe), der Zurück-Pfeil ist 44 px groß, Kopf und Reiter kleben als Einheit oben. Quer gehalten sind Kopf, Reiter und Erzähler-Leiste flacher.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0',
     groups: [
       {

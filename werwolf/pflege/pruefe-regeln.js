@@ -610,6 +610,38 @@ test('Ein Dorfbewohner sieht keine fremde Rolle; Wölfe sehen sich; öffentliche
   assert.ok(oeff.indexOf('werwolf') < 0 && oeff.indexOf('seherin') < 0, 'öffentlich alles verdeckt');
 });
 
+test('Die öffentliche Chronik verrät mitten im Spiel keine Nachtaktion und keine Rolle', function () {
+  const rollenJeName = { Anna: 'werwolf', Ben: 'amor', Cleo: 'seherin', Dana: 'hexe', Emil: 'beschuetzer', Finn: 'dorfbewohner', Gerd: 'dorfbewohner', Hanna: 'dorfbewohner' };
+  for (const aufdecken of [false, true]) {
+    const spiel = spielMit(rollenJeName, { rollenAufdecken: aufdecken });
+    nacht(spiel, {
+      amor: function (sp) { ok(regeln.nachtAktion(sp, uid('Ben'), { ziele: [uid('Finn'), uid('Gerd')] })); },
+      beschuetzer: function (sp) { ok(regeln.nachtAktion(sp, uid('Emil'), { ziel: uid('Cleo') })); },
+      werwolf: function (sp) { ok(regeln.nachtAktion(sp, uid('Anna'), { ziel: uid('Hanna') })); },
+      hexe: function (sp) { ok(regeln.nachtAktion(sp, uid('Dana'), { gift: uid('Finn') })); },
+      seherin: function (sp) { ok(regeln.nachtAktion(sp, uid('Cleo'), { ziel: uid('Anna') })); ok(regeln.nachtAktion(sp, uid('Cleo'), { bestaetigt: true })); },
+    });
+    assert.strictEqual(spiel.phase, 'tag');
+    /* Hanna (Wölfe), Finn (Gift), Gerd (Liebe) sind tot — die geheime Chronik weiß alles. */
+    assert.ok(spiel.chronik.some(function (c) { return /Amor verkuppelt/.test(c.text); }), 'intern steht Amor drin');
+    const texte = regeln.oeffentlicheSicht(spiel).chronik.map(function (c) { return c.text; }).join('\n');
+    /* Die Todesursache („vergiftet") ist öffentlich — der Erzähler sagt sie am Morgen laut. Wer die Hexe ist, bleibt geheim. */
+    for (const wort of ['Amor', 'Seherin', 'Beschützer', 'Hexe', 'Dieb', 'Flötenspieler', 'Weiße']) {
+      assert.ok(texte.indexOf(wort) < 0, 'öffentlich (aufdecken=' + aufdecken + ') nennt ' + wort + ':\n' + texte);
+    }
+    if (!aufdecken) {
+      assert.ok(texte.indexOf('(') < 0, 'ohne Aufdecken keine Rolle in Klammern:\n' + texte);
+      assert.ok(/Hanna von den Werwölfen gerissen/.test(texte), 'Tod ohne Rolle bleibt sichtbar:\n' + texte);
+    } else {
+      assert.ok(/Hanna \(Dorfbewohner\)/.test(texte), 'mit Aufdecken steht die Rolle da:\n' + texte);
+    }
+    /* Am Ende ist alles offen. */
+    spiel.ende = { sieger: 'dorf', siegerName: 'Das Dorf', text: '', gewinner: [] };
+    const ende = regeln.oeffentlicheSicht(spiel).chronik.map(function (c) { return c.text; }).join('\n');
+    assert.ok(/Amor verkuppelt Finn und Gerd/.test(ende) && /Die Seherin sieht sich Anna an/.test(ende), 'am Ende steht alles da');
+  }
+});
+
 test('Die 8-Spieler-Partie aus der Abnahme läuft von Setup bis Siegbildschirm', function () {
   const spiel = spielMit({ Anna: 'werwolf', Ben: 'werwolf', Cleo: 'seherin', Dana: 'hexe', Emil: 'jaeger', Finn: 'amor', Gerd: 'dorfbewohner', Hanna: 'dorfbewohner' });
   assert.ok(regeln.alleBereit(spiel));
@@ -646,6 +678,7 @@ test('Die 8-Spieler-Partie aus der Abnahme läuft von Setup bis Siegbildschirm',
   const oeff = regeln.oeffentlicheSicht(spiel);
   assert.ok(oeff.spieler.every(function (s) { return s.rolle; }), 'am Ende alle Rollen offen');
   assert.ok(oeff.chronik.length > 10, 'Chronik gefüllt');
+  assert.ok(oeff.chronik.some(function (c) { return /Amor verkuppelt/.test(c.text); }), 'am Ende steht die Nacht in der Chronik');
 });
 
 /* ======================================================================

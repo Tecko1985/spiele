@@ -55,8 +55,8 @@ const bildschirme = (function () {
 
     if (ui.formular === 'neu') {
       h += '<div class="karte akzent"><h2>Neues Spiel</h2>';
-      h += '<div class="schalter"><div class="txt">Ich spiele selbst mit<small>Aus: Dieses Gerät ist nur der Erzähler und liegt in der Mitte.</small></div>';
-      h += '<input type="checkbox" id="spieltMit" ' + (ui.spieltMit !== false ? 'checked' : '') + '></div>';
+      h += '<label class="schalter"><div class="txt">Ich spiele selbst mit<small>Aus: Dieses Gerät ist nur der Erzähler und liegt in der Mitte.</small></div>';
+      h += '<input type="checkbox" id="spieltMit" ' + (ui.spieltMit !== false ? 'checked' : '') + '></label>';
       h += '<label class="feld" for="name">Dein Name</label><input type="text" id="name" maxlength="24" autocomplete="off" value="' + esc(z.gemerkterName || '') + '" placeholder="Spitzname reicht">';
       h += '<button class="btn primaer" data-aktion="raumErstellen">Raum eröffnen</button>';
       h += '<button class="btn leise" data-aktion="formular" data-formular="">Abbrechen</button></div>';
@@ -78,9 +78,9 @@ const bildschirme = (function () {
 
   function einstellungenLokal() {
     let h = '<div class="karte"><h3>Dieses Gerät</h3>';
-    h += '<div class="schalter"><div class="txt">Ansagen vorlesen<small>' + (sprecher.kannSprechen() ? 'Nur das Erzähler-Gerät spricht.' : 'Dieses Gerät kann nicht sprechen.') + '</small></div><input type="checkbox" data-einstellung="sprache" ' + (sprecher.hole('sprache') ? 'checked' : '') + '></div>';
-    h += '<div class="schalter"><div class="txt">Vibration<small>Wenn du dran bist. iPhone kann das nicht.</small></div><input type="checkbox" data-einstellung="vibration" ' + (sprecher.hole('vibration') ? 'checked' : '') + '></div>';
-    h += '<div class="schalter"><div class="txt">Helles Design</div><input type="checkbox" data-einstellung="hell" ' + (sprecher.hole('hell') ? 'checked' : '') + '></div>';
+    h += '<label class="schalter"><div class="txt">Ansagen vorlesen<small>' + (sprecher.kannSprechen() ? 'Nur das Erzähler-Gerät spricht.' : 'Dieses Gerät kann nicht sprechen.') + '</small></div><input type="checkbox" data-einstellung="sprache" ' + (sprecher.hole('sprache') ? 'checked' : '') + '></label>';
+    h += '<label class="schalter"><div class="txt">Vibration<small>Wenn du dran bist. iPhone kann das nicht.</small></div><input type="checkbox" data-einstellung="vibration" ' + (sprecher.hole('vibration') ? 'checked' : '') + '></label>';
+    h += '<label class="schalter"><div class="txt">Helles Design</div><input type="checkbox" data-einstellung="hell" ' + (sprecher.hole('hell') ? 'checked' : '') + '></label>';
     h += '</div>';
     return h;
   }
@@ -141,7 +141,7 @@ const bildschirme = (function () {
       h += '<h2>Einstellungen</h2><div class="karte">';
       h += '<div class="schalter"><div class="txt">Diskussionszeit</div><select data-einstellung-raum="diskussionSek">' +
         [0, 60, 120, 180, 300, 420, 600].map(function (s) { return '<option value="' + s + '" ' + (e.diskussionSek === s ? 'selected' : '') + '>' + (s === 0 ? 'ohne Uhr' : (s / 60) + ' Min') + '</option>'; }).join('') + '</select></div>';
-      h += '<div class="schalter"><div class="txt">Rollen der Toten aufdecken</div><input type="checkbox" data-einstellung-raum="rollenAufdecken" ' + (e.rollenAufdecken !== false ? 'checked' : '') + '></div>';
+      h += '<label class="schalter"><div class="txt">Rollen der Toten aufdecken</div><input type="checkbox" data-einstellung-raum="rollenAufdecken" ' + (e.rollenAufdecken !== false ? 'checked' : '') + '></label>';
       h += '<div class="schalter"><div class="txt">Gleichstand<small>Mit Sündenbock im Spiel stirbt immer er.</small></div><select data-einstellung-raum="gleichstand">' +
         '<option value="stichwahl" ' + (e.gleichstand !== 'niemand' ? 'selected' : '') + '>Stichwahl</option><option value="niemand" ' + (e.gleichstand === 'niemand' ? 'selected' : '') + '>Niemand stirbt</option></select></div>';
       h += '<div class="schalter"><div class="txt">Wartezeit je Rolle<small>So lange steht jeder Nachtaufruf mindestens — auch für tote Rollen, damit nichts verrät, wer noch lebt.</small></div><select data-einstellung-raum="wartezeitSek">' +
@@ -273,7 +273,7 @@ const bildschirme = (function () {
         h += '<div class="karte ' + (a.opfer ? 'rot' : '') + '"><p class="leise">Die Wölfe haben gerissen:</p><p class="gross">' + (a.opfer ? esc(a.opfer.name) : 'niemanden') + '</p></div>';
         if (a.fertig) { h += '<div class="hinweis ok">Entschieden.</div>'; break; }
         if (a.heil && a.opfer) {
-          h += '<div class="schalter"><div class="txt">🧪 Heiltrank einsetzen<small>Rettet ' + esc(a.opfer.name) + '. Nur einmal im Spiel.</small></div><input type="checkbox" data-aktion-change="hexeHeilen" ' + (ui.hexeHeilen ? 'checked' : '') + '></div>';
+          h += '<label class="schalter"><div class="txt">🧪 Heiltrank einsetzen<small>Rettet ' + esc(a.opfer.name) + '. Nur einmal im Spiel.</small></div><input type="checkbox" data-aktion-change="hexeHeilen" ' + (ui.hexeHeilen ? 'checked' : '') + '></label>';
         } else if (!a.heil) h += '<p class="leise">Dein Heiltrank ist verbraucht.</p>';
         if (a.gift) {
           h += '<h3>☠️ Gifttrank (einmal im Spiel)</h3><p class="leise">Antippen zum Vergiften, nochmal antippen zum Zurücknehmen.</p>';
@@ -490,7 +490,8 @@ const bildschirme = (function () {
   function info(version, changelog) {
     let h = '<h1>Info</h1>';
     h += '<div class="karte"><h3>Daten und Datenschutz</h3>';
-    h += '<p>Gespeichert werden nur dein selbst gewählter Anzeigename und der Spielstand der laufenden Partie. Die Anmeldung ist anonym — es gibt kein Konto, keine E-Mail-Adresse und keine Verbindung zu deinen Vereinsdaten. Mit dem Ende der Partie wird der Raum gelöscht.</p>';
+    h += '<p>Gespeichert werden nur dein selbst gewählter Anzeigename und der Spielstand der laufenden Partie. Die Anmeldung ist anonym — es gibt kein Konto, keine E-Mail-Adresse und keine Verbindung zu deinen Vereinsdaten. Firebase legt dafür in deinem Browser eine zufällige Kennung ab; sie bleibt, bis du die Website-Daten löschst.</p>';
+    h += '<p>Schließt der Erzähler den Raum, werden Raum, Namen und Spielstand gelöscht. Macht er stattdessen nur den Browser zu, bleibt der Raum mit den Anzeigenamen in der Datenbank stehen. Wer sicher gehen will, tippt am Ende „Raum schließen".</p>';
     h += '<p>Die Spieldaten laufen über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien. Wenn du das nicht möchtest, gib einen Spitznamen statt deines Namens ein.</p>';
     h += '<p class="leise">Verantwortlich: 1. SC 1911 Heiligenstadt e.V., Leineberg 2, 37308 Heilbad Heiligenstadt, <a href="mailto:info@sc1911-heiligenstadt.de" style="color:var(--akzent)">info@sc1911-heiligenstadt.de</a>. Auskunft, Berichtigung, Löschung und Widerspruch unter dieser Anschrift; Beschwerden beim Thüringer Landesbeauftragten für den Datenschutz und die Informationsfreiheit.</p>';
     h += '<p class="leise">„Werwolf" ist ein eigenständiges Spiel des Vereins nach dem bekannten Gesellschaftsspiel-Prinzip. Es steht in keiner Verbindung zum Verlag von „Die Werwölfe von Düsterwald".</p></div>';

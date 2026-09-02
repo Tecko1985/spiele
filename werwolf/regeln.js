@@ -91,11 +91,32 @@ const regeln = (function () {
     return a;
   }
 
-  function notiere(spiel, text) {
+  /* Ein Chronik-Eintrag ist ÖFFENTLICH, sofern nicht anders gesagt.
+     ⚠️ Die öffentliche Sicht ist für alle lesbar (auch per REST ohne
+     Anmeldung). Jeder Satz, der eine Nachtaktion oder eine Rolle nennt,
+     bekommt deshalb `geheim` (erscheint erst am Ende) oder `offen` (eine
+     Fassung ohne Rolle, solange „Rollen aufdecken" aus ist). Die
+     Abnahme am 2026-09-02 fand „Amor verkuppelt X und Y" in der
+     Übersicht jedes Spielers — mitten in Nacht 1. */
+  const GEHEIM = { geheim: true };
+
+  function notiere(spiel, text, extra) {
     const wo = spiel.phase === 'nacht' ? 'Nacht ' + spiel.nachtNr
       : spiel.phase === 'tag' ? 'Tag ' + spiel.nachtNr
       : spiel.phase === 'ende' ? 'Ende' : 'Start';
-    spiel.chronik.push({ wo: wo, text: text });
+    spiel.chronik.push(Object.assign({ wo: wo, text: text }, extra || {}));
+  }
+
+  /** Die Chronik, wie ALLE sie sehen dürfen: Geheimes erst am Ende, Rollen nur wenn aufgedeckt. */
+  function chronikOeffentlich(spiel) {
+    const raus = [];
+    for (const c of (spiel.chronik || [])) {
+      if (spiel.ende) { raus.push({ wo: c.wo, text: c.text }); continue; }
+      if (c.geheim) continue;
+      if (c.offen && !spiel.regeln.rollenAufdecken) { raus.push({ wo: c.wo, text: c.offen }); continue; }
+      raus.push({ wo: c.wo, text: c.text });
+    }
+    return raus;
   }
 
   function fehler(text) { return { ok: false, fehler: text }; }
@@ -389,7 +410,7 @@ const regeln = (function () {
         if (a.karte === null || a.karte === undefined) {
           if (beideWoelfe) return fehler('Beide Karten sind Werwölfe — du musst eine nehmen.');
           ein[uid] = { karte: null };
-          notiere(spiel, 'Der Dieb behält seine Karte.');
+          notiere(spiel, 'Der Dieb behält seine Karte.', GEHEIM);
           return OK;
         }
         const idx = a.karte | 0;
@@ -398,7 +419,7 @@ const regeln = (function () {
         k[idx] = s.rolle;
         s.rolle = neu;
         ein[uid] = { karte: idx };
-        notiere(spiel, 'Der Dieb tauscht und ist jetzt ' + R.name(neu) + '.');
+        notiere(spiel, 'Der Dieb tauscht und ist jetzt ' + R.name(neu) + '.', GEHEIM);
         return OK;
       }
       case 'amor': {
@@ -410,7 +431,7 @@ const regeln = (function () {
         spielerVon(spiel, z[0]).verliebt = true;
         spielerVon(spiel, z[1]).verliebt = true;
         ein[uid] = { ziele: z.slice() };
-        notiere(spiel, 'Amor verkuppelt ' + nameVon(spiel, z[0]) + ' und ' + nameVon(spiel, z[1]) + '.');
+        notiere(spiel, 'Amor verkuppelt ' + nameVon(spiel, z[0]) + ' und ' + nameVon(spiel, z[1]) + '.', GEHEIM);
         return OK;
       }
       case 'beschuetzer': {
@@ -419,7 +440,7 @@ const regeln = (function () {
         n.schutz = a.ziel;
         spiel.beschuetzer.letztes = a.ziel;
         ein[uid] = { ziel: a.ziel };
-        notiere(spiel, 'Der Beschützer wacht über ' + nameVon(spiel, a.ziel) + '.');
+        notiere(spiel, 'Der Beschützer wacht über ' + nameVon(spiel, a.ziel) + '.', GEHEIM);
         return OK;
       }
       case 'werwolf': {
@@ -432,7 +453,7 @@ const regeln = (function () {
         if (a.ziel) {
           if (erlaubt.indexOf(a.ziel) < 0) return fehler('Du kannst nur einen Werwolf töten.');
           n.weissOpfer = a.ziel;
-          notiere(spiel, 'Der Weiße Werwolf fällt über ' + nameVon(spiel, a.ziel) + ' her.');
+          notiere(spiel, 'Der Weiße Werwolf fällt über ' + nameVon(spiel, a.ziel) + ' her.', GEHEIM);
         }
         ein[uid] = { ziel: a.ziel || null };
         return OK;
@@ -445,8 +466,8 @@ const regeln = (function () {
         if (heilen && !n.opfer) return fehler('Es gibt kein Opfer zu retten.');
         if (gift && !spiel.hexe.gift) return fehler('Der Gifttrank ist verbraucht.');
         if (gift && erlaubt.indexOf(gift) < 0) return fehler('Diesen Spieler kannst du nicht vergiften.');
-        if (heilen) { spiel.hexe.heil = false; n.heil = true; notiere(spiel, 'Die Hexe rettet ' + nameVon(spiel, n.opfer) + '.'); }
-        if (gift) { spiel.hexe.gift = false; n.gift = gift; notiere(spiel, 'Die Hexe vergiftet ' + nameVon(spiel, gift) + '.'); }
+        if (heilen) { spiel.hexe.heil = false; n.heil = true; notiere(spiel, 'Die Hexe rettet ' + nameVon(spiel, n.opfer) + '.', GEHEIM); }
+        if (gift) { spiel.hexe.gift = false; n.gift = gift; notiere(spiel, 'Die Hexe vergiftet ' + nameVon(spiel, gift) + '.', GEHEIM); }
         ein[uid] = { heilen: heilen, gift: gift };
         return OK;
       }
@@ -462,7 +483,7 @@ const regeln = (function () {
         const ziel = spielerVon(spiel, a.ziel);
         n.seherinErgebnis = { uid: ziel.uid, rolle: ziel.rolle };
         ein[uid] = { ziel: a.ziel, bestaetigt: false };
-        notiere(spiel, 'Die Seherin sieht sich ' + ziel.name + ' an.');
+        notiere(spiel, 'Die Seherin sieht sich ' + ziel.name + ' an.', GEHEIM);
         return OK;
       }
       case 'floetenspieler': {
@@ -474,7 +495,7 @@ const regeln = (function () {
         for (const x of z) if (erlaubt.indexOf(x) < 0) return fehler('Ungültige Wahl.');
         for (const x of z) spielerVon(spiel, x).verzaubert = true;
         ein[uid] = { ziele: z.slice() };
-        notiere(spiel, 'Der Flötenspieler verzaubert ' + z.map(function (x) { return nameVon(spiel, x); }).join(' und ') + '.');
+        notiere(spiel, 'Der Flötenspieler verzaubert ' + z.map(function (x) { return nameVon(spiel, x); }).join(' und ') + '.', GEHEIM);
         return OK;
       }
       default:
@@ -494,17 +515,17 @@ const regeln = (function () {
     if (n.opfer) {
       const o = spielerVon(spiel, n.opfer);
       if (n.schutz === n.opfer) {
-        notiere(spiel, 'Die Wölfe greifen ' + o.name + ' an, doch der Beschützer hält stand.');
+        notiere(spiel, 'Die Wölfe greifen ' + o.name + ' an, doch der Beschützer hält stand.', GEHEIM);
       } else if (o.rolle === 'alte' && spiel.alte.angriffe === 0) {
         spiel.alte.angriffe = 1;
-        notiere(spiel, 'Die Wölfe greifen ' + o.name + ' an — der Alte überlebt den ersten Angriff.');
+        notiere(spiel, 'Die Wölfe greifen ' + o.name + ' an — der Alte überlebt den ersten Angriff.', GEHEIM);
       } else if (n.heil) {
-        notiere(spiel, 'Die Wölfe greifen ' + o.name + ' an, die Hexe heilt.');
+        notiere(spiel, 'Die Wölfe greifen ' + o.name + ' an, die Hexe heilt.', GEHEIM);
       } else {
         tote.push({ uid: n.opfer, ursache: 'woelfe' });
       }
     } else {
-      notiere(spiel, 'Die Wölfe reißen niemanden.');
+      notiere(spiel, 'Die Wölfe reißen niemanden.', GEHEIM);
     }
     if (n.gift) tote.push({ uid: n.gift, ursache: 'gift' });
     if (n.weissOpfer) tote.push({ uid: n.weissOpfer, ursache: 'weisserWerwolf' });
@@ -538,7 +559,7 @@ const regeln = (function () {
       s.todesursache = t.ursache;
       s.gestorben = (spiel.phase === 'nacht' ? 'Nacht ' : 'Tag ') + spiel.nachtNr;
       gestorben.push({ uid: s.uid, name: s.name, rolle: s.rolle, ursache: t.ursache });
-      notiere(spiel, s.name + ' (' + R.name(s.rolle) + ') ' + (URSACHE_TEXT[t.ursache] || 'stirbt') + '.');
+      notiere(spiel, s.name + ' (' + R.name(s.rolle) + ') ' + (URSACHE_TEXT[t.ursache] || 'stirbt') + '.', { offen: s.name + ' ' + (URSACHE_TEXT[t.ursache] || 'stirbt') + '.' });
 
       if (spiel.verliebte && s.verliebt) {
         const partnerUid = spiel.verliebte[0] === s.uid ? spiel.verliebte[1] : spiel.verliebte[0];
@@ -863,7 +884,7 @@ const regeln = (function () {
         abgestimmt: t.abgestimmt,
         diskussionStart: t.diskussionStart,
       } : null,
-      chronik: spiel.chronik,
+      chronik: chronikOeffentlich(spiel),
       ende: spiel.ende ? {
         sieger: spiel.ende.sieger, siegerName: spiel.ende.siegerName, text: spiel.ende.text,
         gewinner: spiel.ende.gewinner,

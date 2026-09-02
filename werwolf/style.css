@@ -72,12 +72,16 @@ button, input, select {
   padding-top: max(10px, env(safe-area-inset-top));
   background: var(--bg2);
   border-bottom: 1px solid var(--rand);
-  position: sticky;
-  top: 0;
-  z-index: 5;
 }
+/* Kopf und Reiter kleben ZUSAMMEN oben — ein fester `top`-Wert für die
+   Reiter passte nicht, sobald die Kopfhöhe abweicht (safe-area auf dem iPhone). */
+.oben { position: sticky; top: 0; z-index: 5; }
 .kopf .titel { font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 8px; }
-.kopf .titel a { color: var(--text2); text-decoration: none; font-size: 22px; padding: 4px 6px; }
+.kopf .titel a {
+  color: var(--text2); text-decoration: none; font-size: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; margin: -8px 0 -8px -10px;
+}
 .kopf .code {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   letter-spacing: 2px;
@@ -93,9 +97,6 @@ button, input, select {
   display: flex;
   background: var(--bg2);
   border-bottom: 1px solid var(--rand);
-  position: sticky;
-  top: 57px;
-  z-index: 4;
 }
 .reiter button {
   flex: 1;
@@ -193,6 +194,7 @@ input.code-feld { text-transform: uppercase; letter-spacing: 4px; font-family: u
   border-bottom: 1px solid var(--rand);
 }
 .schalter:last-child { border-bottom: none; }
+label.schalter { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .schalter .txt { flex: 1; }
 .schalter .txt small { display: block; color: var(--text2); font-size: 13px; }
 .schalter input[type="checkbox"] { width: 28px; height: 28px; accent-color: var(--akzent); }
@@ -389,4 +391,17 @@ input.code-feld { text-transform: uppercase; letter-spacing: 4px; font-family: u
 
 @media (min-width: 600px) {
   body { font-size: 18px; }
+}
+
+/* Quer gehaltenes Handy: nur ~375 px hoch. Kopf, Reiter und Erzähler-Leiste
+   nahmen zusammen 239 px — es blieben 136 px für den Inhalt. */
+@media (max-height: 450px) {
+  .kopf { padding-top: max(4px, env(safe-area-inset-top)); padding-bottom: 4px; }
+  .reiter button { min-height: 40px; padding: 8px 6px; }
+  .erzaehler { padding-top: 6px; }
+  .erzaehler .ansage { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+  .erzaehler .ansage span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .erzaehler .btn { min-height: 44px; margin: 4px 0; font-size: 16px; padding: 8px 12px; }
+  .erzaehler .btn.klein { min-height: 40px; }
+  main.mit-leiste { padding-bottom: 140px; }
 }

@@ -207,7 +207,9 @@
           "zusammenstellung": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid && root.child('werwolf/raeume/' + $code + '/phase').val() === 'lobby'" },
           "spieler": {
             "$uid": {
-              ".write": "auth != null && ($uid === auth.uid || root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid) && (data.exists() || root.child('werwolf/raeume/' + $code + '/phase').val() === 'lobby')"
+              ".write": "auth != null && ($uid === auth.uid || root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid) && root.child('werwolf/raeume/' + $code + '/phase').val() === 'lobby'",
+              ".validate": "newData.hasChildren(['name', 'beigetreten', 'reihe']) && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 24 && newData.child('beigetreten').isNumber() && newData.child('reihe').isNumber()",
+              "$sonst": { ".validate": "$sonst === 'name' || $sonst === 'beigetreten' || $sonst === 'reihe'" }
             }
           }
         }
