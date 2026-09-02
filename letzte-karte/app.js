@@ -17,40 +17,6 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
-    version: '1.2',
-    groups: [
-      {
-        title: 'Im Info-Bereich steht jetzt, wo die Spieldaten liegen',
-        items: [
-          'Bisher stand dort nur, dass die Daten auf Servern in Deutschland liegen. Das stimmt für dieses Spiel nicht: damit mehrere Geräte dieselbe Partie sehen, laufen die Daten ueber die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien.',
-          'Der Hinweis sagt das jetzt offen — zusammen mit der Bitte, einen Spitznamen statt des echten Namens einzugeben, wenn man das nicht möchte.',
-          'Neu dabei: die vollständige Anschrift des Vereins und die Beschwerdestelle.',
-          'Am Spiel selbst ändert sich nichts.'
-        ]
-      }
-    ]
-  },
-  {
-    version: '1.1',
-    groups: [
-      {
-        title: 'Behoben',
-        items: [
-          'Die angetippte Karte hebt sich sofort an. Vorher konnte es beliebig lange dauern, bis die Auswahl überhaupt zu sehen war — besonders dann, wenn keine KI mitspielte und man selbst am Zug war',
-          'Der Tisch füllt jetzt den ganzen Bildschirm. Karten und Stapel wachsen mit dem Gerät; vorher blieb auf einem großen Handy fast die halbe Höhe leer und alles wirkte zusammengedrängt und winzig',
-          'Die eigenen Karten stehen in so wenigen Reihen wie möglich und werden dabei so groß wie möglich — sieben Karten in zwei Reihen sind besser zu treffen als sieben gedrängt in einer',
-          'Die Kartenzahl der Mitspieler zeigt ein gezeichnetes Kartensymbol. Vorher stand dort ein Sonderzeichen, das auf vielen Android-Geräten als leeres Kästchen erschien',
-        ],
-      },
-      {
-        title: 'Geändert',
-        items: [
-          'Auf dem Startbildschirm und der Kachel im Spiele-Hub steht jetzt „Uno-Klon" dabei, damit auf einen Blick klar ist, worum es geht',
-        ],
-      },
-    ],
-  },
-  {
     version: '1.0',
     groups: [
       {
@@ -75,7 +41,7 @@ const CHANGELOG = [
         items: [
           'Zieh-Karten lassen sich stapeln: eine gleich hohe oder höhere reicht die ganze Strafe weiter',
           'Wer eine Karte zieht und sie passt, darf sie sofort legen',
-          'Bei der vorletzten Karte auf "Letzte Karte!" drücken — wer es vergisst, kann von jedem anderen erwischt werden und zieht zwei nach',
+          'Bei der vorletzten Karte auf „Letzte Karte!“ drücken — wer es vergisst, kann von jedem anderen erwischt werden und zieht zwei nach',
           'Farbwahl-Ziehkarten lassen sich anfechten. Die Hand des Legers wird dabei für alle kurz aufgedeckt, damit das Urteil nachvollziehbar ist',
           'Zu zweit wirkt der Richtungswechsel wie Aussetzen',
         ],
@@ -94,6 +60,14 @@ const CHANGELOG = [
         items: [
           'Eine Runde für zwischendurch, oder eine Serie bis 500 Punkte (bei Gnadenlos 1000)',
           'Nach jeder Runde steht der Zwischenstand mit allen Punkten',
+        ],
+      },
+      {
+        title: 'Daten und Datenschutz',
+        items: [
+          'Gespeichert werden nur der selbst gewählte Anzeigename und der Spielstand der laufenden Partie; die Anmeldung ist anonym und Ergebnisse werden nicht aufgehoben',
+          'Der Info-Bereich nennt offen, dass die Spieldaten über die Echtzeit-Datenbank von Google (Firebase) mit Rechenzentrum in Belgien laufen — mit der Bitte, einen Spitznamen statt des echten Namens einzugeben, wenn man das nicht möchte',
+          'Dort stehen auch die Anschrift des Vereins und die Beschwerdestelle',
         ],
       },
     ],

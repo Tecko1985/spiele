@@ -265,120 +265,63 @@
   const APP_VERSION = "1.0";
   const APP_CHANGELOG = [
     {
-      version: "1.8",
-      groups: [
-        {
-          title: "Datenschutz-Hinweis genauer",
-          items: [
-            "Der Hinweis sagt jetzt, dass Firebase eine zufällige Kennung im Browser ablegt, und dass ein Raum nur dann gelöscht wird, wenn der Eröffner die Partie in der App schließt — nicht, wenn er nur den Browser zumacht."
-          ]
-        }
-      ]
-    },
-    {
-      version: "1.7",
-      groups: [
-        {
-          title: "Neues Spiel: Werwolf",
-          items: [
-            "Die Werwölfe von Düsterwald für 5 bis 20 Spieler an eigenen Handys. Die App ersetzt den Spielleiter: Sie ruft nachts jede Rolle auf, löst die Nacht auf, führt durch Diskussion und Abstimmung und erkennt, wer gewonnen hat.",
-            "Das Gerät des Eröffners ist der Erzähler und liest die Ansagen laut vor. Der Eröffner spielt selbst mit oder legt sein Handy nur in die Mitte.",
-            "13 Rollen von Dorfbewohner bis Flötenspieler, die Rolle erscheint nur, solange der Finger auf der Karte liegt."
-          ]
-        }
-      ]
-    },
-    {
-      version: "1.6",
-      groups: [
-        {
-          title: "Der Datenschutz-Hinweis sagt jetzt, wo die Spieldaten liegen",
-          items: [
-            "Hier stand bisher, die Daten lägen auf Servern in Deutschland. Für die Spiele stimmt das nicht: damit mehrere Geräte dieselbe Partie sehen, laufen sie über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien.",
-            "Der Hinweis sagt das jetzt offen — mit der Bitte, einen Spitznamen statt des echten Namens einzugeben, wenn man das nicht möchte.",
-            "Jedes einzelne Spiel hat den Hinweis jetzt auch in seinem eigenen Info-Bereich. Vorher stand er nur hier, und wer ein Spiel direkt aufrief, sah ihn nie.",
-            "An den Spielen selbst ändert sich nichts."
-          ]
-        }
-      ]
-    },
-    {
-      version: "1.5",
-      groups: [
-        {
-          title: "Geändert",
-          items: [
-            "Die Bestenlisten sind in allen Spielen entfernt. Es werden keine Ergebnisse mehr gespeichert."
-          ]
-        }
-      ]
-    },
-    {
-      version: "1.4",
-      groups: [
-        {
-          title: "Depot-Duell: 250 Werte",
-          items: [
-            "Die Werteliste ist von 141 auf 250 gewachsen: 188 Aktien, 44 ETFs und 18 Kryptowährungen.",
-            "Die Länder holen auf — Japan, die Schweiz, Kanada, Südkorea und Großbritannien waren mit ein bis vier Werten vertreten und haben jetzt 8 bis 16. Neu unter anderem Toyota, Sony, Nintendo, Samsung, Nestlé, Roche, Tencent und Shopify.",
-          ],
-        },
-      ],
-    },
-    {
-      version: "1.3",
-      groups: [
-        {
-          title: "Depot-Duell: Partie einstellbar",
-          items: [
-            "Der Eröffner legt fest, wie viel Startgeld es gibt (10.000 bis eine Million), wie hoch die Ordergebühr ist (keine, 0,25 % oder 1 %) und wie viel höchstens in einen einzelnen Wert darf (10 % bis ohne Grenze).",
-            "Ändern geht nur in der Lobby — sobald die Partie läuft, stehen die Regeln fest, sonst würde jeder bereits getätigte Kauf rückwirkend anders bewertet.",
-            "Der Knopf zum Beenden sitzt jetzt oben rechts in der Kopfzeile und ist in jeder Ansicht erreichbar.",
-            "Der Startbildschirm sitzt mittig, und nach einem Neuladen mitten in der Partie landet man wieder im Spiel statt auf dem Startbildschirm.",
-          ],
-        },
-      ],
-    },
-    {
-      version: "1.2",
-      groups: [
-        {
-          title: "Depot-Duell läuft jetzt in Runden",
-          items: [
-            "Statt einer mitlaufenden Uhr wird in 20, 50 oder 100 Runden gespielt — zehn Runden sind ein Börsenjahr.",
-            "Die Kurse bewegen sich erst, wenn alle Mitspieler ihre Runde abgeschlossen haben. Wer noch fehlt, steht auf dem Knopf; der Eröffner kann weiterschalten, wenn jemand nicht mehr reagiert.",
-            "Die Nachrichten der laufenden Runde stehen jetzt ganz oben und sind durchblätterbar. Sie wirken erst auf den nächsten Kursschritt — man hat also Zeit, darauf zu reagieren.",
-            "Das freie Guthaben steht in der Kopfzeile, man muss für eine Kaufentscheidung nicht mehr ins Depot wechseln.",
-            "Sortierknöpfe drehen beim zweiten Antippen die Richtung um; ETFs und Kryptowährungen haben eigene Kriterien statt der bei ihnen leeren KGV- und Dividendenspalten.",
-            "Der Eröffner kann die Partie abbrechen, alle anderen können aussteigen — beides mit Rückfrage.",
-          ],
-        },
-      ],
-    },
-    {
-      version: "1.1",
-      groups: [
-        {
-          title: "Depot-Duell",
-          items: [
-            "Neues Spiel: Börsenspiel mit Spielgeld gegen die Mannschaft.",
-            "141 echte Werte — 106 Aktien, 25 ETFs und 10 Kryptowährungen mit echten Startkursen und Kennzahlen.",
-            "Nachrichten bewegen die Kurse — wer schnell liest und handelt, fährt die Bewegung mit. Gerüchte können sich als falsch herausstellen.",
-            "Bis zu fünf KI-Mitspieler mit erkennbaren Anlagestilen, dadurch auch allein spielbar."
-          ]
-        }
-      ]
-    },
-    {
       version: "1.0",
       groups: [
         {
-          title: "Spielesammlung",
+          title: "Die Sammlung",
           items: [
-            "Auto-Quartett, Fußball-Quartett und Fußball-Vereine-Quartett als digitales Kartenspiel für bis zu 8 Mitspielende.",
-            "Der Maulwurf als Verräterspiel für 4 bis 15 Mitspielende auf dem Vereinsgelände.",
-            "Ein Gerät eröffnet den Raum, alle anderen treten per Raumcode bei — es ist nichts zu installieren.",
-            "Gedacht für die Busfahrt zum Auswärtsspiel."
+            "Sieben Spiele fürs Team — gedacht für die Busfahrt zum Auswärtsspiel, den Vereinsabend und die Trainingspause.",
+            "Jedes Spiel läuft direkt im Browser, es ist nichts zu installieren.",
+            "Bei den Mehrspieler-Partien eröffnet ein Gerät den Raum, alle anderen treten mit dem Raumcode bei.",
+            "Wer die Sammlung öffnen darf, kann jedes Spiel starten — innerhalb der Spiele gibt es keine Rechte-Stufen."
+          ]
+        },
+        {
+          title: "Quartett in drei Ausgaben",
+          items: [
+            "Auto-Quartett, Fußball-Quartett mit 500 realen Spielern und Fußball-Vereine-Quartett mit 500 realen Vereinen.",
+            "Bis zu 8 Mitspielende, die eigene Hand sieht nur man selbst. Bei Gleichstand geht der Pott in die Bockrunde.",
+            "Wer in der Tools-Übersicht als Administrator angemeldet ist, pflegt Karten und Vergleichswerte direkt in der App."
+          ]
+        },
+        {
+          title: "Der Maulwurf",
+          items: [
+            "Verräterspiel für 4 bis 15 Mitspielende auf einem Vereinsgelände mit 14 Räumen, 17 Aufgaben-Minispielen und Sabotagen.",
+            "Zwei Spielarten: klassisch mit Besprechung und Abstimmung, oder Verstecken mit einem sichtbaren Fänger.",
+            "Zuschaltbare Sonderrollen für beide Seiten, jede mit einem eigenen Haken."
+          ]
+        },
+        {
+          title: "Depot-Duell",
+          items: [
+            "Börsenspiel mit Spielgeld: 250 echte Aktien, ETFs und Kryptowährungen mit echten Startkursen und Kennzahlen.",
+            "Gespielt wird in Runden — die Kurse ziehen erst weiter, wenn alle so weit sind. Nachrichten und Gerüchte bewegen den Markt.",
+            "Der Eröffner stellt Startgeld, Ordergebühr und Höchstanteil je Wert ein. Mit bis zu fünf KI-Mitspielern geht es auch allein."
+          ]
+        },
+        {
+          title: "Letzte Karte",
+          items: [
+            "Uno-Klon für 2 bis 10 Leute an eigenen Handys, in drei Spielarten: Klassisch, Wende mit doppelseitigen Karten und Gnadenlos mit Ausscheiden.",
+            "Bedenkzeit je Zug einstellbar; wer mehrmals verpasst, wird von der KI übernommen, damit die Partie zu Ende läuft."
+          ]
+        },
+        {
+          title: "Werwolf",
+          items: [
+            "Die Werwölfe von Düsterwald für 5 bis 20 Spieler an eigenen Handys. Die App ersetzt den Spielleiter und ruft nachts jede Rolle einzeln auf.",
+            "Das Gerät des Eröffners ist der Erzähler und liest die Ansagen vor. Der Eröffner spielt selbst mit oder legt sein Handy nur in die Mitte.",
+            "13 Rollen von Dorfbewohner bis Flötenspieler. Die eigene Rolle erscheint nur, solange der Finger auf der Karte liegt."
+          ]
+        },
+        {
+          title: "Daten und Datenschutz",
+          items: [
+            "Gespeichert werden nur der selbst gewählte Anzeigename und der Spielstand der laufenden Partie. Es gibt kein Konto und keine Verbindung zu den Vereinsdaten.",
+            "Ergebnisse werden nicht aufgehoben — es gibt in keinem Spiel eine Bestenliste.",
+            "Damit mehrere Geräte dieselbe Partie sehen, laufen die Spieldaten über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien. Wer das nicht möchte, gibt einen Spitznamen statt des echten Namens ein.",
+            "Jedes einzelne Spiel hat denselben Hinweis in seinem eigenen Info-Bereich, samt Anschrift des Vereins und Beschwerdestelle."
           ]
         }
       ]

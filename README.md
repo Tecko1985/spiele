@@ -17,6 +17,21 @@ Sammlung kleiner Spiele für Vereinsabende, Trainingspausen und die Busfahrt zum
 | [Letzte Karte](https://sc1911heiligenstadt.github.io/spiele/letzte-karte/) | Ablegespiel (Uno-Klon) in drei Spielarten, 2 bis 10 Mitspielende |
 | [Werwolf](https://sc1911heiligenstadt.github.io/spiele/werwolf/) | Die Werwölfe von Düsterwald an eigenen Handys, 5 bis 20 Mitspielende — die App ist der Erzähler |
 
+## Nur zum Testen
+
+Zwei Spiele bringen eine Testfassung mit, die dieselben Dateien lädt wie das
+Spiel, Firebase aber durch eine Attrappe im Arbeitsspeicher ersetzt. Sie sind
+für die Entwicklung gedacht, nicht für Mitspielende:
+
+| Seite | Wofür |
+|---|---|
+| `letzte-karte/pflege/test-harness.html` | Letzte Karte ohne Firebase, mehrere Handys nebeneinander im selben Fenster |
+| `werwolf/pflege/test-harness.html` | Werwolf-Testrahmen mit mehreren Geräten |
+| `werwolf/pflege/client.html` | Ein einzelnes „Handy“ innerhalb des Werwolf-Testrahmens |
+
+Die Kurse des Depot-Duells werden über die Skripte in `depot-duell/pflege/`
+aufgefrischt; die Anleitung dazu steht in `depot-duell/pflege/PFLEGE.md`.
+
 ## Zugang
 
 Die Anmeldung läuft über die [Tools-Übersicht](https://sc1911heiligenstadt.github.io/ToolsUebersicht/) — dort einmal anmelden, danach ist dieses Werkzeug offen.
@@ -31,7 +46,9 @@ Gespielt wird ohne Rechte-Stufen — wer die Sammlung sieht, kann jedes Spiel st
 
 Vanilla JavaScript ohne Build-Schritt — die Dateien werden so ausgeliefert, wie sie im Repo liegen. Veröffentlicht über GitHub Pages.
 
-**Anders als die übrigen Werkzeuge nutzen die Spiele nicht die Vereins-Nextcloud**, sondern eine Firebase-Datenbank, damit mehrere Geräte denselben Stand sehen. Ein Login ist dafür nicht nötig — man tritt über einen Raum-Code bei. Nur die Kartenverwaltung der Quartetts erkennt Administratoren, und zwar über die Anmeldung in der Tools-Übersicht.
+**Anders als die übrigen Werkzeuge nutzen die Spiele nicht die Vereins-Nextcloud**, sondern eine Firebase-Datenbank (Rechenzentrum Belgien), damit mehrere Geräte denselben Stand sehen. Ein Login ist dafür nicht nötig — man tritt über einen Raum-Code bei. Nur die Kartenverwaltung der Quartetts erkennt Administratoren, und zwar über die Anmeldung in der Tools-Übersicht.
+
+Gespeichert werden nur der selbst gewählte Anzeigename und der Spielstand der laufenden Partie. Ergebnisse werden nicht aufgehoben — es gibt in keinem Spiel eine Bestenliste. Der Hinweis dazu steht im Info-Bereich der Sammlung und in jedem einzelnen Spiel.
 
 ---
 

@@ -778,52 +778,33 @@ function szene() {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
-    version: "1.3",
-    groups: [
-      { title: "Im Info-Bereich steht jetzt, wo die Spieldaten liegen", items: [
-          "Bisher stand dort nur, dass die Daten auf Servern in Deutschland liegen. Das stimmt für dieses Spiel nicht: damit mehrere Geräte dieselbe Partie sehen, laufen die Daten über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien.",
-          "Der Hinweis sagt das jetzt offen — zusammen mit der Bitte, einen Spitznamen statt des echten Namens einzugeben, wenn man das nicht möchte.",
-          "Neu dabei: die vollständige Anschrift des Vereins und die Beschwerdestelle.",
-          "Am Spiel selbst ändert sich nichts."
-      ]}
-    ]
-  },
-  {
-    version: "1.2",
-    groups: [
-      { title: "Geändert", items: [
-          "Die Bestenliste ist entfernt. Es werden keine Ergebnisse mehr gespeichert, und der Knopf auf dem Startbildschirm ist weg."
-      ]}
-    ]
-  },
-  {
-    version: "1.1",
-    groups: [
-      { title: "Behoben", items: [
-          "Der Info-Reiter geht wieder auf. Er blieb komplett schwarz — die Änderungsliste war unter einem falschen Namen abgelegt, und der Fehler riss die ganze Seite mit, nicht nur die Liste.",
-          "Ein Knopf löst wieder das aus, was daraufsteht. Lief eine Liste nach dem Wischen noch nach, rutschte sie unter dem aufliegenden Finger weiter — beim Loslassen lag an derselben Stelle eine andere Zeile, und statt „Zurück“ öffnete sich irgendetwas anderes. Ein aufsetzender Finger stoppt das Nachlaufen jetzt sofort.",
-          "Dasselbe beim Wechsel zwischen zwei Ansichten: Das Nachlaufen von vorhin fror ein und lief beim Zurückkommen weiter — die Liste rutschte also genau dann, wenn man zielte. Beim Betreten steht sie jetzt still."
-      ]}
-    ]
-  },
-  {
     version: "1.0",
     groups: [
       { title: "Spielen", items: [
           "Quartett auf mehreren Geräten gleichzeitig — ein Gerät eröffnet den Raum, die anderen treten mit dem Raumcode bei.",
           "Bis zu 8 Mitspielende, die eigene Hand sieht nur man selbst.",
           "Bockrunde bei Gleichstand: der Pott geht an die nächste gewonnene Runde.",
-          "Gegen eine einfache KI spielen, wenn gerade niemand sonst da ist."
+          "Gegen eine einfache KI spielen, wenn gerade niemand sonst da ist — im Warteraum lassen sich Test-Spieler dazusetzen."
       ]},
       { title: "Karten", items: [
           "Karten ohne eigenes Foto zeigen eine Silhouette passend zum Typ — Sportwagen, SUV, Van, Pickup, Oldtimer und sieben weitere.",
           "Die Silhouetten sind gezeichnet, nicht geladen: es wird nichts nachgeladen, und sie sind auf jedem Display scharf.",
-          "Kartenverwaltung und Kriterien pflegen Administratoren."
+          "Ein Foto auf der Karte lässt sich antippen und dann groß ansehen."
+      ]},
+      { title: "Kartenverwaltung für Administratoren", items: [
+          "Wer in der Tools-Übersicht als Administrator angemeldet ist, sieht den Zugang zur Kartenverwaltung; für alle anderen bleibt er verborgen.",
+          "Karten anlegen, umbenennen, mit eigenem Foto versehen und ihre Werte ändern. Eine selbst angelegte Karte lässt sich löschen, eine geänderte Originalkarte auf das Original zurücksetzen.",
+          "Unter „Kriterien bearbeiten“ legen Administratoren fest, welche Werte auf den Karten verglichen werden."
       ]},
       { title: "Oberfläche", items: [
           "Das ganze Spiel läuft auf einer einzigen Zeichenfläche statt auf HTML-Bildschirmen — flüssig auf dem Handy und überall gleich.",
           "Die Karte ist groß und gut lesbar, Werte stehen mit Tausenderpunkten.",
           "Kartenverwaltung und Info laufen auf derselben Fläche; Sicherheitsabfragen erscheinen als Dialog im Spiel statt als Systemfenster."
+      ]},
+      { title: "Daten und Datenschutz", items: [
+          "Gespeichert werden nur der selbst gewählte Anzeigename und der Spielstand der laufenden Partie. Die Anmeldung ist anonym, Ergebnisse werden nicht aufgehoben.",
+          "Der Info-Bereich nennt offen, dass die Spieldaten über die Echtzeit-Datenbank von Google (Firebase) mit Rechenzentrum in Belgien laufen — samt der Bitte, einen Spitznamen statt des echten Namens einzugeben, wenn man das nicht möchte.",
+          "Dazu stehen dort die Anschrift des Vereins und die Beschwerdestelle."
       ]}
     ]
   }

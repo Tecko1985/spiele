@@ -13,33 +13,6 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
-    version: '1.2',
-    groups: [
-      {
-        title: 'Bugjagd',
-        items: [
-          'Tippten zwei Spieler gleichzeitig, ging eine Aktion verloren — sechs Stimmen, eine gezählt. Der Erzähler arbeitet Aktionen jetzt nacheinander ab und liest alle fünf Sekunden nach, was noch liegt.',
-          '„… schläft wieder ein" wurde nie gesprochen, weil die nächste Ansage sie sofort abbrach. Beide Sätze kommen jetzt als eine Ansage.',
-          'Lehnt der Erzähler eine Aktion ab, sehen es jetzt beide: der Spieler als Meldung auf seinem Handy, der Erzähler als Hinweis mit Namen.',
-        ],
-      },
-    ],
-  },
-  {
-    version: '1.1',
-    groups: [
-      {
-        title: 'Abnahme: Datenschutz, Sicherheit, Handy',
-        items: [
-          'Die Chronik in der Übersicht verriet mitten im Spiel, wen Amor verkuppelt, wen die Seherin ansieht, wen Beschützer und Hexe wählen — und beim Tod immer die Rolle, auch bei „Rollen aufdecken: aus". Geheime Einträge erscheinen jetzt erst am Ende, Rollen nur, wenn aufgedeckt wird.',
-          'Datenbank-Regeln: ein Spielereintrag hat genau Name (1–24 Zeichen), Beitrittszeit und Platz und lässt sich nur im Warteraum schreiben.',
-          'Der Datenschutz-Hinweis sagt jetzt ehrlich, was mit einem Raum passiert, der nicht geschlossen wird, und dass Firebase eine Kennung im Browser ablegt.',
-          'Handy: Schalter-Zeilen sind ganz antippbar (auch der Heiltrank der Hexe), der Zurück-Pfeil ist 44 px groß, Kopf und Reiter kleben als Einheit oben. Quer gehalten sind Kopf, Reiter und Erzähler-Leiste flacher.',
-        ],
-      },
-    ],
-  },
-  {
     version: '1.0',
     groups: [
       {
@@ -47,12 +20,48 @@ const CHANGELOG = [
         items: [
           'Werwolf für 5 bis 20 Spieler an eigenen Handys, verbunden über einen sechsstelligen Raum-Code. Die App ersetzt den Spielleiter.',
           'Das Erzähler-Gerät sagt jede Rolle an — auf Wunsch laut per Sprachausgabe. Der Eröffner spielt selbst mit oder legt sein Handy nur als Erzähler in die Mitte.',
+          'Der Erzähler stellt im Warteraum die Sitzreihenfolge ein und kann jemanden wieder herausnehmen, der doch nicht mitspielt.',
+        ],
+      },
+      {
+        title: 'Rollen',
+        items: [
           '13 Rollen: Dorfbewohner, Werwolf, Seherin, Hexe, Jäger, Amor, Beschützer, Dieb, das Mädchen, der Alte, Sündenbock, Weißer Werwolf, Flötenspieler.',
-          'Die Rolle erscheint nur, solange der Finger auf der Karte liegt. Wölfe sehen sich gegenseitig, Verliebte erkennen sich.',
+          'Der Erzähler stellt sie selbst zusammen; ein Knopf lädt eine Empfehlung für die vorhandene Spielerzahl, und eine Waage zeigt, ob die Runde zu den Wölfen oder zum Dorf kippt.',
+          'Die eigene Rolle erscheint nur, solange der Finger auf der Karte liegt. Wölfe sehen sich gegenseitig, Verliebte erkennen sich.',
+        ],
+      },
+      {
+        title: 'Nacht und Tag',
+        items: [
           'Nachts ruft die App jede Rolle der Runde einzeln auf — auch die toten, mit derselben Wartezeit. So verrät der Ablauf nicht, wer noch lebt.',
-          'Am Tag: Tote werden verkündet, Diskussionsuhr, dann offene Abstimmung am eigenen Handy. Gleichstand: Stichwahl, niemand oder der Sündenbock.',
+          'Aufgelöst wird erst nach der letzten Rolle: Schutz vor Heiltrank vor Wolfsangriff vor Gift, dann Verliebte und Jäger.',
+          'Am Tag: Tote werden verkündet, danach Diskussionsuhr und offene Abstimmung am eigenen Handy. Bei Gleichstand gibt es eine Stichwahl, es stirbt niemand, oder der Sündenbock.',
           'Alle Siegbedingungen und Todesketten (Verliebte, Jäger, der Alte) sind gegen ein Prüfskript mit tausenden Zufallspartien gesichert.',
+        ],
+      },
+      {
+        title: 'Was sich einstellen lässt',
+        items: [
+          'Für die Partie: Diskussionszeit von ohne Uhr bis zehn Minuten, Wartezeit je Nachtaufruf, Verhalten bei Gleichstand und ob die Rollen der Toten aufgedeckt werden.',
+          'Für das eigene Gerät: Ansagen vorlesen, Vibration, wenn man dran ist, und ein helles Design für Räume, in denen es nicht dunkel genug ist.',
+        ],
+      },
+      {
+        title: 'Übersicht, Chronik und Regeln',
+        items: [
+          'Der Reiter Übersicht zeigt, wer noch lebt, und führt eine Chronik der Partie.',
+          'Die Chronik hält geheime Einträge zurück, solange gespielt wird — wen Amor verkuppelt, wen die Seherin ansieht, wen Beschützer und Hexe wählen, steht erst am Ende darin. Rollen erscheinen nur, wenn Aufdecken eingeschaltet ist.',
+          'Der Reiter Regeln erklärt Ablauf, Nachtreihenfolge, alle Rollen, die Siegbedingungen und eine Empfehlung je Spielerzahl — zum Nachschlagen mitten in der Partie.',
           'Ein laufendes Spiel übersteht einen Neustart der App — auch auf dem Erzähler-Gerät.',
+        ],
+      },
+      {
+        title: 'Daten und Datenschutz',
+        items: [
+          'Gespeichert werden nur der selbst gewählte Anzeigename und der Spielstand der laufenden Partie; die Anmeldung ist anonym.',
+          'Schließt der Erzähler den Raum, werden Raum, Namen und Spielstand gelöscht. Macht er stattdessen nur den Browser zu, bleibt der Raum stehen — der Info-Bereich sagt das offen.',
+          'Die Spieldaten laufen über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien. Wer das nicht möchte, gibt einen Spitznamen statt des echten Namens ein.',
         ],
       },
     ],

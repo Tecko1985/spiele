@@ -10,45 +10,6 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
-    version: '1.3',
-    groups: [
-      {
-        title: 'Im Info-Bereich steht jetzt, wo die Spieldaten liegen',
-        items: [
-          'Bisher stand dort nur, dass die Daten auf Servern in Deutschland liegen. Das stimmt für dieses Spiel nicht: damit mehrere Geräte dieselbe Partie sehen, laufen die Daten ueber die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien.',
-          'Der Hinweis sagt das jetzt offen — zusammen mit der Bitte, einen Spitznamen statt des echten Namens einzugeben, wenn man das nicht möchte.',
-          'Neu dabei: die vollständige Anschrift des Vereins und die Beschwerdestelle.',
-          'Am Spiel selbst ändert sich nichts.'
-        ]
-      }
-    ]
-  },
-  {
-    version: '1.2',
-    groups: [
-      {
-        title: 'Geändert',
-        items: [
-          'Die Bestenliste ist entfernt. Es werden keine Ergebnisse mehr gespeichert, und der Knopf auf dem Startbildschirm ist weg',
-        ],
-      },
-    ],
-  },
-  {
-    version: '1.1',
-    groups: [
-      {
-        title: 'Behoben',
-        items: [
-          'Ein Knopf löst wieder das aus, was daraufsteht. Wenn eine Liste nach dem Wischen noch nachlief, rutschte sie unter dem aufliegenden Finger weiter — beim Loslassen lag an derselben Stelle eine andere Zeile, und statt "Zurück" öffnete sich ein beliebiger Wert. Ein aufsetzender Finger stoppt das Nachlaufen jetzt sofort',
-          'Dasselbe beim Wechsel zwischen Marktliste und Wertansicht: das Nachlaufen von vorhin fror ein und lief beim Zurückkommen weiter. Beim Betreten steht die Liste jetzt still',
-          '"100 %" verkauft wirklich alles. Bei Kryptowährungen blieb bisher ein Hundertmillionstel im Depot liegen, das man nie wieder los wurde — oder der Verkauf wurde mit "So viele hältst du nicht" abgelehnt, obwohl man nur auf 100 % gedrückt hatte',
-          'Große Stückzahlen werden im Handelsfenster richtig übernommen. Aus 12.345 Stück wurden vorher stillschweigend 12',
-        ],
-      },
-    ],
-  },
-  {
     version: '1.0',
     groups: [
       {
@@ -69,7 +30,7 @@ const CHANGELOG = [
           'Ordergebühr wählbar: keine, 0,25 % oder 1 %',
           'Höchstanteil je Wert wählbar: 10, 25, 50 Prozent oder ohne Grenze',
           'Die Einstellungen lassen sich in der Lobby noch ändern, solange die Partie nicht läuft — danach nicht mehr, sonst würde jeder bereits getätigte Kauf rückwirkend anders bewertet',
-          'Auch der Weg "Allein gegen die KI üben" führt durch die Einstellungen',
+          'Auch der Weg „Allein gegen die KI üben“ führt durch die Einstellungen',
         ],
       },
       {
@@ -107,6 +68,14 @@ const CHANGELOG = [
         items: [
           'Der Eröffner kann die Partie abbrechen, jeder andere kann aussteigen — beides mit Rückfrage',
           'Wer aussteigt, hält die Runden nicht länger auf; sein Depot bleibt in der Rangliste stehen',
+        ],
+      },
+      {
+        title: 'Daten und Datenschutz',
+        items: [
+          'Gespeichert werden nur der selbst gewählte Anzeigename und der Spielstand der laufenden Partie; die Anmeldung ist anonym und Ergebnisse werden nicht aufgehoben',
+          'Der Info-Bereich nennt offen, dass die Spieldaten über die Echtzeit-Datenbank von Google (Firebase) mit Rechenzentrum in Belgien laufen — mit der Bitte, einen Spitznamen statt des echten Namens einzugeben, wenn man das nicht möchte',
+          'Dort stehen auch die Anschrift des Vereins und die Beschwerdestelle',
         ],
       },
     ],

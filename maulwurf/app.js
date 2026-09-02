@@ -893,37 +893,6 @@ function render(zustand) {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
-    version: "1.3",
-    groups: [
-      {
-        title: "Im Info-Bereich steht jetzt, wo die Spieldaten liegen",
-        items: [
-          "Bisher stand dort nur, dass die Daten auf Servern in Deutschland liegen. Das stimmt für dieses Spiel nicht: damit mehrere Geräte dieselbe Partie sehen, laufen die Daten ueber die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien.",
-          "Der Hinweis sagt das jetzt offen — zusammen mit der Bitte, einen Spitznamen statt des echten Namens einzugeben, wenn man das nicht möchte.",
-          "Neu dabei: die vollständige Anschrift des Vereins und die Beschwerdestelle.",
-          "Am Spiel selbst ändert sich nichts."
-        ]
-      }
-    ]
-  },
-  {
-    version: "1.2",
-    groups: [
-      { title: "Geändert", items: [
-          "Die Bestenliste ist entfernt. Es werden keine Ergebnisse mehr gespeichert, und die Knöpfe dazu sind weg."
-      ]}
-    ]
-  },
-  {
-    version: "1.1",
-    groups: [
-      { title: "Behoben", items: [
-          "Ein Knopf löst wieder das aus, was daraufsteht. Lief eine Liste nach dem Wischen noch nach, rutschte sie unter dem aufliegenden Finger weiter — beim Loslassen lag an derselben Stelle eine andere Zeile, und statt „Zurück“ öffnete sich irgendetwas anderes. Ein aufsetzender Finger stoppt das Nachlaufen jetzt sofort.",
-          "Dasselbe beim Wechsel zwischen zwei Ansichten: Das Nachlaufen von vorhin fror ein und lief beim Zurückkommen weiter — die Liste rutschte also genau dann, wenn man zielte. Beim Betreten steht sie jetzt still."
-      ]}
-    ]
-  },
-  {
     version: "1.0",
     groups: [
       { title: "Spielen", items: [
@@ -981,6 +950,11 @@ const CHANGELOG = [
       { title: "Drumherum", items: [
           "KI-Mitspieler zum Ausprobieren, wenn gerade niemand sonst da ist.",
           "Neue Runde mit denselben Leuten und neu gemischten Rollen."
+      ]},
+      { title: "Daten und Datenschutz", items: [
+          "Gespeichert werden nur der selbst gewählte Anzeigename, die eigene Position auf der Karte und der Spielstand der laufenden Partie; die Anmeldung ist anonym und Ergebnisse werden nicht aufgehoben.",
+          "Der Info-Bereich nennt offen, dass die Spieldaten über die Echtzeit-Datenbank von Google (Firebase) mit Rechenzentrum in Belgien laufen — mit der Bitte, einen Spitznamen statt des echten Namens einzugeben, wenn man das nicht möchte.",
+          "Dort stehen auch die Anschrift des Vereins und die Beschwerdestelle."
       ]}
     ]
   }
