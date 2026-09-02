@@ -1,0 +1,18 @@
+{
+  "name": "Werwolf",
+  "short_name": "Werwolf",
+  "description": "Die Werwoelfe von Duesterwald am eigenen Handy: die App ist der Erzaehler.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#14110f",
+  "theme_color": "#14110f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

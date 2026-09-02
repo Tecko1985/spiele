@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="42" fill="#1a56a0"/>
+  <!-- Zwei Kurven, die sich kreuzen: das Duell zweier Depots. -->
+  <polyline points="28,140 60,112 86,124 116,72 146,44"
+            fill="none" stroke="#4ade80" stroke-width="11"
+            stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="28,96 60,120 86,92 116,132 146,116"
+            fill="none" stroke="#f87171" stroke-width="11"
+            stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+  <circle cx="146" cy="44" r="12" fill="#4ade80"/>
+</svg>

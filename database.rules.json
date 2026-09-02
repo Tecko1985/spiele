@@ -1,0 +1,245 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "depotDuell": {
+      ".read": true,
+
+      "raeume": {
+        "$code": {
+          ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid) || (!newData.exists() && data.child('hostId').val() === auth.uid && data.child('phase').val() === 'beendet'))",
+          "phase": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "startZeit": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "abgebrochen": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid" },
+
+          "runden": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "botAnzahl": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "regeln": { ".write": "auth != null && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "spieler": {
+            "$uid": {
+              ".write": "auth != null && ($uid === auth.uid || root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid) && (data.exists() || root.child('depotDuell/raeume/' + $code + '/phase').val() === 'lobby')"
+            }
+          }
+        }
+      },
+
+      "trades": {
+        "$code": {
+          ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'beendet'",
+          "$uid": {
+            "$handel": {
+              ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists()",
+              ".validate": "newData.hasChildren(['art','id','stueck','zeit']) && (newData.child('art').val() === 'kauf' || newData.child('art').val() === 'verkauf') && newData.child('stueck').isNumber() && newData.child('stueck').val() > 0 && newData.child('zeit').val() === now"
+            }
+          }
+        }
+      },
+
+      "bereit": {
+        "$code": {
+          ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'beendet'",
+          "$runde": {
+            "$uid": {
+              ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists()",
+              ".validate": "newData.hasChild('zeit') && newData.child('zeit').val() === now"
+            }
+          }
+        }
+      },
+
+      "weiter": {
+        "$code": {
+          ".write": "auth != null && !newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid && root.child('depotDuell/raeume/' + $code + '/phase').val() === 'beendet'",
+          "$runde": {
+            ".write": "auth != null && !data.exists() && newData.exists() && root.child('depotDuell/raeume/' + $code + '/hostId').val() === auth.uid",
+            ".validate": "newData.hasChildren(['zeit','von']) && newData.child('zeit').val() === now && newData.child('von').val() === auth.uid"
+          }
+        }
+      }
+    },
+
+    "autoQuartett": {
+      ".read": true,
+      "raeume": {
+        "$code": { ".write": "auth != null" }
+      },
+      "geheime_karten": {
+        "$code": {
+          "$uid": { ".write": "auth != null" }
+        }
+      },
+      "kartenUebersteuerungen": { ".write": "auth != null" },
+      "kategorienUebersteuerungen": { ".write": "auth != null" }
+    },
+
+    "fussballQuartett": {
+      ".read": true,
+      "raeume": {
+        "$code": { ".write": "auth != null" }
+      },
+      "geheime_karten": {
+        "$code": {
+          "$uid": { ".write": "auth != null" }
+        }
+      },
+      "kartenUebersteuerungen": { ".write": "auth != null" },
+      "kategorienUebersteuerungen": { ".write": "auth != null" }
+    },
+
+    "fussballVereineQuartett": {
+      ".read": true,
+      "raeume": {
+        "$code": { ".write": "auth != null" }
+      },
+      "geheime_karten": {
+        "$code": {
+          "$uid": { ".write": "auth != null" }
+        }
+      },
+      "kartenUebersteuerungen": { ".write": "auth != null" },
+      "kategorienUebersteuerungen": { ".write": "auth != null" }
+    },
+
+    "maulwurf": {
+      "raeume": {
+        ".read": true,
+        "$code": { ".write": "auth != null" }
+      },
+      "positionen": {
+        ".read": true,
+        "$code": {
+          ".write": "auth != null && !newData.exists() && root.child('maulwurf/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": { ".write": "auth != null && ($uid === auth.uid || $uid.beginsWith('bot-'))" }
+        }
+      },
+      "chat": {
+        ".read": true,
+        "$code": { ".write": "auth != null" }
+      },
+
+      "geheime_rollen": {
+        "$code": {
+          ".write": "auth != null && !newData.exists() && root.child('maulwurf/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            ".read": "$uid === auth.uid || ($uid.beginsWith('bot-') && root.child('maulwurf/raeume/' + $code + '/hostId').val() === auth.uid)",
+            ".write": "auth != null && ($uid === auth.uid || $uid.beginsWith('bot-'))"
+          }
+        }
+      },
+
+      "maulwurf_team": {
+        "$code": {
+          ".read": "root.child('maulwurf/geheime_rollen/' + $code + '/' + auth.uid + '/rolle').val() === 'maulwurf'",
+          ".write": "auth != null && !newData.exists() && root.child('maulwurf/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": { ".write": "auth != null && ($uid === auth.uid || $uid.beginsWith('bot-'))" }
+        }
+      },
+
+      "aufdeckung": {
+        "$code": {
+          ".read": true,
+          ".write": "auth != null && root.child('maulwurf/raeume/' + $code + '/phase').val() === 'beendet'"
+        }
+      }
+    },
+
+    "letzteKarte": {
+      "raeume": {
+        ".read": true,
+        "$code": {
+          ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid) || (!newData.exists() && data.child('hostId').val() === auth.uid && data.child('phase').val() === 'beendet'))",
+          "phase": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "startZeit": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "botListe": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "tisch": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "protokoll": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "abgebrochen": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "regeln": { ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid && root.child('letzteKarte/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "spieler": {
+            "$uid": {
+              ".write": "auth != null && ($uid === auth.uid || root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid) && (data.exists() || root.child('letzteKarte/raeume/' + $code + '/phase').val() === 'lobby')"
+            }
+          }
+        }
+      },
+
+      "haende": {
+        "$code": {
+          ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && $uid === auth.uid"
+          }
+        }
+      },
+
+      "geheim": {
+        "$code": {
+          ".read": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid",
+          ".write": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid"
+        }
+      },
+
+      "zuege": {
+        "$code": {
+          ".read": "auth != null && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid",
+          ".write": "auth != null && !newData.exists() && root.child('letzteKarte/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            "$zug": {
+              ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists()",
+              ".validate": "newData.hasChildren(['art','zeit']) && newData.child('zeit').val() === now && newData.child('art').isString()"
+            }
+          }
+        }
+      }
+    },
+
+    "werwolf": {
+      "raeume": {
+        ".read": true,
+        "$code": {
+          ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid) || (!newData.exists() && data.child('hostId').val() === auth.uid && data.child('phase').val() === 'beendet'))",
+          "phase": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "startZeit": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "sicht": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "abgebrochen": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "einstellungen": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid && root.child('werwolf/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "zusammenstellung": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid && root.child('werwolf/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "spieler": {
+            "$uid": {
+              ".write": "auth != null && ($uid === auth.uid || root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid) && root.child('werwolf/raeume/' + $code + '/phase').val() === 'lobby'",
+              ".validate": "newData.hasChildren(['name', 'beigetreten', 'reihe']) && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 24 && newData.child('beigetreten').isNumber() && newData.child('reihe').isNumber()",
+              "$sonst": { ".validate": "$sonst === 'name' || $sonst === 'beigetreten' || $sonst === 'reihe'" }
+            }
+          }
+        }
+      },
+      "privat": {
+        "$code": {
+          ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && $uid === auth.uid"
+          }
+        }
+      },
+      "geheim": {
+        "$code": {
+          ".read": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid",
+          ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid"
+        }
+      },
+      "aktionen": {
+        "$code": {
+          ".read": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid",
+          ".write": "auth != null && !newData.exists() && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            "$aktion": {
+              ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists()",
+              ".validate": "newData.hasChildren(['art','zeit']) && newData.child('zeit').val() === now && newData.child('art').isString()"
+            }
+          }
+        }
+      }
+    }
+  }
+}

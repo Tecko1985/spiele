@@ -1,0 +1,407 @@
+/* ==========================================================================
+   Werwolf — Stil
+   ==========================================================================
+   Dunkel als Vorgabe: gespielt wird abends im Halbdunkel. Warmer Akzent
+   (Bernstein), große Tippflächen (mindestens 52 px), nichts Kleines.
+   Alles über Variablen — `body.hell` dreht die Flächen um.
+   ========================================================================== */
+
+:root {
+  --bg: #14110f;
+  --bg2: #1e1915;
+  --karte: #262019;
+  --karte-hell: #332a22;
+  --rand: #3f352c;
+  --text: #f3ede4;
+  --text2: #b3a89b;
+  --akzent: #f5a524;
+  --akzent-dunkel: #c47d0a;
+  --auf-akzent: #1a1206;
+  --rot: #e0533f;
+  --gruen: #6cc070;
+  --blau: #5aa0e6;
+  --nacht: #0b0d1a;
+  --radius: 14px;
+  --schatten: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+body.hell {
+  --bg: #f4efe6;
+  --bg2: #ebe4d8;
+  --karte: #ffffff;
+  --karte-hell: #fff6e5;
+  --rand: #d8cdbb;
+  --text: #221b14;
+  --text2: #6b6055;
+  --akzent: #d98a00;
+  --akzent-dunkel: #a86800;
+  --auf-akzent: #ffffff;
+  --nacht: #2c2f4a;
+  --schatten: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.4;
+  min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body.nacht { background: var(--nacht); }
+
+button, input, select {
+  font: inherit;
+  color: inherit;
+}
+
+/* ---------- Kopf ---------- */
+
+.kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  background: var(--bg2);
+  border-bottom: 1px solid var(--rand);
+}
+/* Kopf und Reiter kleben ZUSAMMEN oben — ein fester `top`-Wert für die
+   Reiter passte nicht, sobald die Kopfhöhe abweicht (safe-area auf dem iPhone). */
+.oben { position: sticky; top: 0; z-index: 5; }
+.kopf .titel { font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.kopf .titel a {
+  color: var(--text2); text-decoration: none; font-size: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; margin: -8px 0 -8px -10px;
+}
+.kopf .code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  letter-spacing: 2px;
+  font-size: 15px;
+  color: var(--akzent);
+  background: var(--karte);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--rand);
+}
+
+.reiter {
+  display: flex;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--rand);
+}
+.reiter button {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 12px 6px;
+  color: var(--text2);
+  font-size: 15px;
+  min-height: 48px;
+  cursor: pointer;
+}
+.reiter button.aktiv { color: var(--akzent); border-bottom-color: var(--akzent); font-weight: 600; }
+
+/* ---------- Inhalt ---------- */
+
+main {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 16px 14px 120px;
+}
+main.mit-leiste { padding-bottom: 200px; }
+
+h1 { font-size: 26px; margin: 8px 0 12px; }
+h2 { font-size: 20px; margin: 18px 0 8px; }
+h3 { font-size: 17px; margin: 14px 0 6px; color: var(--text2); font-weight: 600; }
+p { margin: 8px 0; }
+.leise { color: var(--text2); font-size: 15px; }
+.mitte { text-align: center; }
+.gross { font-size: 22px; font-weight: 700; }
+.riesig { font-size: 42px; font-weight: 800; letter-spacing: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+.karte {
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin: 12px 0;
+  box-shadow: var(--schatten);
+}
+.karte.akzent { border-color: var(--akzent); }
+.karte.rot { border-color: var(--rot); }
+
+/* ---------- Knöpfe ---------- */
+
+.btn {
+  display: block;
+  width: 100%;
+  min-height: 54px;
+  padding: 12px 16px;
+  margin: 10px 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--rand);
+  background: var(--karte-hell);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+.btn.primaer { background: var(--akzent); color: var(--auf-akzent); border-color: var(--akzent-dunkel); }
+.btn.gefahr { background: transparent; color: var(--rot); border-color: var(--rot); }
+.btn.klein { min-height: 44px; font-size: 15px; padding: 8px 12px; margin: 6px 0; }
+.btn.leise { background: transparent; color: var(--text2); }
+
+.reihe { display: flex; gap: 10px; align-items: center; }
+.reihe > * { flex: 1; }
+.reihe .btn { margin: 6px 0; }
+
+/* ---------- Formulare ---------- */
+
+label.feld { display: block; margin: 12px 0 4px; color: var(--text2); font-size: 15px; }
+input[type="text"], input[type="number"], select {
+  width: 100%;
+  min-height: 54px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--rand);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 18px;
+}
+input.code-feld { text-transform: uppercase; letter-spacing: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; text-align: center; font-size: 24px; }
+
+.schalter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 54px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rand);
+}
+.schalter:last-child { border-bottom: none; }
+label.schalter { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.schalter .txt { flex: 1; }
+.schalter .txt small { display: block; color: var(--text2); font-size: 13px; }
+.schalter input[type="checkbox"] { width: 28px; height: 28px; accent-color: var(--akzent); }
+.schalter select { width: auto; min-width: 140px; min-height: 44px; font-size: 15px; }
+
+/* ---------- Listen ---------- */
+
+.liste { list-style: none; margin: 0; padding: 0; }
+.liste li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--rand);
+}
+.liste li:last-child { border-bottom: none; }
+.liste .name { flex: 1; font-size: 18px; }
+.liste .tot .name { text-decoration: line-through; color: var(--text2); }
+.liste .rolle { color: var(--text2); font-size: 14px; }
+.liste .icon { font-size: 22px; width: 32px; text-align: center; }
+.liste .mini {
+  min-width: 44px; min-height: 44px; border-radius: 10px;
+  border: 1px solid var(--rand); background: var(--karte-hell); color: var(--text);
+  font-size: 18px; cursor: pointer;
+}
+.liste .mini.rot { color: var(--rot); }
+.liste .zaehler { min-width: 36px; text-align: center; font-weight: 700; color: var(--akzent); font-size: 18px; }
+
+/* Wahlliste: große Tippflächen für die Nacht und die Abstimmung. */
+.wahl { list-style: none; margin: 0; padding: 0; }
+.wahl li { margin: 8px 0; }
+.wahl button {
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 2px solid var(--rand);
+  background: var(--karte);
+  color: var(--text);
+  font-size: 19px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.wahl button .n { flex: 1; }
+.wahl button .z { color: var(--text2); font-size: 14px; }
+.wahl button.gewaehlt { border-color: var(--akzent); background: var(--karte-hell); }
+.wahl button.gewaehlt::after { content: "✓"; color: var(--akzent); font-weight: 700; font-size: 22px; }
+.wahl button:disabled { opacity: 0.5; }
+
+/* ---------- Rollen-Auswahl ---------- */
+
+.rollen-zeile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rand);
+}
+.rollen-zeile:last-child { border-bottom: none; }
+.rollen-zeile .icon { font-size: 26px; width: 36px; text-align: center; }
+.rollen-zeile .txt { flex: 1; }
+.rollen-zeile .txt small { display: block; color: var(--text2); font-size: 13px; line-height: 1.3; }
+.rollen-zeile .mini {
+  width: 46px; height: 46px; border-radius: 12px;
+  border: 1px solid var(--rand); background: var(--karte-hell); color: var(--text);
+  font-size: 22px; cursor: pointer;
+}
+.rollen-zeile .mini:disabled { opacity: 0.3; }
+.rollen-zeile .zahl { min-width: 28px; text-align: center; font-weight: 700; font-size: 20px; }
+
+.balance {
+  display: flex; align-items: center; gap: 10px; margin: 10px 0;
+}
+.balance .balken { flex: 1; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--rot), var(--rand) 50%, var(--gruen)); position: relative; }
+.balance .marke { position: absolute; top: -5px; width: 20px; height: 20px; border-radius: 50%; background: var(--akzent); border: 2px solid var(--bg); transform: translateX(-50%); }
+
+.hinweis { padding: 10px 12px; border-radius: 10px; margin: 8px 0; font-size: 15px; }
+.hinweis.warn { background: rgba(224, 83, 63, 0.15); border: 1px solid var(--rot); }
+.hinweis.info { background: rgba(245, 165, 36, 0.12); border: 1px solid var(--akzent); }
+.hinweis.ok { background: rgba(108, 192, 112, 0.12); border: 1px solid var(--gruen); }
+
+/* ---------- Rollenkarte (halten zum Sehen) ---------- */
+
+.rollenkarte {
+  position: relative;
+  min-height: 300px;
+  border-radius: 20px;
+  border: 2px solid var(--akzent);
+  background: var(--karte);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  margin: 16px 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+.rollenkarte .rueckseite { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: var(--karte); }
+.rollenkarte .rueckseite .symbol { font-size: 60px; }
+.rollenkarte .vorderseite { display: none; }
+.rollenkarte.offen .rueckseite { display: none; }
+.rollenkarte.offen .vorderseite { display: block; }
+.rollenkarte .icon { font-size: 72px; line-height: 1; margin-bottom: 8px; }
+.rollenkarte .rname { font-size: 30px; font-weight: 800; color: var(--akzent); }
+.rollenkarte .team { color: var(--text2); font-size: 15px; margin-bottom: 10px; }
+.rollenkarte .beschreibung { font-size: 16px; }
+.rollenkarte .extra { margin-top: 12px; font-size: 16px; color: var(--blau); }
+
+/* ---------- Nacht ---------- */
+
+.nachtbild {
+  text-align: center;
+  padding: 30px 10px;
+}
+.nachtbild .mond { font-size: 80px; line-height: 1; }
+.nachtbild h1 { margin-top: 12px; }
+.nachtbild .schritt { color: var(--akzent); font-size: 20px; margin-top: 8px; }
+
+.aufgabe h2 { color: var(--akzent); }
+
+/* ---------- Tag / Timer ---------- */
+
+.uhr {
+  font-size: 56px;
+  font-weight: 800;
+  text-align: center;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  letter-spacing: 2px;
+  margin: 10px 0;
+}
+.uhr.knapp { color: var(--rot); }
+
+.tote-liste { list-style: none; padding: 0; margin: 8px 0; }
+.tote-liste li { padding: 10px 0; border-bottom: 1px solid var(--rand); font-size: 18px; }
+.tote-liste li:last-child { border-bottom: none; }
+.tote-liste .rolle { color: var(--text2); font-size: 15px; }
+
+/* ---------- Ende ---------- */
+
+.sieger { text-align: center; padding: 20px 10px; }
+.sieger .symbol { font-size: 70px; line-height: 1; }
+.sieger h1 { color: var(--akzent); margin: 10px 0 4px; }
+
+.chronik { list-style: none; padding: 0; margin: 0; font-size: 15px; }
+.chronik li { padding: 6px 0; border-bottom: 1px solid var(--rand); display: flex; gap: 10px; }
+.chronik li:last-child { border-bottom: none; }
+.chronik .wo { color: var(--akzent); min-width: 64px; font-weight: 600; }
+
+/* ---------- Erzähler-Leiste (nur Host) ---------- */
+
+.erzaehler {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: var(--bg2);
+  border-top: 2px solid var(--akzent);
+  padding: 10px 14px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  z-index: 10;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+}
+.erzaehler .inner { max-width: 560px; margin: 0 auto; }
+.erzaehler .ansage { font-size: 15px; color: var(--text2); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.erzaehler .ansage .punkt { width: 10px; height: 10px; border-radius: 50%; background: var(--akzent); flex: none; }
+.erzaehler .btn { margin: 6px 0; }
+
+/* ---------- Fehler / Meldung ---------- */
+
+.meldung {
+  position: fixed;
+  top: 70px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--rot);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  z-index: 20;
+  max-width: 90%;
+  box-shadow: var(--schatten);
+  font-size: 15px;
+}
+
+.fussnote { color: var(--text2); font-size: 13px; text-align: center; margin-top: 20px; }
+
+@media (min-width: 600px) {
+  body { font-size: 18px; }
+}
+
+/* Quer gehaltenes Handy: nur ~375 px hoch. Kopf, Reiter und Erzähler-Leiste
+   nahmen zusammen 239 px — es blieben 136 px für den Inhalt. */
+@media (max-height: 450px) {
+  .kopf { padding-top: max(4px, env(safe-area-inset-top)); padding-bottom: 4px; }
+  .reiter button { min-height: 40px; padding: 8px 6px; }
+  .erzaehler { padding-top: 6px; }
+  .erzaehler .ansage { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+  .erzaehler .ansage span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .erzaehler .btn { min-height: 44px; margin: 4px 0; font-size: 16px; padding: 8px 12px; }
+  .erzaehler .btn.klein { min-height: 40px; }
+  main.mit-leiste { padding-bottom: 140px; }
+}

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Letzte Karte — Testfassung</title>
+<meta name="theme-color" content="#1a56a0">
+<link rel="stylesheet" href="../style.css?v=1.0">
+</head>
+<body>
+
+<!--
+  ==========================================================================
+  NUR ZUM TESTEN. Diese Seite ist NICHT das Spiel.
+  ==========================================================================
+  Sie lädt dieselben Dateien wie `index.html`, ersetzt aber Firebase durch
+  eine Attrappe im Arbeitsspeicher (`firebase-attrappe.js`). Damit läuft die
+  komplette Oberfläche im Vorschaufenster, wo der Zugriff auf googleapis
+  gesperrt ist.
+
+  Es fehlt bewusst der Service Worker: eine Testseite soll sich nicht in den
+  Browsercache des Spiels einnisten.
+
+  ⚠️ Die Sicherheitsregeln sind hier NICHT wirksam. Wer prüfen will, ob
+  fremde Hände wirklich verschlossen sind, braucht echtes Firebase mit
+  eingespielten Rules.
+  ==========================================================================
+-->
+
+<canvas id="buehne"></canvas>
+<input id="tastatur-proxy" type="text" autocomplete="off" autocorrect="off"
+       autocapitalize="off" spellcheck="false" aria-hidden="true" tabindex="-1">
+
+<script src="firebase-attrappe.js"></script>
+<!-- Muss NACH der Attrappe kommen: hier entstehen `db` und `auth`, und die
+     sollen aus der Attrappe stammen, nicht aus dem echten Firebase. -->
+<script src="../firebase-config.js"></script>
+<script src="../karten.js"></script>
+<script src="../regeln.js"></script>
+<script src="../bots.js"></script>
+<script src="../../quartett/ui.js"></script>
+<script src="../game-service.js"></script>
+<script src="../bildschirme.js"></script>
+<script src="../app.js"></script>
+</body>
+</html>

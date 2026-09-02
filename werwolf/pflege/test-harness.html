@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Werwolf — Testrahmen (8 Geräte)</title>
+<style>
+  body { margin: 0; background: #000; font-family: sans-serif; color: #ddd; }
+  .leiste { padding: 6px 10px; font-size: 13px; background: #222; }
+  .geraete { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 6px; }
+  .geraet { background: #111; }
+  .geraet .name { font-size: 12px; padding: 4px 6px; color: #f5a524; }
+  iframe { width: 100%; height: 640px; border: 1px solid #333; background: #14110f; }
+</style>
+</head>
+<body>
+<!--
+  NUR ZUM TESTEN. Acht „Handys" nebeneinander, alle an derselben Attrappe im
+  Arbeitsspeicher dieses Fensters (window.__werwolfBus). Gerät 1 ist der
+  Erzähler. Die Sicherheitsregeln sind hier NICHT wirksam.
+-->
+<div class="leiste">Werwolf-Testrahmen: 8 Geräte, gemeinsame Attrappe. Erzähler = Gerät 1. Kein Firebase, keine Rules.</div>
+<div class="geraete" id="geraete"></div>
+<script>
+  window.__werwolfBus = null;  // Marker: hier wohnt der Bus
+  const NAMEN = ['Anna', 'Ben', 'Cleo', 'Dana', 'Emil', 'Finn', 'Gerd', 'Hanna'];
+  const wurzel = document.getElementById('geraete');
+  NAMEN.forEach(function (n, i) {
+    const d = document.createElement('div');
+    d.className = 'geraet';
+    d.innerHTML = '<div class="name">Gerät ' + (i + 1) + ' — ' + n + '</div>';
+    const f = document.createElement('iframe');
+    f.id = 'g' + (i + 1);
+    f.src = 'client.html?uid=u_' + n;
+    d.appendChild(f);
+    wurzel.appendChild(d);
+  });
+</script>
+</body>
+</html>

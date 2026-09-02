@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Fußball-Quartett</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a56a0">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../quartett/style.css?v=1.0">
+</head>
+<body>
+
+<!-- Die gesamte Oberfläche wird gezeichnet: Kopfzeile, Reiter, Start, Warteraum,
+     Spielkarte, Vergleich, Endstand und Kartenverwaltung. Im
+     Dokument stehen nur die Zeichenfläche und zwei versteckte Felder. -->
+<canvas id="buehne"></canvas>
+
+<!-- Tastatur-Stellvertreter: Wer auf der Zeichenfläche in ein Eingabefeld tippt,
+     bekommt hier den Fokus. Nur so öffnet sich auf dem iPhone die Bildschirm-
+     tastatur — Safari verlangt dafür ein echtes Feld und eine echte Nutzergeste.
+     Sichtbar ist es nie; geschrieben wird der Text auf die Zeichenfläche.
+     Es MUSS im Sichtbereich liegen und mindestens 16px Schrift haben, sonst
+     scrollt oder zoomt iOS beim Fokussieren. -->
+<input id="tastatur-proxy" type="text" autocomplete="off" autocorrect="off"
+       autocapitalize="off" spellcheck="false" aria-hidden="true" tabindex="-1">
+
+<!-- Die Dateiauswahl fürs Kartenfoto. Sie ist das einzige Bedienelement, das
+     sich nicht zeichnen lässt: ein Dateidialog geht nur aus einem echten Feld
+     und nur aus einer echten Nutzergeste heraus auf. -->
+<input id="foto-datei" type="file" accept="image/*" aria-hidden="true" tabindex="-1">
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="firebase-config.js?v=1.0"></script>
+<script src="spiel-config.js?v=1.0"></script>
+<script src="mock-data.js?v=1.0"></script>
+<script src="game-service.js?v=1.0"></script>
+<!-- Gemeinsame Oberfläche der drei Quartetts. Eine Kopie je Spiel hieße,
+     jeden Fehler dreimal zu beheben. -->
+<script src="../quartett/ui.js?v=1.0"></script>
+<script src="../quartett/motive.js?v=1.0"></script>
+<script src="../quartett/bildschirme.js?v=1.0"></script>
+<!-- app.js zuletzt: es startet die Oberfläche und braucht dafür alles andere. -->
+<script src="../quartett/app.js?v=1.0"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Depot-Duell</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a56a0">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=1.0">
+</head>
+<body>
+
+<!-- Die gesamte Oberfläche wird gezeichnet: Kopfzeile, Reiter, Marktliste,
+     Detailseite, Kaufdialog, Depot, Rangliste, Nachrichtenticker und
+     Endabrechnung. Im Dokument steht nur die Zeichenfläche und ein
+     unsichtbares Eingabefeld. -->
+<canvas id="buehne"></canvas>
+
+<!-- Tastatur-Stellvertreter: Wer auf der Zeichenfläche in ein Eingabefeld
+     tippt, bekommt hier den Fokus. Nur so öffnet sich auf dem iPhone die
+     Bildschirmtastatur — Safari verlangt dafür ein echtes Feld und eine echte
+     Nutzergeste. Es MUSS im Sichtbereich liegen und mindestens 16px Schrift
+     haben, sonst scrollt oder zoomt iOS beim Fokussieren. -->
+<input id="tastatur-proxy" type="text" autocomplete="off" autocorrect="off"
+       autocapitalize="off" spellcheck="false" aria-hidden="true" tabindex="-1">
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="firebase-config.js?v=1.0"></script>
+<!-- Reihenfolge zwingend: werte -> nachrichten -> markt -> depot -> bots,
+     jede Datei benutzt die vorherigen. app.js zuletzt, es startet die
+     Oberfläche und braucht bildschirme.js bereits. -->
+<script src="werte.js?v=1.0"></script>
+<script src="../quartett/ui.js?v=1.0"></script>
+<script src="nachrichten.js?v=1.0"></script>
+<script src="markt.js?v=1.0"></script>
+<script src="depot.js?v=1.0"></script>
+<script src="bots.js?v=1.0"></script>
+<script src="game-service.js?v=1.0"></script>
+<script src="bildschirme.js?v=1.0"></script>
+<script src="app.js?v=1.0"></script>
+</body>
+</html>

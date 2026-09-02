@@ -1,0 +1,65 @@
+/* ============================================================================
+   style.css — gemeinsam für die drei Quartett-Spiele
+   ----------------------------------------------------------------------------
+   Seit dem Umbau auf eine Zeichenfläche gibt es fast nichts mehr zu gestalten:
+   die gesamte Oberfläche wird in ui.js gezeichnet, Farben und Maße stehen dort
+   als Konstanten. Hier bleibt nur, was das Dokument selbst betrifft — die
+   Fläche formatfüllend zu halten und die beiden versteckten Felder aus dem Weg
+   zu räumen, ohne sie dem Browser wegzunehmen.
+============================================================================ */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;                 /* gerollt wird innerhalb der Zeichenfläche */
+  background: #eef1f6;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overscroll-behavior: none;        /* kein Gummiband beim Wischen am Rand */
+}
+
+/* Die CSS-Größe MUSS hier stehen. Ohne sie bestimmt das width/height-Attribut
+   des Canvas seine Layoutgröße, ui.js liest diese Layoutgröße zurück und setzt
+   daraus wieder das Attribut — eine Rückkopplung, die sich mit jedem Bild
+   verdoppelt. (Beim Maulwurf genau so passiert: nach wenigen Bildern stand die
+   Fläche auf 2457600 px und kein Bedienelement war mehr zu treffen.) */
+#buehne {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;                   /* folgt der ein- und ausfahrenden Adressleiste */
+  touch-action: none;               /* kein Doppeltipp-Zoom, kein Mitscrollen */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Der Tastatur-Stellvertreter muss für den Browser ein echtes, fokussierbares
+   Feld im Sichtbereich sein — nur dann öffnet iOS die Bildschirmtastatur.
+   Deshalb NICHT display:none, visibility:hidden oder weit außerhalb des
+   Bildes: damit würde der Fokus verweigert. Stattdessen durchsichtig, einen
+   Pixel groß und ohne Zeigerereignisse. Die 16 px Schriftgröße verhindern,
+   dass iOS beim Fokussieren in das Feld hineinzoomt. */
+#tastatur-proxy {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  opacity: 0;
+  font-size: 16px;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Die Dateiauswahl fürs Kartenfoto. Sie lässt sich nicht zeichnen — ein
+   Dateidialog geht nur aus einem echten Feld auf. Hier darf display:none
+   stehen: der Klick kommt aus dem Skript, ein Fokus wird nie gebraucht. */
+#foto-datei { display: none; }

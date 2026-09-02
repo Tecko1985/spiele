@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Spiele</title>
+<meta name="theme-color" content="#1a56a0">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --primary: #1a56a0;
+    --primary-dark: #123d75;
+    --bg: #eef1f6;
+    --border: #d1d5db;
+    --text: #111827;
+    --muted: #6b7280;
+    --radius: 16px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .back-to-dashboard {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    /* Byte-genau die Werte der uebrigen Flotte (z. B. ausbildungsplan/style.css).
+       Der Hub stand bis 2026-08-05 auf 13px/6-14 und war damit die einzige
+       Kachel, deren Kopfzeile beim Wechsel sichtbar sprang. */
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 16px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    transition: background 0.15s ease;
+  }
+  .back-to-dashboard:hover { background: rgba(255, 255, 255, 0.28); text-decoration: none; }
+  .kopfzeile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    /* wie header in der uebrigen Flotte — ergibt dieselbe Leistenhoehe (76px) */
+    padding: 16px 28px;
+    background: var(--primary);
+    color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .kopfzeile-left, .kopfzeile-right { display: flex; align-items: center; gap: 10px; flex: 1 1 100px; }
+  .kopfzeile-right { justify-content: flex-end; }
+  .kopfzeile-titel { font-weight: 700; font-size: clamp(15px, 4vw, 18px); }
+  .header-logo { height: 44px; width: auto; display: block; }
+  main {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 32px 16px 40px;
+    text-align: center;
+  }
+  h1 { margin: 0 0 12px; font-size: clamp(24px, 7vw, 32px); }
+  .untertitel { color: var(--muted); margin: 0 0 32px; }
+  .spiele-liste { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+  .spiel-kachel {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .spiel-kachel:hover { border-color: var(--primary); box-shadow: 0 4px 16px rgba(26, 86, 160, 0.15); }
+  .spiel-icon { font-size: 32px; flex-shrink: 0; }
+  .spiel-name { font-weight: 700; font-size: 17px; margin: 0 0 2px; }
+  .spiel-beschreibung { font-size: 13px; color: var(--muted); margin: 0; }
+  .weitere-hinweis { margin-top: 24px; font-size: 13px; color: var(--muted); }
+
+  /* ---------- Versionsbadge + Info-Tab ---------- */
+  .version-badge {
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    border-radius: 999px;
+    padding: 2px 8px;
+    vertical-align: middle;
+  }
+  nav {
+    display: flex;
+    gap: 4px;
+    background: #fff;
+    padding: 8px 16px 0;
+    border-bottom: 1px solid var(--border);
+    justify-content: center;
+  }
+  nav button {
+    background: none;
+    border: none;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    border-radius: 8px 8px 0 0;
+  }
+  nav button:hover { background: var(--bg); }
+  nav button.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab-section { display: none; }
+  .tab-section.active { display: block; }
+  .info-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+    text-align: left;
+  }
+  .info-card h2 { font-size: 17px; margin: 0 0 10px; color: var(--primary); }
+  .info-card p { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 0; }
+  .info-card .version-badge { background: var(--bg); border-color: var(--border); color: var(--primary); }
+  .changelog-entry { font-size: 14px; }
+  .changelog-entry .cv { font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+  .changelog-entry ul { margin: 0; padding-left: 20px; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<header class="kopfzeile">
+  <div class="kopfzeile-left">
+    <span class="kopfzeile-titel">🎮 Spiele</span>
+  </div>
+  <a href="https://sc1911heiligenstadt.github.io/ToolsUebersicht/" class="back-to-dashboard">← Zurück zum Dashboard</a>
+  <div class="kopfzeile-right">
+    <img class="header-logo" src="https://sc1911heiligenstadt.github.io/logo.svg" alt="1. SC 1911 Heiligenstadt e.V." />
+  </div>
+</header>
+
+<nav>
+  <button data-tab="spiele" class="active">Spiele</button>
+  <button data-tab="info" style="margin-left:auto;">Info</button>
+</nav>
+
+<main>
+ <div class="tab-section active" id="tab-spiele">
+  <h1>🎮 Spiele</h1>
+  <p class="untertitel">Kleine Spiele fürs Team – ideal für die Busfahrt zum Auswärtsspiel.</p>
+
+  <div class="spiele-liste">
+    <a class="spiel-kachel" href="auto-quartett/index.html">
+      <span class="spiel-icon">🚗</span>
+      <span>
+        <p class="spiel-name">Auto-Quartett</p>
+        <p class="spiel-beschreibung">Digitales Kartenspiel nach dem Quartett-Prinzip, bis zu 8 Spieler:innen.</p>
+      </span>
+    </a>
+    <a class="spiel-kachel" href="fussball-quartett/index.html">
+      <span class="spiel-icon">⚽</span>
+      <span>
+        <p class="spiel-name">Fußball-Quartett</p>
+        <p class="spiel-beschreibung">Digitales Kartenspiel mit 500 realen Fußballspielern, bis zu 8 Spieler:innen.</p>
+      </span>
+    </a>
+    <a class="spiel-kachel" href="fussball-vereine-quartett/index.html">
+      <span class="spiel-icon">🏟️</span>
+      <span>
+        <p class="spiel-name">Fußball-Vereine-Quartett</p>
+        <p class="spiel-beschreibung">Digitales Kartenspiel mit 500 realen Fußballvereinen, bis zu 8 Spieler:innen.</p>
+      </span>
+    </a>
+    <a class="spiel-kachel" href="maulwurf/index.html">
+      <span class="spiel-icon">🕵️</span>
+      <span>
+        <p class="spiel-name">Der Maulwurf</p>
+        <p class="spiel-beschreibung">Verräterspiel auf dem Vereinsgelände: Aufgaben erledigen, Saboteure enttarnen, 4 bis 15 Spieler:innen.</p>
+      </span>
+    </a>
+    <a class="spiel-kachel" href="depot-duell/index.html">
+      <span class="spiel-icon">📈</span>
+      <span>
+        <p class="spiel-name">Depot-Duell</p>
+        <p class="spiel-beschreibung">Börsenspiel mit Spielgeld: 250 echte Aktien, ETFs und Kryptowährungen. Rundenbasiert — die Kurse ziehen erst weiter, wenn alle so weit sind. Auch allein gegen die KI.</p>
+      </span>
+    </a>
+    <a class="spiel-kachel" href="letzte-karte/index.html">
+      <span class="spiel-icon">🃏</span>
+      <span>
+        <p class="spiel-name">Letzte Karte</p>
+        <p class="spiel-beschreibung">Uno-Klon für 2 bis 10 Leute an eigenen Handys, in drei Spielarten: Klassisch, Wende mit doppelseitigen Karten und Gnadenlos mit Ausscheiden. Auch allein gegen die KI.</p>
+      </span>
+    </a>
+    <a class="spiel-kachel" href="werwolf/index.html">
+      <span class="spiel-icon">🐺</span>
+      <span>
+        <p class="spiel-name">Werwolf</p>
+        <p class="spiel-beschreibung">Die Werwölfe von Düsterwald an eigenen Handys, 5 bis 20 Spieler:innen. Die App ist der Erzähler und spricht die Ansagen — der Eröffner spielt mit oder legt sein Handy nur in die Mitte.</p>
+      </span>
+    </a>
+  </div>
+
+  <p class="weitere-hinweis">Weitere Spiele folgen.</p>
+ </div>
+
+ <div class="tab-section" id="tab-info">
+   <div class="info-card">
+     <h2>Über die Spiele <span class="version-badge" id="version-badge-2"></span></h2>
+     <p>
+       Kleine Spiele fürs Team — gedacht für die Busfahrt zum Auswärtsspiel. Jedes Spiel
+       läuft direkt im Browser, ohne Installation. Für die Mehrspieler-Partien öffnet ein
+       Gerät den Raum, die anderen treten mit dem Raumcode bei.
+     </p>
+   </div>
+   <div class="info-card">
+     <h2>Änderungen</h2>
+     <div id="changelog-list"></div>
+   </div>
+ 
+    <div class="card" id="ds-info-karte">
+      <h2>Datenschutz</h2>
+      <p>Diese Spiele gehören zu den Anwendungen des
+      1. SC 1911 Heiligenstadt. Gespeichert wird in jedem Spiel nur der
+      <strong>selbst gewählte Anzeigename</strong> und der Spielstand der laufenden
+      Partie. Die Anmeldung ist anonym — es gibt kein Konto, keine E-Mail-Adresse
+      und keine Verbindung zu deinen Vereinsdaten. Firebase legt dafür in deinem
+      Browser eine zufällige Kennung ab; sie bleibt, bis du die Website-Daten
+      löschst. Schließt der Eröffner die Partie in der App, wird der Raum samt
+      Namen gelöscht. Macht er nur den Browser zu, bleibt der Raum mit den
+      Anzeigenamen in der Datenbank stehen.</p>
+      <p><strong>Die Spieldaten verlassen den Verein.</strong> Damit mehrere Geräte
+      dieselbe Partie sehen, laufen sie über die Echtzeit-Datenbank von Google
+      (Firebase); das Rechenzentrum steht in Belgien, nicht in Deutschland, und
+      betrieben wird es von Google. <strong>Wenn du das nicht möchtest, gib einen
+      Spitznamen statt deines Namens ein.</strong></p>
+      <p>Verantwortlich ist der 1. SC 1911 Heiligenstadt, Leineberg 2,
+      37308 Heilbad Heiligenstadt, Telefon 03606 612206,
+      <a href="mailto:info@sc1911-heiligenstadt.de">info@sc1911-heiligenstadt.de</a>.
+      Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung,
+      Datenübertragbarkeit und Widerspruch lassen sich unter dieser Anschrift
+      geltend machen. Beschwerden nimmt der Thüringer Landesbeauftragte für
+      den Datenschutz und die Informationsfreiheit entgegen.</p>
+      <p><a href="https://www.sc1911-heiligenstadt.de/datenschutz/" target="_blank" rel="noopener">Datenschutzerklärung des Vereins</a>
+      &middot;
+      <a href="https://www.sc1911-heiligenstadt.de/impressum-2/" target="_blank" rel="noopener">Impressum</a></p>
+    </div>
+</div>
+</main>
+
+<script>
+  const APP_VERSION = "1.0";
+  const APP_CHANGELOG = [
+    {
+      version: "1.0",
+      groups: [
+        {
+          title: "Die Sammlung",
+          items: [
+            "Sieben Spiele fürs Team — gedacht für die Busfahrt zum Auswärtsspiel, den Vereinsabend und die Trainingspause.",
+            "Jedes Spiel läuft direkt im Browser, es ist nichts zu installieren.",
+            "Bei den Mehrspieler-Partien eröffnet ein Gerät den Raum, alle anderen treten mit dem Raumcode bei.",
+            "Wer die Sammlung öffnen darf, kann jedes Spiel starten — innerhalb der Spiele gibt es keine Rechte-Stufen."
+          ]
+        },
+        {
+          title: "Quartett in drei Ausgaben",
+          items: [
+            "Auto-Quartett, Fußball-Quartett mit 500 realen Spielern und Fußball-Vereine-Quartett mit 500 realen Vereinen.",
+            "Bis zu 8 Mitspielende, die eigene Hand sieht nur man selbst. Bei Gleichstand geht der Pott in die Bockrunde.",
+            "Wer in der Tools-Übersicht als Administrator angemeldet ist, pflegt Karten und Vergleichswerte direkt in der App."
+          ]
+        },
+        {
+          title: "Der Maulwurf",
+          items: [
+            "Verräterspiel für 4 bis 15 Mitspielende auf einem Vereinsgelände mit 14 Räumen, 17 Aufgaben-Minispielen und Sabotagen.",
+            "Zwei Spielarten: klassisch mit Besprechung und Abstimmung, oder Verstecken mit einem sichtbaren Fänger.",
+            "Zuschaltbare Sonderrollen für beide Seiten, jede mit einem eigenen Haken."
+          ]
+        },
+        {
+          title: "Depot-Duell",
+          items: [
+            "Börsenspiel mit Spielgeld: 250 echte Aktien, ETFs und Kryptowährungen mit echten Startkursen und Kennzahlen.",
+            "Gespielt wird in Runden — die Kurse ziehen erst weiter, wenn alle so weit sind. Nachrichten und Gerüchte bewegen den Markt.",
+            "Der Eröffner stellt Startgeld, Ordergebühr und Höchstanteil je Wert ein. Mit bis zu fünf KI-Mitspielern geht es auch allein."
+          ]
+        },
+        {
+          title: "Letzte Karte",
+          items: [
+            "Uno-Klon für 2 bis 10 Leute an eigenen Handys, in drei Spielarten: Klassisch, Wende mit doppelseitigen Karten und Gnadenlos mit Ausscheiden.",
+            "Bedenkzeit je Zug einstellbar; wer mehrmals verpasst, wird von der KI übernommen, damit die Partie zu Ende läuft."
+          ]
+        },
+        {
+          title: "Werwolf",
+          items: [
+            "Die Werwölfe von Düsterwald für 5 bis 20 Spieler an eigenen Handys. Die App ersetzt den Spielleiter und ruft nachts jede Rolle einzeln auf.",
+            "Das Gerät des Eröffners ist der Erzähler und liest die Ansagen vor. Der Eröffner spielt selbst mit oder legt sein Handy nur in die Mitte.",
+            "13 Rollen von Dorfbewohner bis Flötenspieler. Die eigene Rolle erscheint nur, solange der Finger auf der Karte liegt."
+          ]
+        },
+        {
+          title: "Daten und Datenschutz",
+          items: [
+            "Gespeichert werden nur der selbst gewählte Anzeigename und der Spielstand der laufenden Partie. Es gibt kein Konto und keine Verbindung zu den Vereinsdaten.",
+            "Ergebnisse werden nicht aufgehoben — es gibt in keinem Spiel eine Bestenliste.",
+            "Damit mehrere Geräte dieselbe Partie sehen, laufen die Spieldaten über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien. Wer das nicht möchte, gibt einen Spitznamen statt des echten Namens ein.",
+            "Jedes einzelne Spiel hat denselben Hinweis in seinem eigenen Info-Bereich, samt Anschrift des Vereins und Beschwerdestelle."
+          ]
+        }
+      ]
+    }
+  ];
+
+  function activateTab(name) {
+    document.querySelectorAll("nav button[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+    document.querySelectorAll(".tab-section").forEach((s) => s.classList.toggle("active", s.id === "tab-" + name));
+  }
+
+  function renderVersionInfo() {
+    document.querySelectorAll("#version-badge, #version-badge-2").forEach((el) => { if (el) el.textContent = "v" + APP_VERSION; });
+    document.getElementById("changelog-list").innerHTML = APP_CHANGELOG.map((entry) => `
+      <div class="changelog-entry">
+        <div class="cv">Version ${entry.version}</div>
+        ${entry.groups.map((g) => `<ul>${g.items.map((i) => `<li>${i}</li>`).join("")}</ul>`).join("")}
+      </div>`).join("");
+  }
+
+  document.querySelectorAll("nav button[data-tab]").forEach((b) => {
+    b.addEventListener("click", () => activateTab(b.dataset.tab));
+  });
+  renderVersionInfo();
+</script>
+
+</body>
+</html>

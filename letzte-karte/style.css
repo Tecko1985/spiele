@@ -1,0 +1,74 @@
+/* ============================================================================
+   style.css — Letzte Karte
+   ----------------------------------------------------------------------------
+   Seit dem Umbau auf eine Zeichenfläche gibt es fast nichts mehr zu gestalten:
+   die gesamte Oberfläche wird in ui.js gezeichnet, Farben und Maße stehen dort
+   als Konstanten. Hier bleibt nur, was das Dokument selbst betrifft — die
+   Fläche formatfüllend zu halten und das versteckte Eingabefeld aus dem Weg zu
+   räumen, ohne es dem Browser wegzunehmen.
+============================================================================ */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;                 /* gerollt wird innerhalb der Zeichenfläche */
+  background: #eef1f6;              /* muss zu F.hintergrund in quartett/ui.js passen (hell) */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overscroll-behavior: none;        /* kein Gummiband beim Wischen am Rand */
+}
+
+/* Die CSS-Größe MUSS hier stehen. Ohne sie bestimmt das width/height-Attribut
+   des Canvas seine Layoutgröße, ui.js liest diese Layoutgröße zurück und setzt
+   daraus wieder das Attribut — eine Rückkopplung, die sich mit jedem Bild
+   verdoppelt. (Genau so passiert: nach wenigen Bildern stand die Fläche auf
+   2457600 px und kein Bedienelement war mehr zu treffen.) */
+/* ⚠️ Die Höhe MUSS die untere Sicherheitszone abziehen. Im Dokumentenkopf
+   steht `viewport-fit=cover`, damit legt iOS die Fläche unter den
+   Home-Indicator — und genau dort sitzt seit dem Rundenmodus die feste
+   Fußleiste mit dem wichtigsten Knopf des Spiels. Am Rechner fiel das nie
+   auf: dort ist die Zone null Pixel hoch.
+   Die drei Zeilen sind eine Kaskade, nicht drei Versuche: alte Geräte
+   nehmen die erste, iOS ab 11 die zweite, ab 15.4 die dritte. */
+#buehne {
+  display: block;
+  width: 100vw;
+  /* Nach UNTEN weicht die Fläche dem Home-Indicator, nach OBEN der
+     Statusleiste beziehungsweise dem Notch. Der obere Versatz kommt als
+     margin, damit die Zeichenfläche darunter beginnt statt darunter zu
+     verschwinden — und wird von der Höhe wieder abgezogen, sonst schöbe er
+     die Rundenleiste am unteren Rand aus dem Bild. */
+  margin-top: env(safe-area-inset-top, 0px);
+  height: 100vh;
+  height: calc(100vh - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+  height: calc(100dvh - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+  touch-action: none;               /* kein Doppeltipp-Zoom, kein Mitscrollen */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Der Tastatur-Stellvertreter muss für den Browser ein echtes, fokussierbares
+   Feld im Sichtbereich sein — nur dann öffnet iOS die Bildschirmtastatur.
+   Deshalb NICHT display:none, visibility:hidden oder weit außerhalb des
+   Bildes: damit würde der Fokus verweigert. Stattdessen durchsichtig, einen
+   Pixel groß und ohne Zeigerereignisse. Die 16 px Schriftgröße verhindern,
+   dass iOS beim Fokussieren in das Feld hineinzoomt. */
+#tastatur-proxy {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  opacity: 0;
+  font-size: 16px;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  pointer-events: none;
+  z-index: -1;
+}
