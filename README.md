@@ -8,12 +8,14 @@ Sammlung kleiner Spiele für Vereinsabende, Trainingspausen und die Busfahrt zum
 
 | Seite | Wofür |
 |---|---|
-| [Spiele](https://sc1911heiligenstadt.github.io/spiele/) | Die Übersicht mit allen fünf Spielen |
+| [Spiele](https://sc1911heiligenstadt.github.io/spiele/) | Die Übersicht mit allen Spielen |
 | [Auto-Quartett](https://sc1911heiligenstadt.github.io/spiele/auto-quartett/) | Kartenspiel für mehrere Mitspieler |
 | [Fußball-Quartett](https://sc1911heiligenstadt.github.io/spiele/fussball-quartett/) | Kartenspiel für mehrere Mitspieler |
 | [Fußball-Vereine-Quartett](https://sc1911heiligenstadt.github.io/spiele/fussball-vereine-quartett/) | Kartenspiel für mehrere Mitspieler |
 | [Der Maulwurf](https://sc1911heiligenstadt.github.io/spiele/maulwurf/) | Verräterspiel auf einer gemeinsamen Karte, für 4 bis 15 Mitspielende — auch als Verstecken-Modus |
 | [Depot-Duell](https://sc1911heiligenstadt.github.io/spiele/depot-duell/) | Börsenspiel mit Spielgeld: 250 echte Werte, rundenweise, mit KI-Mitspielern |
+| [Letzte Karte](https://sc1911heiligenstadt.github.io/spiele/letzte-karte/) | Ablegespiel (Uno-Klon) in drei Spielarten, 2 bis 10 Mitspielende |
+| [Werwolf](https://sc1911heiligenstadt.github.io/spiele/werwolf/) | Die Werwölfe von Düsterwald an eigenen Handys, 5 bis 20 Mitspielende — die App ist der Erzähler |
 
 ## Zugang
 

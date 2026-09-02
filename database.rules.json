@@ -192,6 +192,52 @@
           }
         }
       }
+    },
+
+    "werwolf": {
+      "raeume": {
+        ".read": true,
+        "$code": {
+          ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid) || (!newData.exists() && data.child('hostId').val() === auth.uid && data.child('phase').val() === 'beendet'))",
+          "phase": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "startZeit": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "sicht": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "abgebrochen": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "einstellungen": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid && root.child('werwolf/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "zusammenstellung": { ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid && root.child('werwolf/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "spieler": {
+            "$uid": {
+              ".write": "auth != null && ($uid === auth.uid || root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid) && (data.exists() || root.child('werwolf/raeume/' + $code + '/phase').val() === 'lobby')"
+            }
+          }
+        }
+      },
+      "privat": {
+        "$code": {
+          ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && $uid === auth.uid"
+          }
+        }
+      },
+      "geheim": {
+        "$code": {
+          ".read": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid",
+          ".write": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid"
+        }
+      },
+      "aktionen": {
+        "$code": {
+          ".read": "auth != null && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid",
+          ".write": "auth != null && !newData.exists() && root.child('werwolf/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            "$aktion": {
+              ".write": "auth != null && $uid === auth.uid && !data.exists() && newData.exists()",
+              ".validate": "newData.hasChildren(['art','zeit']) && newData.child('zeit').val() === now && newData.child('art').isString()"
+            }
+          }
+        }
+      }
     }
   }
 }

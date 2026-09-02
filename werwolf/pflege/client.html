@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Werwolf — Testgerät</title>
+<link rel="stylesheet" href="../style.css?v=1.0">
+</head>
+<body>
+<!--
+  NUR ZUM TESTEN. Ein „Handy" im Testrahmen (test-harness.html). Lädt dieselben
+  Dateien wie ../index.html, ersetzt aber Firebase durch die Attrappe. Die uid
+  kommt aus der Adresse (?uid=...). Kein Service Worker.
+-->
+<div id="app">
+  <header class="kopf" id="kopf"></header>
+  <nav class="reiter" id="reiter"></nav>
+  <main id="inhalt"><p class="leise mitte">Verbinde …</p></main>
+  <div id="erzaehler"></div>
+  <div id="meldung" hidden></div>
+</div>
+<script src="firebase-attrappe.js"></script>
+<script src="../firebase-config.js"></script>
+<script src="../rollen.js"></script>
+<script src="../regeln.js"></script>
+<script src="../sprecher.js"></script>
+<script src="../game-service.js"></script>
+<script src="../bildschirme.js"></script>
+<script src="../app.js"></script>
+</body>
+</html>
