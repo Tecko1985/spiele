@@ -893,6 +893,14 @@ function render(zustand) {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.1",
+    groups: [
+      { title: "Behoben", items: [
+          "Lädt das Gastgeber-Gerät mitten in der Partie neu, fangen die KI-Mitspielenden ihre Aufgaben nicht mehr von vorn an. Vorher zählten sie den gemeinsamen Fortschritt ein zweites Mal hoch, und das Team gewann, bevor die Arbeit wirklich getan war."
+      ]}
+    ]
+  },
+  {
     version: "1.0",
     groups: [
       { title: "Spielen", items: [

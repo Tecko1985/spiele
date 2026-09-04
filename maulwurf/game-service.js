@@ -825,12 +825,14 @@ async function zieheBotRollen(raum) {
       const merker = botZustand[botId] || (botZustand[botId] = {});
       if (merker.rolle && merker.rundeGezogen === runde) continue;
 
-      // Die Box eines Bots ist per Rule NICHT lesbar: ".read" verlangt $uid === auth.uid,
-      // und eine bot-Id ist nie die eigene uid. Ein once() darauf wirft PERMISSION_DENIED
-      // und brach früher die ganze Zuteilung ab — mit KI-Mitspielenden startete das Spiel
-      // deshalb überhaupt nicht (gefunden 2026-07-26). Der lokale Merker oben ist der
-      // eigentliche Doppelzieh-Schutz; das Lesen ist nur der Zusatz für den Fall, dass der
-      // Host mitten in der Zuteilung neu lädt, und darf scheitern.
+      // Die Box eines Bots darf der Host lesen — database.rules.json erlaubt es
+      // ausdrücklich ($uid.beginsWith('bot-') und hostId === auth.uid). Das war früher
+      // anders: die Rule verlangte $uid === auth.uid, das once() warf PERMISSION_DENIED
+      // und brach die ganze Zuteilung ab — mit KI-Mitspielenden startete das Spiel
+      // deshalb überhaupt nicht (gefunden 2026-07-26). Das try/catch bleibt trotzdem
+      // stehen: es ist der Rückfall, falls die Rules einmal nicht eingespielt sind.
+      // Genau dieser Lesevorgang stellt nach einem Reload des Hosts den Bot-Fortschritt
+      // wieder her — ohne ihn zählt jeder Bot seine Aufgaben ein zweites Mal.
       let vorhanden = null;
       try {
         const snap = await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).once("value");
@@ -840,7 +842,12 @@ async function zieheBotRollen(raum) {
       }
       if (vorhanden) {
         merker.rolle = vorhanden.rolle;
+        merker.sonder = vorhanden.sonder || null;
         merker.rundeGezogen = runde;
+        // Ohne diese Zeile fängt der Bot nach einem Reload des Hosts wieder bei 0 an und
+        // zählt den gemeinsamen Aufgabenzähler ein zweites Mal hoch — das Team gewinnt
+        // dann zu früh (gefunden in der Bugjagd vom 04.09.2026).
+        merker.aufgabenErledigt = vorhanden.erledigtAnzahl || 0;
         continue;
       }
 
@@ -854,7 +861,8 @@ async function zieheBotRollen(raum) {
       const einstellungen = Object.assign({}, STANDARD_EINSTELLUNGEN, raum.einstellungen || {});
       await db.ref(`${ROLLEN_PFAD}/${code}/${botId}`).set({
         rolle, sonder: sonder || null, index, runde,
-        aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: []
+        aufgaben: waehleAufgaben(einstellungen.aufgabenProSpieler), erledigt: [],
+        erledigtAnzahl: 0
       });
       if (rolle === "maulwurf") {
         await db.ref(`${TEAM_PFAD}/${code}/${botId}`).set({ name: raum.spieler[botId].name, runde });
@@ -1773,6 +1781,10 @@ function fuehreBotTickAus() {
         zustand.letzteAufgabe = jetzt;
         zustand.aufgabenErledigt = (zustand.aufgabenErledigt || 0) + 1;
         if (zustand.aufgabenErledigt <= einstellungen.aufgabenProSpieler) {
+          // Mit in die (nicht öffentliche) Bot-Box, damit der Stand einen Reload des Hosts
+          // übersteht. NICHT in raeume/: dort stünde er für alle sichtbar, und weil nur
+          // Team-Bots hochzählen, wäre jeder Wert über 0 ein Verräter seiner Rolle.
+          db.ref(`${ROLLEN_PFAD}/${code}/${botId}/erledigtAnzahl`).set(zustand.aufgabenErledigt).catch(() => {});
           db.ref(`${RAEUME_PFAD}/${code}/aufgaben/erledigt`).set(firebase.database.ServerValue.increment(1)).catch(() => {});
           // Steht der Bot dabei zufällig an einer sichtbaren Station, hinterlässt er dieselbe
           // Spur wie ein Mensch — sonst könnte ein KI-Mitspieler nie ein Alibi vorweisen.
