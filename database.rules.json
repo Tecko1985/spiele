@@ -60,45 +60,54 @@
     },
 
     "autoQuartett": {
-      ".read": true,
       "raeume": {
+        ".read": true,
         "$code": { ".write": "auth != null" }
       },
       "geheime_karten": {
         "$code": {
-          "$uid": { ".write": "auth != null" }
+          ".write": "auth != null && root.child('autoQuartett/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && ($uid === auth.uid || root.child('autoQuartett/raeume/' + $code + '/hostId').val() === auth.uid)"
+          }
         }
       },
-      "kartenUebersteuerungen": { ".write": "auth != null" },
-      "kategorienUebersteuerungen": { ".write": "auth != null" }
+      "kartenUebersteuerungen": { ".read": true, ".write": "auth != null" },
+      "kategorienUebersteuerungen": { ".read": true, ".write": "auth != null" }
     },
 
     "fussballQuartett": {
-      ".read": true,
       "raeume": {
+        ".read": true,
         "$code": { ".write": "auth != null" }
       },
       "geheime_karten": {
         "$code": {
-          "$uid": { ".write": "auth != null" }
+          ".write": "auth != null && root.child('fussballQuartett/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && ($uid === auth.uid || root.child('fussballQuartett/raeume/' + $code + '/hostId').val() === auth.uid)"
+          }
         }
       },
-      "kartenUebersteuerungen": { ".write": "auth != null" },
-      "kategorienUebersteuerungen": { ".write": "auth != null" }
+      "kartenUebersteuerungen": { ".read": true, ".write": "auth != null" },
+      "kategorienUebersteuerungen": { ".read": true, ".write": "auth != null" }
     },
 
     "fussballVereineQuartett": {
-      ".read": true,
       "raeume": {
+        ".read": true,
         "$code": { ".write": "auth != null" }
       },
       "geheime_karten": {
         "$code": {
-          "$uid": { ".write": "auth != null" }
+          ".write": "auth != null && root.child('fussballVereineQuartett/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && ($uid === auth.uid || root.child('fussballVereineQuartett/raeume/' + $code + '/hostId').val() === auth.uid)"
+          }
         }
       },
-      "kartenUebersteuerungen": { ".write": "auth != null" },
-      "kategorienUebersteuerungen": { ".write": "auth != null" }
+      "kartenUebersteuerungen": { ".read": true, ".write": "auth != null" },
+      "kategorienUebersteuerungen": { ".read": true, ".write": "auth != null" }
     },
 
     "maulwurf": {
