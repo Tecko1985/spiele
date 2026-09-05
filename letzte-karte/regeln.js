@@ -94,6 +94,11 @@ const regeln = (function () {
         dranIdx: 0,
         strafe: 0,
         strafeWert: 0,
+        /* Wer die anliegende Strafe zuletzt aufgestapelt hat. Braucht der
+           Mercy-Bonus: er hing frueher an `anfechtbar`, und das gibt es bei
+           Gnadenlos gar nicht — genau dem Modus, in dem es die Mercy-Grenze
+           ueberhaupt gibt. */
+        strafeVon: null,
         gezogen: false,
         mussLegen: false,
         raus: {},
@@ -139,6 +144,7 @@ const regeln = (function () {
     if (zieh > 0) {
       tisch.strafe = zieh;
       tisch.strafeWert = zieh;
+      tisch.strafeVon = null;
       protokoll(spiel, 'Startkarte ' + K.name(tisch.ablage, tisch.dunkel) + ' — es liegen ' + zieh + ' Karten an.');
       return;
     }
@@ -434,6 +440,7 @@ const regeln = (function () {
          Erst wer nicht kontern kann, schluckt den ganzen Stapel. */
       t.strafe += zieh;
       t.strafeWert = zieh;
+      t.strafeVon = uid;
       if (teil.art === 'wu4') {
         t.richtung *= -1;
         protokoll(spiel, 'Die Richtung dreht.');
@@ -533,15 +540,17 @@ const regeln = (function () {
 
     if (t.strafe > 0) {
       const wieviel = t.strafe;
+      const verursacher = letzterLeger(spiel);
       const gegeben = gib(spiel, uid, wieviel, zufall);
       t.strafe = 0;
       t.strafeWert = 0;
       protokoll(spiel, name(spiel, uid) + ' nimmt ' + gegeben + ' Karten.');
       aktualisiere(spiel);
-      if (!pruefeMercy(spiel, uid, letzterLeger(spiel))) {
+      if (!pruefeMercy(spiel, uid, verursacher)) {
         /* Wer die Strafe geschluckt hat, setzt aus — so ist es überall
            üblich und macht das Stapeln erst gefährlich. */
       }
+      t.strafeVon = null;
       t.zugNr++;
       beendeErwischbar(spiel);
       rueckeWeiter(spiel, 1);
@@ -629,9 +638,17 @@ const regeln = (function () {
     if (t.erwischbar && t.zugNr >= t.erwischbarBis) t.erwischbar = null;
   }
 
+  /**
+   * Wer die anliegende Strafe zuletzt aufgestapelt hat — er bekommt den
+   * Mercy-Bonus, wenn jemand daran ausscheidet.
+   *
+   * ⚠️ Frueher las das `tisch.anfechtbar.uid`. Das war tot: `anfechtbar`
+   * wird ausdruecklich NUR ausserhalb von Gnadenlos gesetzt, und die
+   * Mercy-Grenze gibt es ausschliesslich IN Gnadenlos. Im einzigen Modus,
+   * in dem der Bonus existiert, kam also immer null heraus.
+   */
   function letzterLeger(spiel) {
-    const a = spiel.tisch.anfechtbar;
-    return a ? a.uid : null;
+    return spiel.tisch.strafeVon || null;
   }
 
   /* ----------------------------------------------------------------------
@@ -701,6 +718,7 @@ const regeln = (function () {
     const strafe = t.strafe;
     t.strafe = 0;
     t.strafeWert = 0;
+    t.strafeVon = null;
 
     if (hatteFarbe) {
       const gegeben = gib(spiel, a.uid, strafe, zufall);

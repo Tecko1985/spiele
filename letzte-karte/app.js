@@ -17,6 +17,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.4',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Bei Gnadenlos gab es die 250 Punkte fürs Ausschalten nur über die Farbroulette. Wer jemanden mit einem gestapelten Zieh-Stapel über die 25-Karten-Grenze trieb — der häufigste Weg —, ging leer aus: die App suchte den Verursacher an einer Stelle, die es bei Gnadenlos gar nicht gibt. Jetzt merkt sich der Tisch, wer die anliegende Strafe gelegt hat.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.3',
     groups: [
       {
