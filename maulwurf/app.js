@@ -807,6 +807,10 @@ function zeichneKamerabild(bx, by, b, h, kamera, zustand) {
   let gesehen = 0;
   zustand.spieler.forEach(sp => {
     if (sp.lebt === false) return;
+    // Wer im Schacht sitzt, ist für alle unsichtbar — auch auf dem Kamerapult. Diese Regel
+    // gehört wie sichtbareIdentitaet an JEDE Stelle, an der fremde Figuren erscheinen:
+    // die Karte prüft sie, schalteAus prüft sie, das Band tat es bis 05.09.2026 nicht.
+    if (sp.id !== zustand.eigenerSpielerId && imSchachtLaut(zustand, sp.id)) return;
     const p = sp.id === zustand.eigenerSpielerId ? zustand.meinePosition : angezeigtePositionen[sp.id];
     if (!p || !karte.imKamerabild(kamera, p.x, p.y)) return;
     gesehen++;
@@ -892,6 +896,14 @@ function render(zustand) {
 // ---------- Info-Tab / Versionshistorie ----------
 const APP_VERSION = "1.0";
 const CHANGELOG = [
+  {
+    version: "1.3",
+    groups: [
+      { title: "Behoben", items: [
+          "Wer sich in einer Abkürzung versteckt, ist jetzt auch auf dem Kamerapult nicht mehr zu sehen. Vorher stand er dort mit Namen und Farbe im Bild — genau in dem Moment, in dem er sich für alle unsichtbar hielt."
+      ]}
+    ]
+  },
   {
     version: "1.2",
     groups: [
