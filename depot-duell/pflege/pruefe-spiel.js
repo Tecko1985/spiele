@@ -575,5 +575,110 @@ for (const f of gebuehrFaelle) {
     'Dialog nennt bei "' + f[0] + '" die Gesamtkosten richtig (' + zeigtKosten.toFixed(2) + ' EUR)');
 }
 
+/* ====================================================================== */
+console.log('\n7. EINSTELLUNGSWECHSEL IN DER LOBBY');
+/* ====================================================================== */
+/* Die gefährlichste Klasse Fehler dieses Spiels sind zwei Geräte mit
+   verschiedenem Stand derselben Partie — dagegen ist die ganze
+   Saat-Architektur gebaut. `app.uebernehmeZustand` baute das KI-Feld bis
+   2026-09-06 nur bei geänderter Saat oder Rundenzahl neu; `botAnzahl` und die
+   Regeln lösten es nicht aus, obwohl beide hineingehen. Wer in der Lobby
+   umstellte, spielte gegen das Feld von vorher — wer NACH der Änderung
+   beitrat, gegen ein anderes.
+
+   Geprüft wird der ECHTE `app` aus `app.js`, herausgeschnitten wie
+   `bildschirme` oben. Die Beitrittsreihenfolge ist der einzige Unterschied
+   zwischen den beiden Geräten. */
+
+globalThis.WERTE = WERTE;
+globalThis.bildschirme = BS;
+globalThis.ui = { F: {}, anfordern() {}, starte() {}, setzeEingabe() {} };
+globalThis.gameService = { onZustandsAenderung() {} };
+globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
+globalThis.document = { getElementById: () => null, addEventListener() {} };
+globalThis.navigator = {};
+globalThis.window = { addEventListener() {} };
+globalThis.fetch = () => Promise.reject(new Error('kein Netz im Prüfstand'));
+
+const appSrc = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+function frischeApp() { return new Function(appSrc + '\nreturn app;')(); }
+
+/* Ein Zustand, wie ihn der Firebase-Horcher liefert. */
+function horcherZustand(o) {
+  const R = D.normiereRegeln(o.regeln || {});
+  const spieler = { h: { name: 'Michel' } };
+  if (o.gast) spieler.g = { name: 'Gast' };
+  const raum = {
+    hostId: 'h', phase: o.phase || 'lobby', saat: 4711, runden: RUNDEN,
+    botAnzahl: o.botAnzahl, regeln: R, spieler: spieler,
+  };
+  return {
+    uid: o.uid || 'h', code: 'AAAAAA', raum: raum, trades: {},
+    runde: o.runde || 0, runden: RUNDEN, abgeschlossen: false, fehlende: [],
+    bereitJetzt: {}, vorbei: false, abgebrochen: false,
+    istHost: (o.uid || 'h') === 'h', stufe: { runden: RUNDEN },
+    regeln: R, botAnzahl: o.botAnzahl,
+  };
+}
+
+/* ⚠️ In Runde 0 hat noch keine KI gehandelt — dort steht überall blank das
+   Startgeld, und ein Vergleich wäre blind für eine Regeländerung. Gemessen
+   wird am Ende der Partie. */
+function botAbdruckAmEnde(a, o) {
+  a.uebernehmeZustand(horcherZustand(Object.assign({}, o, { phase: 'laeuft', runde: RUNDEN })));
+  return a.rangliste().filter((e) => e.istBot)
+    .map((e) => e.name + '=' + e.gesamt.toFixed(2)).sort().join(' | ');
+}
+
+/* a) Die Lobby zeigt die neue Zahl — gespielt werden muss dieselbe. */
+const wechsler = frischeApp();
+wechsler.uebernehmeZustand(horcherZustand({ botAnzahl: 1, regeln: { startgeld: 100000 } }));
+const nachher = { botAnzahl: 5, regeln: { startgeld: 1000000 }, gast: true };
+wechsler.uebernehmeZustand(horcherZustand(nachher));
+pruefe(wechsler.botFeld.length === 5,
+  'nach dem Umstellen auf 5 KI-Mitspieler spielt der Host auch gegen 5 (' + wechsler.botFeld.length + ')');
+pruefe(wechsler.botFeld.map((b) => b.name).sort().join() ===
+       B.charakterListe().slice(0, 5).map((c) => c.name).sort().join(),
+  'die Namen in der Lobby sind die Namen des gespielten Feldes');
+
+/* b) Zwei Geräte, unterschiedliche Beitrittsreihenfolge, dieselbe Partie. */
+const spaeterGast = frischeApp();
+spaeterGast.uebernehmeZustand(horcherZustand(Object.assign({}, nachher, { uid: 'g' })));
+const abdruckHost = botAbdruckAmEnde(wechsler, nachher);
+const abdruckGast = botAbdruckAmEnde(spaeterGast, Object.assign({}, nachher, { uid: 'g' }));
+pruefe(abdruckHost === abdruckGast,
+  'wer vor und wer nach der Änderung beitritt, rechnet dasselbe KI-Feld\n' +
+  '       Host: ' + abdruckHost + '\n       Gast: ' + abdruckGast);
+
+/* c) Nicht rückwirkend: in der laufenden Partie rührt sich nichts mehr. */
+const laeuft = frischeApp();
+const feste = { botAnzahl: 4, regeln: { startgeld: 50000 } };
+laeuft.uebernehmeZustand(horcherZustand(feste));
+laeuft.uebernehmeZustand(horcherZustand(Object.assign({}, feste, { phase: 'laeuft', runde: 10 })));
+const feldObjekt = laeuft.botFeld;
+const beiRunde10 = laeuft.rangliste().filter((e) => e.istBot)
+  .map((e) => e.name + '=' + e.gesamt.toFixed(2)).sort().join(' | ');
+for (let r = 11; r <= 20; r++) {
+  laeuft.uebernehmeZustand(horcherZustand(Object.assign({}, feste, { phase: 'laeuft', runde: r })));
+}
+pruefe(laeuft.botFeld === feldObjekt, 'während der Partie wird das KI-Feld kein einziges Mal neu gebaut');
+laeuft.uebernehmeZustand(horcherZustand(Object.assign({}, feste, { phase: 'laeuft', runde: 10 })));
+pruefe(laeuft.rangliste().filter((e) => e.istBot)
+  .map((e) => e.name + '=' + e.gesamt.toFixed(2)).sort().join(' | ') === beiRunde10,
+  'eine bereits abgerechnete Runde wird später auf den Cent genauso bewertet');
+
+/* d) Der abgeräumte Raum darf keine Kennung zurücklassen. */
+const neuerRaum = frischeApp();
+neuerRaum.uebernehmeZustand(horcherZustand(feste));
+const ersteNamen = neuerRaum.botFeld.map((b) => b.name).join();
+neuerRaum.uebernehmeZustand({
+  uid: 'h', code: null, raum: null, trades: {}, runde: 0, runden: RUNDEN,
+  abgeschlossen: false, fehlende: [], bereitJetzt: {}, vorbei: false,
+  abgebrochen: false, istHost: false, stufe: null,
+});
+neuerRaum.uebernehmeZustand(horcherZustand(feste));
+pruefe(neuerRaum.lauf !== null && neuerRaum.botFeld.map((b) => b.name).join() === ersteNamen,
+  'nach dem Abräumen des Raums baut derselbe Raum Lauf und KI-Feld wieder auf');
+
 console.log('\n' + (fehler === 0 ? 'ALLES GRÜN' : fehler + ' PRÜFUNG(EN) FEHLGESCHLAGEN'));
 process.exit(fehler === 0 ? 0 : 1);

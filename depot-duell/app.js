@@ -10,6 +10,18 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.8',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Wer in der Lobby die Einstellungen ändert, spielt jetzt auch gegen das Feld, das dort steht. Bisher wurden die KI-Mitspieler nur dann neu aufgestellt, wenn sich die Rundenzahl änderte: Wer von einem auf fünf KI-Mitspieler umstellte, sah fünf Namen in der Lobby und spielte gegen einen — und wer das Startgeld änderte, dessen KI handelte weiter mit dem alten.',
+          'Damit sehen alle Geräte wieder dieselbe Partie. Wer nach einer Änderung beitrat, stellte die KI frisch auf und hatte in derselben Runde andere Mitspieler mit anderen Depots als der Eröffner — die Rangliste war auf beiden Geräten eine andere.'
+        ]
+      }
+    ]
+  },
+  {
     version: '1.7',
     groups: [
       {
@@ -232,6 +244,11 @@ const app = {
   },
   lauf: null,
   botFeld: [],
+  /* Woraus `lauf` bzw. `botFeld` gebaut wurden. Siehe `uebernehmeZustand` —
+     ohne diese beiden Merker gäbe es keinen Weg zu erkennen, dass sich eine
+     Einstellung geändert hat, die in das Bot-Feld eingeht. */
+  weltKennung: null,
+  feldKennung: null,
   wertNachId: {},
   werteListe: [],
 
@@ -587,16 +604,45 @@ const app = {
     const vorherigeRunde = this.zustand.runde;
     this.zustand = z;
 
-    /* Lauf erzeugen, sobald Saat und Rundenzahl vorliegen. Einmal je Partie
-       — die Berechnung kostet ein paar Millisekunden, aber sie bei jedem
-       Bild zu wiederholen wäre Unsinn. */
-    if (z.raum && z.raum.saat !== undefined &&
-        (!this.lauf || this.lauf.saat !== z.raum.saat || this.lauf.runden !== z.runden)) {
-      this.lauf = markt.erzeuge(z.raum.saat, this.werteListe, z.runden);
-      this.botFeld = z.raum.botAnzahl > 0
-        ? bots.stelleAuf(this.lauf, this.werteListe, this.wertNachId, z.raum.botAnzahl, this.regeln())
-        : [];
-      depot.leereSpeicher();
+    /* Lauf und KI-Feld entstehen aus dem Raum. Neu gebaut wird nur, wenn sich
+       auch wirklich etwas geändert hat — die Berechnung kostet ein paar
+       Millisekunden, sie bei jedem Bild zu wiederholen wäre Unsinn.
+
+       ⚠️ Die Kennung MUSS alles enthalten, was in das jeweilige Ergebnis
+       eingeht — so, wie es `depot.stand()` mit seinem Zwischenspeicher
+       vormacht. Bis 2026-09-06 stand hier nur Saat und Rundenzahl.
+       `botAnzahl` und die Regeln liegen aber im selben Raum, ändern sich
+       über denselben Weg („⚙️ Einstellungen ändern" in der Lobby) und gehen
+       beide in `botFeld` ein. Wer umstellte, spielte gegen das Feld von
+       vorher, während seine Lobby schon die neue Zahl anzeigte; wer NACH der
+       Änderung beitrat, baute es frisch. Zwei Geräte, dieselbe Partie,
+       verschieden viele KI-Mitspieler mit verschiedenen Depots — genau der
+       Fehler, gegen den die ganze Saat-Architektur gebaut ist, und er sieht
+       nach nichts aus.
+
+       Rückwirkend werden kann dadurch nichts: `aendereEinstellungen()` lehnt
+       in jeder Phase außer `lobby` ab, eine bereits abgerechnete Runde kann
+       den Neubau also gar nicht auslösen. */
+    if (z.raum && z.raum.saat !== undefined) {
+      const R = this.regeln();
+      const weltKennung = z.raum.saat + '|' + z.runden;
+      const feldKennung = weltKennung + '|' + (z.raum.botAnzahl | 0) +
+        '|' + R.startgeld + '|' + R.gebuehrSatz + '|' + R.gebuehrMind +
+        '|' + R.hoechstanteil + '|' + R.startdepotAnteil;
+
+      if (!this.lauf || this.weltKennung !== weltKennung) {
+        this.lauf = markt.erzeuge(z.raum.saat, this.werteListe, z.runden);
+        this.weltKennung = weltKennung;
+        /* Ein neuer Lauf ist auch ein neues Feld — die Feldkennung trägt
+           Saat und Rundenzahl vorn und weicht dann ohnehin ab. */
+      }
+      if (this.feldKennung !== feldKennung) {
+        this.botFeld = z.raum.botAnzahl > 0
+          ? bots.stelleAuf(this.lauf, this.werteListe, this.wertNachId, z.raum.botAnzahl, R)
+          : [];
+        this.feldKennung = feldKennung;
+        depot.leereSpeicher();
+      }
     }
 
     /* Neue Runde: die neuen Meldungen sollen sichtbar sein und von vorn
@@ -625,10 +671,14 @@ const app = {
         this.reiter = 'markt';
       }
     } else if (vorherigePhase && !z.raum) {
-      /* Der Raum wurde abgeräumt. */
+      /* Der Raum wurde abgeräumt. ⚠️ Die beiden Kennungen MÜSSEN mit zurück
+         auf null. Bliebe die Feldkennung stehen, käme der nächste Raum mit
+         denselben Einstellungen ohne KI-Feld heraus. */
       this.ansicht = 'start';
       this.lauf = null;
       this.botFeld = [];
+      this.weltKennung = null;
+      this.feldKennung = null;
     }
 
     this.pruefeEnde();
