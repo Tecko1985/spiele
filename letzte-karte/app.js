@@ -17,6 +17,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.6',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Die KI-Mitspieler haben nie angefochten. Wer allein oder zu zweit gegen sie spielte, konnte eine Farbwahl-Ziehkarte deshalb immer legen — auch mit passender Farbe auf der Hand, es sah nie jemand nach. Die Entscheidung dafür war gebaut, nur nirgends angeschlossen. Jetzt prüft die KI genauso wie ein Mitspieler am Handy.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.5',
     groups: [
       {

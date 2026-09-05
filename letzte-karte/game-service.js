@@ -582,6 +582,18 @@ const gameService = (function () {
     const c = bots.charakter(indexVon(uid));
     if (!warteAbgelaufen(c)) return;
 
+    /* ⚠️ Erst anfechten, dann den eigenen Zug wählen. `bots.willAnfechten`
+       war gebaut, kommentiert und im Prüfstand gefahren — aber nirgends
+       verdrahtet. Wer allein oder zu zweit gegen die KI spielte, konnte
+       eine Farbwahl-Ziehkarte deshalb IMMER legen, auch mit passender Farbe
+       auf der Hand: es sah nie jemand nach. Dasselbe galt für Menschen, die
+       die KI übernommen hat. */
+    if (pruefeBotAnfechtung(uid, c)) {
+      await veroeffentliche();
+      melde();
+      return;
+    }
+
     const hand = spiel.haende[uid] || [];
     const zug = bots.waehleZug(t, hand, c, null);
 
@@ -612,6 +624,25 @@ const gameService = (function () {
   function indexVon(uid) {
     for (let i = 0; i < bots.CHARAKTERE.length; i++) if (bots.uidFuer(i) === uid) return i;
     return 0;
+  }
+
+  /**
+   * Ficht die KI die offene Farbwahl-Ziehkarte an?
+   * Dieselben Bedingungen wie beim Menschen-Knopf (`bildschirme.js`):
+   * es muss etwas Anfechtbares liegen, es darf nicht die eigene Karte sein,
+   * und man muss dran sein. Gibt true zurück, wenn wirklich angefochten
+   * wurde — dann ist der Zug für diesen Takt erledigt.
+   */
+  function pruefeBotAnfechtung(uid, c) {
+    const t = spiel.tisch;
+    const a = t.anfechtbar;
+    if (!a || a.uid === uid) return false;
+    if (t.zugNr > a.zugNr) return false;
+    if (!bots.willAnfechten(t, c, null)) return false;
+    const urteil = regeln.fechteAn(spiel, uid, null);
+    if (!urteil || !urteil.ok) return false;
+    zugGemacht(uid);
+    return true;
   }
 
   let meldeWarteBis = 0;
