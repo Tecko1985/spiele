@@ -34,6 +34,7 @@ const spielfeld = (function () {
   let hudFehlerBis = 0;
   let gezeigterAnteil = 0;       // der Fortschrittsbalken zieht dem echten Wert weich nach
   let aufleuchtenBis = 0;        // bis wann er nach einer erledigten Aufgabe leuchtet
+  let leisteUeberlaufGemeldet = false;   // damit die Warnung nicht in jedem Bild erneut kommt
 
   /* Maße der Bedienelemente. Der Daumen trifft im fahrenden Bus nichts
      Kleineres — deshalb großzügiger als am Schreibtisch nötig. */
@@ -245,8 +246,25 @@ const spielfeld = (function () {
     plaetze.push({ x: rechts - HAUPT_R - KNOPF_R - 14, y: unten });
     plaetze.push({ x: rechts - abstand * 0.75, y: unten - abstand * 0.75 });
     plaetze.push({ x: rechts, y: unten - HAUPT_R - KNOPF_R - 14 - abstand });
+    /* Fünfter Platz auf dem äußeren Viertelkreis. Er wird gebraucht, sobald ein Maulwurf
+       die Sonderrolle Gestaltwandler hat UND eine meldbare Leiche in Reichweite liegt:
+       Aufgabenliste, Melden, Rollenfähigkeit, Ausschalten, Sabotage. */
+    plaetze.push({ x: rechts - abstand * 1.5, y: unten - abstand * 1.5 });
     let n = 0;
-    function naechster() { return plaetze[Math.min(n++, plaetze.length - 1)]; }
+    /* ⚠️ Jeder Knopf bekommt seinen EIGENEN Platz. Der frühere `Math.min`-Deckel gab dem
+       fünften Knopf denselben Punkt wie dem vierten — „Ausschalten" und „Sabotage" lagen
+       mit 0 px Abstand aufeinander, und EIN Tipper führte beide Handler aus: erst das
+       Foulspiel, dann der Sabotage-Dialog. Kommt künftig ein sechster Knopf dazu, rückt er
+       sichtbar nach außen und meldet sich, statt sich lautlos zu überlagern. */
+    function naechster() {
+      const p = plaetze[n++];
+      if (p) return p;
+      if (!leisteUeberlaufGemeldet) {
+        leisteUeberlaufGemeldet = true;
+        console.error("Aktionsleiste: " + n + " Knöpfe, aber nur " + plaetze.length + " Plätze.");
+      }
+      return { x: rechts, y: unten - HAUPT_R - KNOPF_R - 14 - abstand * (n - plaetze.length + 1) };
+    }
 
     /* Aufgabenliste — fällt mit dem Funk aus. Der eigene Fortschritt bleibt
        sichtbar (die Marker auf der Karte), nur der gemeinsame Überblick ist

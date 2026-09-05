@@ -897,6 +897,14 @@ function render(zustand) {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.5",
+    groups: [
+      { title: "Behoben", items: [
+          "Ist ein Maulwurf zugleich Gestaltwandler und liegt eine meldbare Leiche in Reichweite, lagen „Ausschalten“ und „Sabotieren“ genau übereinander — ein einziger Tipper löste beides aus, also erst ein ungewolltes Foulspiel und dann den Sabotage-Dialog. Die Aktionsleiste hat jetzt einen fünften Platz."
+      ]}
+    ]
+  },
+  {
     version: "1.4",
     groups: [
       { title: "Behoben", items: [
