@@ -1210,6 +1210,15 @@ function schutzAktiv(raum, uid) {
   return ((raum.schutz || {})[uid] || 0) > serverJetzt();
 }
 
+// ⚠️ Wer im Schacht sitzt, ist unsichtbar UND unerreichbar. Diese Regel gilt an JEDER Stelle,
+// die ein Ziel auswählt — sie stand am 05.09.2026 zweimal einzeln da, und der Bot-Zweig hatte
+// sie nicht: ein KI-Maulwurf erwischte Leute im Schacht, ein menschlicher nicht.
+// Deshalb: eine Quelle, beide Wege lesen sie.
+function sitztImSchacht(uid) {
+  const p = positionen[uid];
+  return !!(p && p.schacht);
+}
+
 // --- Ausschalten ("Foulspiel") ---
 
 async function schalteAus(opferUid) {
@@ -1224,7 +1233,7 @@ async function schalteAus(opferUid) {
   if (!opfer || opfer.lebt === false) return { erfolg: false };
   // Wer im Schacht sitzt, ist unsichtbar und damit auch unerreichbar — sonst könnte man jemanden
   // treffen, den man gar nicht sieht, und das Opfer verstünde nicht, was passiert ist.
-  if (positionen[opferUid] && positionen[opferUid].schacht) return { erfolg: false, fehler: "Da ist niemand." };
+  if (sitztImSchacht(opferUid)) return { erfolg: false, fehler: "Da ist niemand." };
   if (aktuelleMaulwuerfe()[opferUid]) return { erfolg: false, fehler: "Das ist ein Maulwurf." };
   if (killBereitAb(raum, eigeneUid) > serverJetzt()) return { erfolg: false, fehler: "Noch nicht bereit." };
   const meine = positionen[eigeneUid];
@@ -1813,6 +1822,7 @@ function versucheBotKill(raum, botId, pos, einstellungen) {
     if (uid === botId || raum.spieler[uid].lebt === false) return false;
     if (botZustand[uid] && botZustand[uid].rolle === "maulwurf") return false;
     if (schutzAktiv(raum, uid)) return false;   // Schutzengel gilt auch gegen die KI
+    if (sitztImSchacht(uid)) return false;      // im Schacht ist niemand zu treffen — auch für die KI nicht
     const p = positionen[uid];
     return p && karte.abstand(pos.x, pos.y, p.x, p.y) <= karte.KILL_REICHWEITE
              && karte.sichtlinieFrei(pos.x, pos.y, p.x, p.y);   // nicht durch die Wand

@@ -897,6 +897,14 @@ function render(zustand) {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.6",
+    groups: [
+      { title: "Behoben", items: [
+          "KI-Mitspieler schalten niemanden mehr aus, der in einer Abkürzung sitzt. Für Menschen galt die Regel schon immer — im Übungsmodus gegen die KI lernte man sie also falsch, und aus Sicht des Opfers kam das Foulspiel aus dem Nichts. Neun der vierzehn Schachtenden liegen auf einer KI-Route in Reichweite."
+      ]}
+    ]
+  },
+  {
     version: "1.5",
     groups: [
       { title: "Behoben", items: [
