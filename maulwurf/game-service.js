@@ -906,7 +906,10 @@ function verarbeiteRaumZustand(raum) {
   if (raum.phase === "zuteilung") {
     zieheEigeneRolle(raum);
     if (raum.hostId === eigeneUid) zieheBotRollen(raum);
-    const anzahl = Object.keys(raum.spieler || {}).length;
+    // ⚠️ Gezählt werden nur die Lebenden. Wer die Rollenziehung verlässt, trägt sich mit
+    // lebt:false aus — zählte man alle Einträge, wartete der Zähler auf eine Ziehung, die
+    // niemand mehr vornimmt, und die Partie käme nie aus dem Reveal heraus.
+    const anzahl = lebendeSpieler(raum).length;
     if ((raum.zuteilungZaehler || 0) >= anzahl && !raum.revealBis) {
       // Idempotenter Literal-Write: mehrere Geräte dürfen das gleichzeitig setzen.
       db.ref(`${RAEUME_PFAD}/${code}/revealBis`).set(serverJetzt() + REVEAL_DAUER_MS).catch(() => {});
@@ -1877,9 +1880,14 @@ async function verlasseSpiel() {
     await db.ref(`${RAEUME_PFAD}/${code}/phase`).set("abgebrochen").catch(() => {});
   } else if (raum && code && raum.phase === "lobby") {
     await db.ref(`${RAEUME_PFAD}/${code}/spieler/${eigeneUid}`).remove().catch(() => {});
-  } else if (raum && code && raum.phase === "laeuft") {
+  } else if (raum && code && (raum.phase === "laeuft" || raum.phase === "zuteilung")) {
     // Mitten in der Partie darf niemand einfach verschwinden, sonst wartet die Siegprüfung
     // ewig auf eine Person, die gar nicht mehr da ist. Wer geht, scheidet aus.
+    //
+    // ⚠️ Die Rollenziehung gehört dazu: Der Verlassen-Knopf wird dort angeboten
+    // (bildschirme.js), und wer nur lokal ging, blieb mit lebt:true stehen — hatte er seine
+    // Rolle noch nicht gezogen, erreichte zuteilungZaehler die Spielerzahl nie und die
+    // Partie stand für ALLE still.
     await db.ref(`${RAEUME_PFAD}/${code}/spieler/${eigeneUid}/lebt`).set(false).catch(() => {});
   }
   await verlasseLokal();

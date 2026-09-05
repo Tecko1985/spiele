@@ -897,6 +897,14 @@ function render(zustand) {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.7",
+    groups: [
+      { title: "Behoben", items: [
+          "Wer während der Rollenziehung auf „Verlassen“ tippt, wird jetzt auch wirklich ausgetragen. Vorher blieb sein Eintrag stehen: hatte er seine Rolle noch nicht gezogen, wartete die Partie für alle anderen für immer auf ihn — im Verstecken-Modus ohne jeden Ausweg."
+      ]}
+    ]
+  },
+  {
     version: "1.6",
     groups: [
       { title: "Behoben", items: [
