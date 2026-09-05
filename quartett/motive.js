@@ -66,6 +66,67 @@ const motive = (function () {
     standard:      { laenge: 0.90, dachH: 17, haubeH: 28, dachVon: 0.33, dachBis: 0.74, radR: 8,   radVorn: 0.79, radHinten: 0.21, heck: "schraeg", bug: "flach" }
   };
 
+  /* --------------------------------------------------------------------------
+     Trikots — die `rolle` einer Spielerkarte ist die Position auf dem Platz.
+
+     ⚠️ Bis zum 05.09.2026 gab es hier nichts: `schluesselFuer` fand für
+     "Torwart" keinen Zweig und fiel auf `standard` zurück — und `standard` ist
+     ein Auto. In beiden Fußball-Quartetts trug damit jede der 500 Karten eine
+     Auto-Silhouette, weil dort keine einzige Karte ein Foto hat.
+
+     Unterschieden wird über EIN Merkmal je Position, nicht über Zahlenwerte
+     (dieselbe Lehre wie bei den Fahrzeugen: Formen, die sich nur in Zahlen
+     unterscheiden, sehen gleich aus). Alle vier sind echte Trikotmuster:
+
+       torwart      lange Ärmel — im Fußball das eindeutige Kennzeichen
+       verteidiger  Querstreifen
+       mittelfeld   Längsstreifen
+       stuermer     Diagonalband (Schärpe)                                   */
+  const TRIKOTS = {
+    torwart:     { muster: "keins",      langarm: true },
+    verteidiger: { muster: "quer",       langarm: false },
+    mittelfeld:  { muster: "laengs",     langarm: false },
+    stuermer:    { muster: "schaerpe",   langarm: false },
+    spieler:     { muster: "keins",      langarm: false }
+  };
+
+  /* Welche Motivfamilie gehört zu dieser Rolle? Die Rolle ist das Einzige, was
+     `zeichne` über die Karte weiß — der Aufrufer ist für alle drei Quartetts
+     derselbe und kennt das Spiel nicht. */
+  function familieFuer(rolle) {
+    const r = String(rolle || "").toLowerCase().trim();
+    if (trikotSchluessel(r)) return "trikot";
+    if (istLiga(r)) return "wappen";
+    return "auto";
+  }
+
+  function trikotSchluessel(r) {
+    if (TRIKOTS[r]) return r;
+    if (r.indexOf("torwart") !== -1 || r.indexOf("torhüter") !== -1
+      || r.indexOf("torhueter") !== -1 || r.indexOf("keeper") !== -1) return "torwart";
+    if (r.indexOf("verteidig") !== -1 || r.indexOf("abwehr") !== -1
+      || r.indexOf("innenvert") !== -1 || r.indexOf("aussenvert") !== -1) return "verteidiger";
+    if (r.indexOf("mittelfeld") !== -1 || r.indexOf("sechser") !== -1
+      || r.indexOf("zehner") !== -1) return "mittelfeld";
+    if (r.indexOf("stürmer") !== -1 || r.indexOf("stuermer") !== -1
+      || r.indexOf("angriff") !== -1 || r.indexOf("angreifer") !== -1) return "stuermer";
+    return null;
+  }
+
+  /* Die Vereinskarten tragen als Rolle ihre LIGA — rund 95 verschiedene, von
+     "Bundesliga" bis "Tanzanian Premier League". Sie einzeln abzubilden wäre
+     sinnlos; alle bekommen dasselbe Vereinswappen. Erkannt wird die Familie
+     deshalb über Wortbestandteile, die in Ligennamen vorkommen und in keinem
+     Fahrzeugtyp und keiner Position. */
+  const LIGA_WORTE = ["liga", "league", "ligue", "serie ", "divisi", "eredivisie",
+    "championship", "premiership", "ekstraklasa", "allsvenskan", "eliteserien",
+    "veikkausliiga", "virsliga", "meistriliiga", "brasileir", "botola",
+    "superligaen", "besta deildin", "perwenstwo", "hnl", "nb i", "mls"];
+
+  function istLiga(r) {
+    return LIGA_WORTE.some(function (w) { return r.indexOf(w) !== -1; });
+  }
+
   /* Schreibweisen, die im Deck vorkommen, auf einen Schlüssel bringen. */
   function schluesselFuer(rolle) {
     const r = String(rolle || "").toLowerCase().trim();
@@ -127,10 +188,164 @@ const motive = (function () {
     return { punkte: p, x0: x0, x1: x1, laenge: l, boden: boden, dachA: dachA, dachB: dachB };
   }
 
+  /* Ein Trikot im selben 100×50-System: Rumpf mit Schultern, zwei Ärmel, ein
+     ausgesparter Kragen. Es ist breiter als hoch (ausgebreitete Ärmel) und
+     füllt das Feld deshalb genauso aus wie ein Fahrzeug. */
+  function zeichneTrikot(ctx, t, P, f, farbe, deckkraft) {
+    const mitte = BREITE / 2;
+    const oben = 8;                       // Schulterlinie
+    const saum = 45;                      // unterer Rand
+    const halbe = 15;                     // halbe Rumpfbreite
+    const armAussen = t.langarm ? 33 : 26;
+    const armUnten = t.langarm ? 34 : 24;
+
+    ctx.beginPath();
+    const p = [
+      [mitte - halbe, oben],                       // linke Schulter
+      [mitte - armAussen, oben + 3],               // Ärmel außen oben
+      [mitte - armAussen + 2, armUnten],           // Ärmel außen unten
+      [mitte - halbe + 1, oben + 13],              // Achsel
+      [mitte - halbe + 1, saum],                   // Saum links
+      [mitte + halbe - 1, saum],                   // Saum rechts
+      [mitte + halbe - 1, oben + 13],
+      [mitte + armAussen - 2, armUnten],
+      [mitte + armAussen, oben + 3],
+      [mitte + halbe, oben]
+    ];
+    p.forEach(function (pt, i) {
+      const q = P(pt[0], pt[1]);
+      if (i === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
+    });
+    ctx.closePath();
+    ctx.fill();
+
+    const voll = deckkraft === undefined ? 0.5 : deckkraft;
+
+    /* Kragen als helle Aussparung — erst dadurch liest sich die Form als
+       Kleidungsstück und nicht als Wappen. */
+    ctx.globalAlpha = voll * 0.5;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    const k1 = P(mitte - 6, oben), k2 = P(mitte + 6, oben), k3 = P(mitte, oben + 7);
+    ctx.moveTo(k1[0], k1[1]); ctx.lineTo(k2[0], k2[1]); ctx.lineTo(k3[0], k3[1]);
+    ctx.closePath();
+    ctx.fill();
+
+    /* Das Muster ist das eine Merkmal, an dem die Position hängt. Gezeichnet
+       wird es als helle Aussparung im Rumpf, nie über den Rand hinaus. */
+    const rumpfL = mitte - halbe + 2, rumpfR = mitte + halbe - 2;
+    const rumpfO = oben + 9, rumpfU = saum - 2;
+    ctx.globalAlpha = voll * 0.42;
+    if (t.muster === "quer") {
+      [0.22, 0.52, 0.82].forEach(function (a) {
+        const y0 = rumpfO + (rumpfU - rumpfO) * a;
+        const q1 = P(rumpfL, y0), q2 = P(rumpfR, y0 + 4);
+        ctx.fillRect(q1[0], q1[1], q2[0] - q1[0], q2[1] - q1[1]);
+      });
+    } else if (t.muster === "laengs") {
+      [0.20, 0.50, 0.80].forEach(function (a) {
+        const x0 = rumpfL + (rumpfR - rumpfL) * a;
+        const q1 = P(x0, rumpfO), q2 = P(x0 + 3.5, rumpfU);
+        ctx.fillRect(q1[0], q1[1], q2[0] - q1[0], q2[1] - q1[1]);
+      });
+    } else if (t.muster === "schaerpe") {
+      ctx.beginPath();
+      const s = [[rumpfL, rumpfU - 6], [rumpfR - 4, rumpfO], [rumpfR, rumpfO + 5], [rumpfL + 4, rumpfU]];
+      s.forEach(function (pt, i) {
+        const q = P(pt[0], pt[1]);
+        if (i === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
+      });
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    /* Der Torwart bekommt zusätzlich einen Handschuh neben dem langen Ärmel —
+       lange Ärmel allein sind auf kleinem Raum zu wenig Unterschied. */
+    if (t.langarm) {
+      ctx.globalAlpha = voll;
+      ctx.fillStyle = farbe;
+      const c = P(mitte + armAussen - 1, armUnten + 5);
+      ctx.beginPath();
+      ctx.arc(c[0], c[1], 4.5 * f, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = voll;
+    ctx.fillStyle = farbe;
+  }
+
+  /* Ein Vereinswappen: Schild mit rundem Fuß und einem Ball darin. Alle
+     Vereinskarten tragen dasselbe — die Rolle ist dort die Liga, und rund 95
+     Ligen einzeln abzubilden hätte keinen Erkennungswert. */
+  function zeichneWappen(ctx, P, f, farbe, deckkraft) {
+    const mitte = BREITE / 2;
+    const oben = 5, unten = 47, halbe = 19;
+    const voll = deckkraft === undefined ? 0.5 : deckkraft;
+
+    ctx.beginPath();
+    const o1 = P(mitte - halbe, oben), o2 = P(mitte + halbe, oben);
+    const s1 = P(mitte + halbe, oben + 18), s2 = P(mitte, unten), s3 = P(mitte - halbe, oben + 18);
+    ctx.moveTo(o1[0], o1[1]);
+    ctx.lineTo(o2[0], o2[1]);
+    ctx.lineTo(s1[0], s1[1]);
+    ctx.quadraticCurveTo(P(mitte + halbe * 0.72, unten - 5)[0], P(mitte + halbe * 0.72, unten - 5)[1], s2[0], s2[1]);
+    ctx.quadraticCurveTo(P(mitte - halbe * 0.72, unten - 5)[0], P(mitte - halbe * 0.72, unten - 5)[1], s3[0], s3[1]);
+    ctx.closePath();
+    ctx.fill();
+
+    /* Ball als helle Aussparung, mit angedeuteten Nähten. */
+    const c = P(mitte, oben + 19);
+    const r = 9 * f;
+    ctx.globalAlpha = voll * 0.5;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(c[0], c[1], r, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = voll;
+    ctx.fillStyle = farbe;
+    ctx.beginPath();
+    ctx.moveTo(c[0], c[1] - r * 0.55);
+    ctx.lineTo(c[0] + r * 0.52, c[1] - r * 0.17);
+    ctx.lineTo(c[0] + r * 0.32, c[1] + r * 0.45);
+    ctx.lineTo(c[0] - r * 0.32, c[1] + r * 0.45);
+    ctx.lineTo(c[0] - r * 0.52, c[1] - r * 0.17);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   /* Zeichnet die Silhouette in das Rechteck (x, y, b, h).
      `farbe` ist die Silhouettenfarbe, `deckkraft` steuert die Zurückhaltung —
      das Motiv soll die Karte schmücken, nicht von den Werten ablenken. */
-  function zeichne(ctx, rolle, x, y, b, h, farbe, deckkraft) {
+  function zeichne(ctx, rolle, x, y, b, h, farbe, deckkraft, familieVorgabe) {
+    /* Die Vorgabe kommt aus SPIEL_CONFIG.motivFamilie und ist maßgeblich —
+       familieFuer() ist nur der Rückfall für Aufrufer, die sie nicht mitgeben.
+       Grund: die Rolle einer Vereinskarte ist ihre Liga, und rund 95 davon in
+       wechselnden Schreibweisen ("Süper Lig", "A Lyga", "Linafoot (COD)") sind
+       über eine Wortliste nicht zuverlässig zu erkennen — sie veraltet
+       lautlos, sobald ein Deck eine Liga ergänzt. */
+    const familie = (familieVorgabe === "auto" || familieVorgabe === "trikot"
+      || familieVorgabe === "wappen") ? familieVorgabe : familieFuer(rolle);
+    if (familie !== "auto") {
+      const f2 = Math.min(b / BREITE, h / HOEHE);
+      const vx = x + (b - BREITE * f2) / 2;
+      const vy = y + (h - HOEHE * f2) / 2;
+      const P2 = (px, py) => [vx + px * f2, vy + py * f2];
+      ctx.save();
+      ctx.globalAlpha = deckkraft === undefined ? 0.5 : deckkraft;
+      ctx.fillStyle = farbe;
+      ctx.strokeStyle = farbe;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      if (familie === "trikot") {
+        zeichneTrikot(ctx, TRIKOTS[trikotSchluessel(String(rolle || "").toLowerCase().trim())
+          || "spieler"], P2, f2, farbe, deckkraft);
+      } else {
+        zeichneWappen(ctx, P2, f2, farbe, deckkraft);
+      }
+      ctx.restore();
+      return;
+    }
     const m = MOTIVE[schluesselFuer(rolle)];
     const f = Math.min(b / BREITE, h / HOEHE);
     const versatzX = x + (b - BREITE * f) / 2;
@@ -262,6 +477,8 @@ const motive = (function () {
   return {
     zeichne: zeichne,
     schluesselFuer: schluesselFuer,
+    familieFuer: familieFuer,
+    trikotSchluessel: trikotSchluessel,
     typen: function () { return Object.keys(MOTIVE); }
   };
 })();

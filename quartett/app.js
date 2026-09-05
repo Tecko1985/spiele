@@ -236,13 +236,18 @@ function zeichneQuartettKarte(karte, x, y, b, opt) {
   ctx.fillRect(x, cy, b, bildH);
   const hatBild = quelle && ui.zeichneBild(quelle, x, cy, b, bildH);
   if (!hatBild) {
-    /* Ohne eigenes Foto eine generische Silhouette passend zum Typ der Karte
-       (Sportwagen, SUV, Van …). Sie ist gezeichnet, nicht geladen: keine
-       Urheberrechtsfrage, keine 500 Dateien, scharf auf jeder Auflösung.
-       Der Anfangsbuchstabe steht klein daneben, damit die Karte auch dann
-       noch zu unterscheiden ist, wenn zwei Modelle denselben Typ haben. */
+    /* Ohne eigenes Foto eine generische Silhouette passend zur Karte: im
+       Auto-Quartett ein Fahrzeug nach seinem Typ, im Fußball-Quartett ein
+       Trikot nach der Position, im Vereine-Quartett ein Wappen. Sie ist
+       gezeichnet, nicht geladen: keine Urheberrechtsfrage, keine 500 Dateien,
+       scharf auf jeder Auflösung. Der Anfangsbuchstabe steht klein daneben,
+       damit die Karte auch dann noch zu unterscheiden ist, wenn zwei Einträge
+       denselben Typ haben.
+       ⚠️ Die Familie kommt aus SPIEL_CONFIG, nicht aus der Rolle — ohne sie
+       trug im Fußball- und im Vereine-Deck jede Karte ein Auto. */
     motive.zeichne(ctx, karte.rolle, x + b * 0.06, cy + bildH * 0.12,
-                   b * 0.88, bildH * 0.72, "#ffffff", 0.55);
+                   b * 0.88, bildH * 0.72, "#ffffff", 0.55,
+                   (typeof SPIEL_CONFIG !== "undefined" ? SPIEL_CONFIG.motivFamilie : undefined));
     ui.schreibe(initialeVon(karte.name), x + b / 2, cy + bildH * 0.92, {
       groesse: Math.round(bildH * 0.16), fett: true,
       farbe: "rgba(255,255,255,0.5)", ausrichtung: "center"
@@ -778,6 +783,15 @@ function szene() {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.3",
+    groups: [
+      { title: "Fußball-Karten zeigen kein Auto mehr", items: [
+          "In den beiden Fußball-Quartetts trug jede der 500 Karten eine Auto-Silhouette. Die Zeichnung kannte nur Fahrzeugtypen und fiel bei allem anderen auf ein Auto zurück — und im Fußball-Deck hat keine Karte ein Foto.",
+          "Spielerkarten zeigen jetzt ein Trikot: der Torwart mit langen Ärmeln und Handschuh, die Abwehr mit Quer-, das Mittelfeld mit Längsstreifen, der Sturm mit Schärpe. Vereinskarten zeigen ein Wappen mit Ball. Das Auto-Quartett bleibt unverändert."
+      ]}
+    ]
+  },
+  {
     version: "1.2",
     groups: [
       { title: "Behoben", items: [
@@ -803,7 +817,10 @@ const CHANGELOG = [
           "Gegen eine einfache KI spielen, wenn gerade niemand sonst da ist — im Warteraum lassen sich Test-Spieler dazusetzen."
       ]},
       { title: "Karten", items: [
-          "Karten ohne eigenes Foto zeigen eine Silhouette passend zum Typ — Sportwagen, SUV, Van, Pickup, Oldtimer und sieben weitere.",
+          // ⚠️ Dieser Text steht in ALLEN drei Quartetts (gemeinsame app.js) und
+          // nannte deshalb bis zum 05.09.2026 auch in den beiden Fußball-Spielen
+          // Fahrzeugtypen. Beim Ergänzen einer Motivfamilie hier mitziehen.
+          "Karten ohne eigenes Foto zeigen eine gezeichnete Silhouette: im Auto-Quartett das Fahrzeug nach seinem Typ (Sportwagen, SUV, Van, Pickup, Oldtimer und sieben weitere), im Fußball-Quartett ein Trikot nach der Position und im Vereine-Quartett ein Wappen.",
           "Die Silhouetten sind gezeichnet, nicht geladen: es wird nichts nachgeladen, und sie sind auf jedem Display scharf.",
           "Ein Foto auf der Karte lässt sich antippen und dann groß ansehen."
       ]},
