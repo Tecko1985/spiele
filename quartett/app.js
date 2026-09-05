@@ -364,9 +364,16 @@ function zeichneKopfzeile(zustand) {
         ja: () => { gameService.verlasseSpiel(); }
       };
     }) + 8;
-  } else if (istAdmin && !ansicht.ueberlagert) {
-    /* Kartenverwaltung nur für ToolsUebersicht-Admins und nur außerhalb einer
-       laufenden Partie — genau wie in der abgelösten Oberfläche. */
+  } else if (istAdmin && !ansicht.ueberlagert && zustand.phase === "start") {
+    /* Kartenverwaltung nur für ToolsUebersicht-Admins und nur auf dem
+       Startbildschirm.
+       ⚠️ Bis 05.09.2026 stand hier nur `istAdmin && !ansicht.ueberlagert`,
+       der Knopf erschien also auch bei „beendet" und „abgebrochen". Er tat
+       dort nichts: `szene()` räumt eine Überlagerung bei JEDER Phase außer
+       `start` wieder ab, und diese Prüfung steht VOR dem Zeichnen der
+       Kopfzeile. Im Bild des Klicks wurde die Verwaltung noch gemalt („Lade
+       Karten …"), im nächsten war sie weg — der Knopf sah aus wie eine
+       Freigabe und war keine. */
     rx -= zeichneKopfKnopf("btn-karten", eng ? "✏️" : "✏️ Karten", rx, mitte, () => {
       oeffneVerwaltung();
     }) + 8;
@@ -828,6 +835,14 @@ function szene() {
 
 const APP_VERSION = "1.0";
 const CHANGELOG = [
+  {
+    version: "1.7",
+    groups: [
+      { title: "Behoben", items: [
+          "Der Knopf „✏️ Karten“ stand für Administratoren auch nach dem Endstand und nach einem Abbruch da — und tat dort nichts: die Kartenverwaltung erschien für den Bruchteil einer Sekunde und war sofort wieder zu. Jetzt steht er nur noch auf dem Startbildschirm, wo er wirklich funktioniert."
+      ]}
+    ]
+  },
   {
     version: "1.6",
     groups: [
