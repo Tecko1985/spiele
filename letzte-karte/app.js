@@ -17,6 +17,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.2',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Wer eine Farbwahl-Ziehkarte legte, zeigte dabei jedem seine ganze Hand. Der Stand vor dem Zug wurde für die Anfechtung gemerkt — und landete mit im Tisch, den alle Geräte lesen. Er blieb auch liegen, wenn gar niemand anfocht. Jetzt behält ihn nur das Gerät des Gastgebers; aufgedeckt wird die Hand erst, wenn wirklich angefochten wird.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.1',
     groups: [
       {

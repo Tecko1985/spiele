@@ -116,6 +116,12 @@ const regeln = (function () {
       stapel: stapel,
       ablagestapel: [],
       protokoll: [],
+      /* ⚠️ Der Handstand des Legers einer anfechtbaren Karte. Er steht
+         BEWUSST hier und nicht im Tisch: `tisch` wird unverändert in die
+         öffentliche Sicht geschrieben, die jedes Gerät liest — dort lägen
+         die Karten eines Mitspielers offen, ohne dass überhaupt jemand
+         angefochten hat. Aufgedeckt wird erst über `t.aufdeckung`. */
+      anfechtHand: null,
     };
 
     /* Wirkt die Startkarte? Beim echten Spiel ja — eine offene Aussetzen-Karte
@@ -352,10 +358,15 @@ const regeln = (function () {
     t.aufdeckung = null;
 
     /* Wer angefochten werden könnte, merkt sich, mit welcher Hand er die
-       Karte gelegt hat — die Prüfung schaut auf den Stand VOR dem Legen. */
+       Karte gelegt hat — die Prüfung schaut auf den Stand VOR dem Legen.
+       ⚠️ In den Tisch kommt nur, was der Knopf braucht (wer, welche Farbe,
+       welcher Zug). Der Handstand bleibt beim Gastgeber, sonst stünde er in
+       der öffentlichen Sicht und jedes Gerät könnte die Karten mitlesen. */
     t.anfechtbar = null;
+    spiel.anfechtHand = null;
     if (ANFECHTBAR[teil.art] && t.modus !== 'gnadenlos') {
-      t.anfechtbar = { uid: uid, farbe: t.farbe, zugNr: t.zugNr + 1, hand: hand.slice() };
+      t.anfechtbar = { uid: uid, farbe: t.farbe, zugNr: t.zugNr + 1 };
+      spiel.anfechtHand = hand.slice();
     }
 
     t.farbe = K.brauchtFarbe(teil.art) ? wunschFarbe : teil.farbe;
@@ -656,14 +667,19 @@ const regeln = (function () {
     if (dran(spiel) !== klaeger) return { ok: false, grund: 'Nur wer als Nächster dran ist, darf anfechten.' };
     if (t.zugNr > a.zugNr) return { ok: false, grund: 'Dafür ist es zu spät.' };
 
+    /* Der Handstand liegt beim Gastgeber, nicht im öffentlichen Tisch. */
+    const gelegteHand = spiel.anfechtHand || [];
+
     /* Hatte er eine Karte der Farbe, die vor seinem Zug galt? */
     let hatteFarbe = false;
-    for (const k of a.hand) {
+    for (const k of gelegteHand) {
       if (K.teile(k, t.dunkel).farbe === a.farbe) { hatteFarbe = true; break; }
     }
 
-    t.aufdeckung = { uid: a.uid, hand: a.hand.slice(), farbe: a.farbe, schuldig: hatteFarbe };
+    /* Erst JETZT wird die Hand für alle sichtbar — das ist die Regel. */
+    t.aufdeckung = { uid: a.uid, hand: gelegteHand.slice(), farbe: a.farbe, schuldig: hatteFarbe };
     t.anfechtbar = null;
+    spiel.anfechtHand = null;
 
     const strafe = t.strafe;
     t.strafe = 0;

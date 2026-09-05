@@ -276,6 +276,11 @@ const gameService = (function () {
         ablagestapel: spiel.ablagestapel,
         haende: spiel.haende,
         verpasst: verpasst,
+        /* Der Handstand des Legers einer anfechtbaren Karte — er gehört
+           NICHT in den Tisch (den lesen alle), aber der Gastgeber braucht
+           ihn nach einem Neuladen, um ein Anfechten noch beurteilen zu
+           können. `geheim/<code>` liest per Rule nur er selbst. */
+        anfechtHand: spiel.anfechtHand || null,
       });
 
       await db.ref().update(daten);
@@ -308,6 +313,7 @@ const gameService = (function () {
       stapel: g.stapel || [],
       ablagestapel: g.ablagestapel || [],
       protokoll: raumZustand.protokoll || [],
+      anfechtHand: g.anfechtHand || null,
     };
     verpasst = g.verpasst || {};
     setzeNamenAusRaum();
