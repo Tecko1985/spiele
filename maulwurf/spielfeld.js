@@ -575,7 +575,7 @@ const spielfeld = (function () {
           const ziel = zustand.spieler.find(s => s.id === meine.alsUid);
           rollenStatus = "Du siehst gerade aus wie " + (ziel ? ziel.name : "jemand anderes") + ".";
           if (ui.knopf("btn-verkleidung-ab", "Verkleidung ablegen", { art: "zweit" })) {
-            gameService.verkleideDich(null);
+            legeVerkleidungAb();
           }
         } else {
           andere.filter(s => s.lebt !== false).forEach(s => {
@@ -603,6 +603,14 @@ const spielfeld = (function () {
   async function verkleide(s) {
     const e = await gameService.verkleideDich(s.id);
     rollenStatus = e.erfolg ? "Du siehst jetzt aus wie " + s.name + "." : (e.fehler || "Geht gerade nicht.");
+    ui.anfordern();
+  }
+
+  // Auch das Ablegen wertet seinen Rückgabewert aus — sonst wäre es der einzige Knopf des
+  // Rollendialogs, der bei einem "geht gerade nicht" wortlos nichts täte.
+  async function legeVerkleidungAb() {
+    const e = await gameService.verkleideDich(null);
+    rollenStatus = e.erfolg ? "Du siehst wieder aus wie du selbst." : (e.fehler || "Geht gerade nicht.");
     ui.anfordern();
   }
 

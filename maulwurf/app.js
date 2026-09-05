@@ -897,6 +897,14 @@ function render(zustand) {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.4",
+    groups: [
+      { title: "Behoben", items: [
+          "Der Gestaltwandler kann seine Verkleidung jetzt wirklich vorzeitig ablegen. Bisher tat der Knopf nichts: die Abklingzeit von 45 Sekunden sperrte ihn, obwohl die Verkleidung nur 20 Sekunden hält — der Knopf war also nie zu einem Zeitpunkt bedienbar, an dem es ihn gab. Lehnt der Versuch ausnahmsweise doch ab, steht der Grund jetzt im Dialog."
+      ]}
+    ]
+  },
+  {
     version: "1.3",
     groups: [
       { title: "Behoben", items: [

@@ -1188,11 +1188,15 @@ async function verkleideDich(zielUid) {
   if (!raum || !code || raum.phase !== "laeuft" || raum.meeting) return { erfolg: false };
   if (meineSonderrolle !== "gestaltwandler") return { erfolg: false };
   if (raum.spieler[eigeneUid].lebt === false) return { erfolg: false };
-  if ((raum.verkleidungCooldownBis || 0) > serverJetzt()) {
-    return { erfolg: false, fehler: `Noch ${Math.ceil(((raum.verkleidungCooldownBis || 0) - serverJetzt()) / 1000)} s.` };
-  }
   const updates = {};
   if (zielUid && raum.spieler[zielUid]) {
+    // ⚠️ Die Abklingzeit bremst das VERWANDELN und darf nur hier stehen. Vor der
+    // Fallunterscheidung sperrte sie auch das Ablegen — und weil sie mit 45 s mehr als
+    // doppelt so lang läuft wie die Verkleidung mit 20 s, war der Knopf "Verkleidung
+    // ablegen" in jedem Moment, in dem es ihn überhaupt gab, wirkungslos.
+    if ((raum.verkleidungCooldownBis || 0) > serverJetzt()) {
+      return { erfolg: false, fehler: `Noch ${Math.ceil(((raum.verkleidungCooldownBis || 0) - serverJetzt()) / 1000)} s.` };
+    }
     updates[`${RAEUME_PFAD}/${code}/verkleidung/${eigeneUid}`] = { alsUid: zielUid, bis: serverJetzt() + VERKLEIDUNG_DAUER_MS };
     updates[`${RAEUME_PFAD}/${code}/verkleidungCooldownBis`] = serverJetzt() + VERKLEIDUNG_COOLDOWN_MS;
   } else {
