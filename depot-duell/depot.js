@@ -425,26 +425,54 @@ const depot = (function () {
     return p ? p.stueck : 0;
   }
 
+  /* ⚠️ Beide Höchstmengen MÜSSEN die Gebühr genauso rechnen wie `pruefeKauf` — die
+     Höchstmenge liegt konstruktionsbedingt EXAKT auf der Grenze, und dort entscheidet auch
+     ein Promille. Bis zum 05.09.2026 ließ `hoechstNachAnteil` die Gebühr im Nenner weg
+     („verschiebt die Grenze um Promille") und `hoechstBezahlbar` kannte `gebuehrMind` gar
+     nicht. Folge: der „100 %"-Knopf schrieb eine Zahl ins Feld, die `pruefeKauf` im
+     nächsten Bild ablehnte — und die rote Begründung nannte dieselbe Zahl als das, was
+     noch ginge. Gemessen über 250 Werte × 4 Startgelder × 5 Guthabenstände: 17 % der Fälle
+     bei Vorgabegebühr, 34 % bei 1 %, 0 % ohne Gebühr.
+
+     Beide rechnen deshalb zwei Fälle und nehmen den kleineren: einmal mit der anteiligen
+     Gebühr, einmal mit dem Mindestbetrag. Weil `gebuehr()` das Maximum beider nimmt, ist
+     der kleinere der beiden Werte immer der exakte. */
+
   function hoechstBezahlbar(zustand, wert, kurs) {
-    /* Gebühr ist anteilig, deshalb einmal auflösen statt zu probieren. */
-    const roh = zustand.cash / (kurs * (1 + (zustand.regeln || VORGABE).gebuehrSatz));
-    return rundeStueck(wert, Math.max(0, roh - (wert.art === 'krypto' ? 0 : 0)));
+    const R = zustand.regeln || VORGABE;
+    /* betrag + gebuehr <= cash, einmal aufgelöst statt durchprobiert. */
+    const mitSatz = zustand.cash / (kurs * (1 + R.gebuehrSatz));
+    const mitMindest = (zustand.cash - R.gebuehrMind) / kurs;
+    return rundeStueck(wert, Math.max(0, Math.min(mitSatz, mitMindest)));
   }
 
   function hoechstNachAnteil(zustand, wert, kurs) {
+    const R = zustand.regeln || VORGABE;
     const bisher = bestandVon(zustand, wert.id);
-    /* Erlaubter Positionswert bezogen auf den Depotwert (Gebühr vernachlässigt,
-       sie verschiebt die Grenze um Promille). */
-    const erlaubterWert = zustand.gesamt * (zustand.regeln || VORGABE).hoechstanteil;
-    const restWert = erlaubterWert - bisher * kurs;
-    if (restWert <= 0) return 0;
-    return rundeStueck(wert, restWert / kurs);
+    /* (bisher + s) * kurs / (gesamt - gebuehr) <= hoechstanteil */
+    const kopf = zustand.gesamt * R.hoechstanteil - bisher * kurs;
+    const mitSatz = kopf / (kurs * (1 + R.hoechstanteil * R.gebuehrSatz));
+    const mitMindest = ((zustand.gesamt - R.gebuehrMind) * R.hoechstanteil - bisher * kurs) / kurs;
+    const roh = Math.min(mitSatz, mitMindest);
+    if (!(roh > 0)) return 0;
+    return rundeStueck(wert, roh);
   }
 
   /** Wie viele Stücke sind unter allen Regeln zusammen möglich? */
   function hoechstKaufbar(zustand, wert, kurs) {
     if (!(kurs > 0)) return 0;
-    return Math.min(hoechstBezahlbar(zustand, wert, kurs), hoechstNachAnteil(zustand, wert, kurs));
+    let stueck = rundeStueck(wert, Math.min(
+      hoechstBezahlbar(zustand, wert, kurs),
+      hoechstNachAnteil(zustand, wert, kurs)
+    ));
+    /* Sicherheitsnetz gegen Fließkomma-Reste: was hier herauskommt, MUSS `pruefeKauf`
+       annehmen — das ist die Zusage, auf die sich der „100 %"-Knopf verlässt. Ein paar
+       Einheiten Spielraum genügen, weil die Formeln oben exakt sind. */
+    const schritt = wert.art === 'krypto' ? 1e-8 : 1;
+    for (let i = 0; i < 4 && stueck > 0 && !pruefeKauf(zustand, wert, stueck, kurs).ok; i++) {
+      stueck = rundeStueck(wert, stueck - schritt);
+    }
+    return stueck > 0 && pruefeKauf(zustand, wert, stueck, kurs).ok ? stueck : 0;
   }
 
   function pruefeVerkauf(zustand, wert, stueck) {

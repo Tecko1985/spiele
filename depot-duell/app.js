@@ -10,6 +10,18 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.4',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Der Knopf „100 %" im Kaufdialog führt nicht mehr in eine Sackgasse. Er schrieb die höchstmögliche Stückzahl ins Feld, im nächsten Bild wurde genau diese Zahl abgelehnt — und die rote Begründung nannte dieselbe Zahl als das, was noch ginge. Betroffen war jeder sechste Fall bei der Vorgabe-Gebühr und jeder dritte bei 1 %; ohne Gebühr trat es nie auf. Ursache: die Höchstmenge rechnete die Ordergebühr anders als die Kaufprüfung.',
+          'Die KI-Mitspieler halten die Anteilsgrenze jetzt auch dann ein, wenn sie in derselben Runde mehrfach handeln.'
+        ]
+      }
+    ]
+  },
+  {
     version: '1.3',
     groups: [
       {

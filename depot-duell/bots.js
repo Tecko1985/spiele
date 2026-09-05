@@ -73,6 +73,11 @@ const bots = (function () {
   }
 
   function kaufe(trades, zustand, wert, kurs, runde, anteilVomCash) {
+    /* ⚠️ Eine Strategie darf in EINEM Takt mehrfach handeln — nach dem ersten Zug ist der
+       übergebene Zustand veraltet (Guthaben und Depotwert stimmen nicht mehr). Der Bot
+       prüfte seinen Kauf dann gegen einen Stand, den es nicht mehr gab, und kaufte knapp
+       über der 25-Prozent-Grenze. `frisch()` rechnet aus den bisherigen Zügen neu. */
+    if (zustand.frisch) zustand = zustand.frisch();
     const wunschBetrag = zustand.cash * anteilVomCash;
     if (wunschBetrag < 500) return false;      // Kleckerkäufe lohnen die Gebühr nicht
     let stueck = depot.rundeStueck(wert, wunschBetrag / kurs);
@@ -219,6 +224,10 @@ const bots = (function () {
       naechster = t + Math.max(1, takt + Math.floor(rng() * 3) - 1);
 
       const zustand = depot.berechne(trades, lauf, t, werteNachId, regeln, uid);
+      /* Nachrechnen auf Zuruf — siehe kaufe(). Die Strategien selbst bleiben unberührt. */
+      zustand.frisch = function () {
+        return depot.berechne(trades, lauf, t, werteNachId, regeln, uid);
+      };
       strategie(rng, lauf, werte, zustand, t, trades, werteNachId);
     }
 
