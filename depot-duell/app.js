@@ -10,6 +10,18 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.6',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Ein Auftrag, der im Funkloch liegen bleibt und erst ankommt, nachdem weitergeschaltet wurde, wird weiterhin zum Kurs der Runde abgerechnet, in der er beim Server eintrifft — aber das Depot sagt es jetzt: mit dem Kurs, der beim Tippen im Dialog stand, und dem, zu dem gebucht wurde.',
+          'Reicht das Guthaben zum späteren Kurs nicht mehr, verschwindet der Auftrag nicht mehr spurlos. Er wird weiterhin nicht ausgeführt, steht aber als Hinweis im Depot.'
+        ]
+      }
+    ]
+  },
+  {
     version: '1.5',
     groups: [
       {
@@ -522,11 +534,37 @@ const app = {
     const self = this;
     const art = this.handel.art;
     this.handel = null;
-    gameService.handle(art, wert.id, stueck).catch(function (f) {
+    /* Der Kurs, der im Dialog stand. Er reist mit, damit eine spätere Umordnung des
+       Auftrags (Funkloch + Weiterschalten) auffällt, statt still den Einstand zu
+       verändern — siehe verspaeteteAuftraege(). */
+    const kursGesehen = this.lauf ? markt.kurs(this.lauf, wert.id, this.runde()) : 0;
+    gameService.handle(art, wert.id, stueck, kursGesehen).catch(function (f) {
       self.fehler = self.fehlertext(f);
       console.warn('Auftrag abgelehnt:', f);
       ui.anfordern();
     });
+  },
+
+  /* Aufträge, die zu einem anderen Kurs abgerechnet wurden als dem, der beim Tippen
+     im Dialog stand. Der Regelfall dafür: das Handy lag im Funkloch, der Eröffner hat
+     derweil weitergeschaltet, und der Server hat dem Auftrag beim Ankommen seine
+     eigene, spätere Zeit gegeben. Der Dialog verspricht über dem Kaufknopf
+     „Ausgeführt wird sofort zum angezeigten Kurs" — trifft das einmal nicht zu, MUSS
+     es dastehen. */
+  verspaeteteAuftraege: function () {
+    const z = this.zustand;
+    if (!this.lauf || !z || !z.trades || !z.uid) return [];
+    const meine = z.trades[z.uid] || [];
+    const raus = [];
+    for (const t of meine) {
+      if (!(t.kursGesehen > 0)) continue;
+      const jetzt = markt.kurs(this.lauf, t.id, t.runde);
+      if (!(jetzt > 0)) continue;
+      if (Math.abs(jetzt - t.kursGesehen) / t.kursGesehen > 1e-6) {
+        raus.push({ id: t.id, runde: t.runde, gesehen: t.kursGesehen, abgerechnet: jetzt });
+      }
+    }
+    return raus;
   },
 
   /* --------------------------------------------------------------------

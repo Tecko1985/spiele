@@ -208,6 +208,7 @@ const depot = (function () {
     let cash = R.startgeld;
     let gebuehrenGesamt = 0;
     let dividendenGesamt = 0;
+    let verworfen = 0;          // Aufträge, die mangels Guthaben übersprungen wurden
     const bestand = {};   // id -> { stueck, einstand }
 
     /* Das Startdepot wird nicht übergeben, sondern hier abgeleitet — an
@@ -245,10 +246,16 @@ const depot = (function () {
           /* Das Startdepot ist gestellt, keine Order — sonst begänne jeder
              mit einer Rendite unter null, ohne etwas getan zu haben. */
           const g = h.ohneGebuehr ? 0 : gebuehr(betrag, R);
-          /* Defensiv: ein Kauf, für den das Geld nicht reicht, wird
-             übersprungen statt das Konto ins Minus zu ziehen. Kann nur
-             auftreten, wenn jemand am Client vorbei schreibt. */
-          if (betrag + g > cash + 0.0001) continue;
+          /* Ein Kauf, für den das Geld nicht reicht, wird übersprungen statt das
+             Konto ins Minus zu ziehen.
+
+             ⚠️ Das darf nicht lautlos geschehen. Der Regelfall dafür ist kein
+             Manipulationsversuch, sondern ein Auftrag, der im Funkloch liegen blieb:
+             der Server vergibt beim Ankommen seine eigene, spätere Zeit, der Auftrag
+             rutscht in eine spätere Runde — und reicht das Geld zum dortigen Kurs
+             nicht, verschwand er spurlos aus dem Depot. Deshalb wird mitgezählt und
+             die Zahl im Ergebnis mitgeführt. */
+          if (betrag + g > cash + 0.0001) { if (!h.ohneGebuehr) verworfen++; continue; }
           cash -= betrag + g;
           gebuehrenGesamt += g;
           if (!bestand[h.id]) bestand[h.id] = { stueck: 0, einstand: 0 };
@@ -331,6 +338,8 @@ const depot = (function () {
       positionen: positionen,
       gebuehren: gebuehrenGesamt,
       dividenden: dividendenGesamt,
+      /* Aufträge, für die zum abgerechneten Kurs das Geld nicht mehr reichte. */
+      verworfen: verworfen,
       /* Nur die eigenen Aufträge. Das gestellte Startdepot mitzuzählen
          würde in der Rangliste als Handeln erscheinen, das nie stattfand. */
       anzahlTrades: eigene.filter(function (h) { return h.runde <= bis; }).length,

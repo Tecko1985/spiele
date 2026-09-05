@@ -1092,6 +1092,30 @@ const bildschirme = (function () {
       ui.beendeKarte(griff);
       ui.luecke(12);
 
+      /* ⚠️ Ein Auftrag, der im Funkloch liegen blieb, wird zum Kurs einer späteren
+         Runde abgerechnet — und reichte das Geld dafür nicht, verschwindet er ganz.
+         Beides passierte bis zum 05.09.2026 lautlos, obwohl der Kaufdialog über dem
+         Knopf „Ausgeführt wird sofort zum angezeigten Kurs" verspricht. Hier ist der
+         Ort für die Nachlese: das Depot ist die Zahl, die dadurch anders aussieht. */
+      const verspaetet = app.verspaeteteAuftraege ? app.verspaeteteAuftraege() : [];
+      if (verspaetet.length || stand.verworfen > 0) {
+        const zeilen = [];
+        for (const v of verspaetet) {
+          const w = app.wertNachId[v.id];
+          zeilen.push((w ? w.name : v.id) + ': kam verspätet an und wurde in Runde ' +
+            (v.runde + 1) + ' zu ' + kursText(v.abgerechnet) +
+            ' abgerechnet statt zu ' + kursText(v.gesehen) + '.');
+        }
+        if (stand.verworfen > 0) {
+          zeilen.push(stand.verworfen === 1
+            ? 'Ein Auftrag konnte nicht ausgeführt werden: zum abgerechneten Kurs reichte das Guthaben nicht mehr.'
+            : stand.verworfen + ' Aufträge konnten nicht ausgeführt werden: zum abgerechneten Kurs reichte das Guthaben nicht mehr.');
+        }
+        ui.absatz('⚠ Verspätet angekommen', { fett: true, farbe: ROT, abstand: 4 });
+        for (const zeile of zeilen) ui.absatz(zeile, { groesse: 12, farbe: ROT, abstand: 4 });
+        ui.luecke(8);
+      }
+
       if (!stand.positionen.length) {
         ui.absatz('Noch nichts gekauft. Im Markt findest du ' + app.werteListe.length + ' Werte.', {
           zentriert: true, abstand: 10,

@@ -375,7 +375,7 @@ const gameService = (function () {
    * Vergleich der Serverzeiten. Was der Client für die aktuelle Runde hält,
    * ist nur seine Anzeige; verbindlich ist der Server.
    */
-  async function handle(art, wertId, stueck) {
+  async function handle(art, wertId, stueck, kursGesehen) {
     await bereit;
     if (!aktuellerCode) throw new Error('Du bist in keinem Raum.');
     if (!raumZustand || raumZustand.phase !== 'laeuft') throw new Error('Es läuft gerade keine Partie.');
@@ -389,6 +389,13 @@ const gameService = (function () {
       stueck: stueck,
       zeit: firebase.database.ServerValue.TIMESTAMP,
     };
+    /* ⚠️ Der Kurs, den der Auftraggeber beim Tippen VOR SICH SAH. Die Runde entsteht
+       weiterhin serverseitig — aber liegt der Auftrag im Funkloch und schaltet der
+       Eroeffner derweil weiter, ordnet ihn der Server einer spaeteren Runde und damit
+       einem anderen Kurs zu. Ohne diesen Merker faellt das niemandem auf, obwohl der
+       Dialog ueber dem Kaufknopf "Ausgefuehrt wird sofort zum angezeigten Kurs"
+       verspricht. Die Rules erlauben zusaetzliche Felder (hasChildren, kein $other). */
+    if (kursGesehen > 0 && isFinite(kursGesehen)) eintrag.kursGesehen = kursGesehen;
     await db.ref(TRADES_PFAD + '/' + aktuellerCode + '/' + eigeneUid).push(eintrag);
   }
 
@@ -414,6 +421,8 @@ const gameService = (function () {
           zeit: e.zeit || 0,
           /* HIER entsteht die verbindliche Runde — aus Serverzeiten. */
           runde: rundeAus(e.zeit || 0),
+          /* Der beim Tippen gesehene Kurs, sofern der Auftrag ihn mitbringt. */
+          kursGesehen: e.kursGesehen > 0 ? e.kursGesehen : null,
         });
       }
       liste.sort(function (a, b) { return a.zeit - b.zeit; });
