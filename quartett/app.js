@@ -36,7 +36,13 @@ const BILDSCHIRM_FUER_PHASE = {
   abgebrochen: "abgebrochen"
 };
 
-const PHASEN_MIT_ABBRUCH = ["amZug", "warteAufAndere", "vergleich"];
+/* ⚠️ `lobby` gehört dazu. Ohne sie sass ein Gast im Warteraum fest: der
+   Knopf wurde nicht gezeichnet, `bildschirme.lobby` hat für Nicht-Gastgeber
+   überhaupt kein Bedienelement, und Neuladen half nicht — der Raumcode
+   steht im localStorage und holt einen sofort in denselben Warteraum
+   zurück. Schloss der Gastgeber einfach den Tab, kam der Gast ohne Löschen
+   der Website-Daten nie wieder auf den Startbildschirm. */
+const PHASEN_MIT_ABBRUCH = ["lobby", "amZug", "warteAufAndere", "vergleich"];
 
 const DECKGROESSE_LABEL = {
   klein: "5 Karten/Spieler:in",
@@ -341,14 +347,19 @@ function zeichneKopfzeile(zustand) {
 
   /* Spiel abbrechen / verlassen */
   if (PHASEN_MIT_ABBRUCH.indexOf(zustand.phase) !== -1) {
-    const text = binIchHost(zustand) ? (eng ? "Abbrechen" : "Spiel abbrechen") : (eng ? "Verlassen" : "Spiel verlassen");
+    const imWarteraum = zustand.phase === "lobby";
+    const text = binIchHost(zustand)
+      ? (eng ? "Abbrechen" : (imWarteraum ? "Warteraum schließen" : "Spiel abbrechen"))
+      : (eng ? "Verlassen" : (imWarteraum ? "Warteraum verlassen" : "Spiel verlassen"));
     rx -= zeichneKopfKnopf("btn-abbrechen", text, rx, mitte, () => {
       const host = binIchHost(zustand);
       ansicht.frage = {
+        /* Im Warteraum ist noch keine Runde in der Luft — der Satz über die
+           verteilten Karten wäre dort schlicht falsch. */
         text: host
-          ? "Spiel für alle Mitspieler:innen abbrechen?"
-          : "Spiel verlassen? Deine Karten werden gleichmäßig an die übrigen Mitspieler:innen verteilt.",
-        jaText: host ? "Abbrechen" : "Verlassen",
+          ? (imWarteraum ? "Warteraum schließen? Alle Wartenden fliegen heraus." : "Spiel für alle Mitspieler:innen abbrechen?")
+          : (imWarteraum ? "Warteraum verlassen?" : "Spiel verlassen? Deine Karten werden gleichmäßig an die übrigen Mitspieler:innen verteilt."),
+        jaText: host ? (imWarteraum ? "Schließen" : "Abbrechen") : "Verlassen",
         art: "gefahr",
         ja: () => { gameService.verlasseSpiel(); }
       };
@@ -817,6 +828,14 @@ function szene() {
 
 const APP_VERSION = "1.0";
 const CHANGELOG = [
+  {
+    version: "1.6",
+    groups: [
+      { title: "Behoben", items: [
+          "Wer einem Raum beitrat und dann im Warteraum saß, kam dort nicht mehr heraus: es gab keinen Knopf, und Neuladen half nicht — der gemerkte Raumcode holte einen sofort in denselben Warteraum zurück. Schloss der Gastgeber einfach den Tab, half nur noch das Löschen der Website-Daten. Jetzt steht „Warteraum verlassen“ in der Kopfzeile, und wer geht, bleibt auch nicht als Karteileiche im Raum stehen."
+      ]}
+    ]
+  },
   {
     version: "1.5",
     groups: [
