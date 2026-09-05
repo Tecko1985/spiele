@@ -257,6 +257,28 @@ test('Der Alte überlebt Angriff Nr. 1 und stirbt bei Angriff Nr. 2', function (
   assert.strictEqual(spiel.dorfOhneFaehigkeit, false, 'Wölfe lösen keinen Fähigkeitsverlust aus');
 });
 
+test('Heilt die Hexe den Alten, bleibt sein Freischuss erhalten', function () {
+  /* ⚠️ Bugjagd 05.09.2026: der Freischuss des Alten stand VOR dem
+     Heiltrank. Eine einzige Wolfsnacht verbrannte damit beide
+     Einmal-Rettungen des Dorfes — der Trank war in `nachtAktion` schon
+     weg, der Alte überlebte über den anderen Zweig, und in der nächsten
+     Nacht reichte derselbe Angriff. Die Hexe kann dem nicht ausweichen:
+     sie sieht nur den Namen des Opfers, nicht seine Rolle. */
+  const spiel = spielMit({ A: 'werwolf', B: 'alte', C: 'hexe', D: 'dorfbewohner', E: 'dorfbewohner', F: 'dorfbewohner' });
+  nacht(spiel, {
+    werwolf: function (sp) { ok(regeln.nachtAktion(sp, uid('A'), { ziel: uid('B') })); },
+    hexe: function (sp) { ok(regeln.nachtAktion(sp, uid('C'), { heilen: true, gift: null })); },
+  });
+  assert.ok(lebt(spiel, 'B'), 'der Alte überlebt');
+  assert.strictEqual(spiel.hexe.heil, false, 'der Heiltrank ist verbraucht');
+  assert.strictEqual(spiel.alte.angriffe, 0, 'der Freischuss des Alten ist NICHT verbraucht');
+
+  bisAbstimmung(spiel); abstimmen(spiel, {}); bisAbstimmung(spiel);
+  nacht(spiel, { werwolf: function (sp) { ok(regeln.nachtAktion(sp, uid('A'), { ziel: uid('B') })); } });
+  assert.ok(lebt(spiel, 'B'), 'in der zweiten Nacht greift der Freischuss');
+  assert.strictEqual(spiel.alte.angriffe, 1, 'jetzt ist er verbraucht');
+});
+
 test('Stirbt der Alte durch das Dorf, verlieren Seherin und Hexe ihre Fähigkeit', function () {
   const spiel = spielMit({ A: 'werwolf', B: 'alte', C: 'seherin', D: 'hexe', E: 'dorfbewohner', F: 'dorfbewohner', G: 'dorfbewohner' });
   nacht(spiel, { werwolf: function (sp) { ok(regeln.nachtAktion(sp, uid('A'), { ziel: uid('E') })); } });

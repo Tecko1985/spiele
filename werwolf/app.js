@@ -13,6 +13,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.1',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Heilte die Hexe den Alten, war danach beides weg: ihr Trank und sein Freischuss. Eine einzige Wolfsnacht kostete das Dorf damit seine beiden Einmal-Rettungen, und in der nächsten Nacht reichte derselbe Angriff. Die Hexe konnte dem nicht ausweichen — sie sieht nur den Namen des Opfers, nicht seine Rolle. Jetzt greift der Heiltrank zuerst, so wie es im Ablauf steht, und der Alte behält seinen Freischuss.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0',
     groups: [
       {

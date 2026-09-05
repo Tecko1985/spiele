@@ -516,11 +516,19 @@ const regeln = (function () {
       const o = spielerVon(spiel, n.opfer);
       if (n.schutz === n.opfer) {
         notiere(spiel, 'Die Wölfe greifen ' + o.name + ' an, doch der Beschützer hält stand.', GEHEIM);
+      } else if (n.heil) {
+        /* ⚠️ Der Heiltrank steht VOR dem Freischuss des Alten — so wie es
+           die Reihenfolge oben sagt. Andersherum verbrannte eine einzige
+           Wolfsnacht BEIDE Einmal-Rettungen des Dorfes: der Trank war in
+           `nachtAktion` schon verbraucht, der Alte überlebte über den
+           anderen Zweig, und `alte.angriffe` stand danach ebenfalls auf 1.
+           In der nächsten Nacht reichte derselbe Angriff. Die Hexe kann dem
+           nicht ausweichen — sie sieht nur den Namen des Opfers, nicht
+           seine Rolle. */
+        notiere(spiel, 'Die Wölfe greifen ' + o.name + ' an, die Hexe heilt.', GEHEIM);
       } else if (o.rolle === 'alte' && spiel.alte.angriffe === 0) {
         spiel.alte.angriffe = 1;
         notiere(spiel, 'Die Wölfe greifen ' + o.name + ' an — der Alte überlebt den ersten Angriff.', GEHEIM);
-      } else if (n.heil) {
-        notiere(spiel, 'Die Wölfe greifen ' + o.name + ' an, die Hexe heilt.', GEHEIM);
       } else {
         tote.push({ uid: n.opfer, ursache: 'woelfe' });
       }
