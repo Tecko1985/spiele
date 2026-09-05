@@ -10,6 +10,18 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.2',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Schlägt ein Zug fehl, steht der Grund jetzt auf jedem Bildschirm. Vorher war die Meldung nur im laufenden Spiel und beim Beitreten zu sehen — wer beim Eröffnen eines Raums oder beim Ändern der Einstellungen scheiterte, landete wortlos wieder auf „Wer bist du?".',
+          '„Partie starten" sagt jetzt Bescheid, wenn es nicht klappt. Bisher scheiterte dieser Knopf vollständig lautlos: er tat nichts und begründete nichts.'
+        ]
+      }
+    ]
+  },
+  {
     version: '1.1',
     groups: [
       {
@@ -333,14 +345,14 @@ const app = {
     const self = this;
     gameService.aendereEinstellungen(this.entwurf)
       .then(function () { self.ansicht = 'lobby'; ui.anfordern(); })
-      .catch(function (f) { self.fehler = f.message; ui.anfordern(); });
+      .catch(function (f) { self.fehler = self.fehlertext(f); ui.anfordern(); });
   },
 
   erstelleRaum: function () {
     const self = this;
     gameService.erstelleRaum(this.name.trim(), this.entwurf)
       .then(function () { self.ansicht = 'lobby'; ui.anfordern(); })
-      .catch(function (f) { self.fehler = f.message; self.ansicht = 'start'; ui.anfordern(); });
+      .catch(function (f) { self.fehler = self.fehlertext(f); self.ansicht = 'start'; ui.anfordern(); });
   },
 
   beitreten: function (code) {
@@ -348,7 +360,7 @@ const app = {
     this.fehler = null;
     gameService.betreteRaum(code, this.name.trim())
       .then(function () { self.ansicht = 'lobby'; ui.anfordern(); })
-      .catch(function (f) { self.fehler = f.message; ui.anfordern(); });
+      .catch(function (f) { self.fehler = self.fehlertext(f); ui.anfordern(); });
   },
 
   /* Solo läuft über einen ganz normalen Raum — ein zweiter Weg wäre ein
@@ -359,11 +371,21 @@ const app = {
     gameService.erstelleRaum(this.name.trim(), this.entwurf)
       .then(function () { return gameService.starteRaum(); })
       .then(function () { self.ansicht = 'spiel'; self.reiter = 'markt'; ui.anfordern(); })
-      .catch(function (f) { self.fehler = f.message; self.ansicht = 'start'; ui.anfordern(); });
+      .catch(function (f) { self.fehler = self.fehlertext(f); self.ansicht = 'start'; ui.anfordern(); });
   },
 
+  /* ⚠️ Auch dieser Weg MUSS seine Meldung setzen. Er tat es bis 05.09.2026 nicht:
+     „Partie starten" scheiterte damit vollständig lautlos — der Knopf tat nichts
+     und begründete nichts, und genau so sieht es aus, wenn die Firebase-Regeln
+     nicht eingespielt sind. */
   starte: function () {
-    gameService.starteRaum().catch(function (f) { console.warn(f); });
+    const self = this;
+    this.fehler = null;
+    gameService.starteRaum().catch(function (f) {
+      self.fehler = self.fehlertext(f);
+      console.warn('Partie nicht gestartet:', f);
+      ui.anfordern();
+    });
   },
 
   /* Übersetzt, woran ein Schreibvorgang gescheitert ist. "PERMISSION_DENIED"

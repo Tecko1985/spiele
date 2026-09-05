@@ -397,6 +397,30 @@ const bildschirme = (function () {
     }
   }
 
+  /* ----------------------------------------------------------------------
+     Fehlermeldung — EIN Block für alle Bildschirme
+
+     ⚠️ `app.fehler` wurde bis 05.09.2026 nur in der Fußleiste des laufenden
+     Spiels und im Beitreten-Bildschirm gezeichnet. Genau dorthin führen aber
+     die Fehlerwege NICHT: „Raum eröffnen", „Einstellungen übernehmen" und
+     „Partie starten" landen auf `start`, `lobby-neu` und `lobby`. Wer dort
+     scheiterte, bekam kein Wort zu sehen — und bei nicht eingespielten
+     Firebase-Regeln ist das Spiel tot und schwieg dazu.
+
+     Deshalb steht der Block jetzt am Anfang JEDER Seite: dann kann kein
+     weiterer Bildschirm ihn vergessen.
+     ---------------------------------------------------------------------- */
+
+  function fehlerBlock(app) {
+    if (!app.fehler) return;
+    ui.absatz('⚠ ' + app.fehler, {
+      farbe: ROT, zentriert: true, abstand: 4, fett: 'halb',
+    });
+    if (ui.knopf('btn-fehler-weg-seite', 'Meldung schließen', { art: 'link', abstand: 10 })) {
+      app.fehler = null;
+    }
+  }
+
   /* ======================================================================
      1. START
      ====================================================================== */
@@ -407,6 +431,7 @@ const bildschirme = (function () {
 
     ui.seite('start', function () {
       spielTitel();
+      fehlerBlock(app);
       ui.absatz('Börsenspiel mit Spielgeld — gegen die Mannschaft oder allein gegen die KI.', {
         zentriert: true, groesse: 14, abstand: 18,
       });
@@ -462,9 +487,7 @@ const bildschirme = (function () {
         platzhalter: 'z. B. K7PQ2M', maxLaenge: 6, abstand: 8, grossschrift: true,
       });
 
-      if (app.fehler) {
-        ui.absatz(app.fehler, { farbe: ROT, zentriert: true, abstand: 10, fett: 'halb' });
-      }
+      fehlerBlock(app);
 
       if (ui.knopf('btn-beitreten-los', 'Beitreten', { aus: code.trim().length !== 6, abstand: 10 })) {
         app.beitreten(code.trim().toUpperCase());
@@ -520,6 +543,7 @@ const bildschirme = (function () {
 
     ui.seite('lobby-neu', function () {
       ui.titel(imRaum ? 'Einstellungen ändern' : 'Partie einstellen', { zentriert: true, abstand: 14 });
+      fehlerBlock(app);
 
       ui.absatz('Wie viele Runden?', { fett: true, farbe: F.text, abstand: 6 });
       const gewaehltRunden = wahlReihe('runden', gameService.RUNDENSTUFEN.map(function (s) {
@@ -609,6 +633,7 @@ const bildschirme = (function () {
     const spieler = z.raum && z.raum.spieler ? Object.keys(z.raum.spieler) : [];
 
     ui.seite('lobby', function () {
+      fehlerBlock(app);
       ui.absatz('Raum-Code', { zentriert: true, groesse: 13, abstand: 2 });
       ui.titel(z.code || '—', { zentriert: true, groesse: 40, abstand: 6, farbe: F.primaer });
       ui.absatz('Diesen Code vorlesen — wer ihn eingibt, ist dabei.', {
