@@ -596,10 +596,29 @@ function speichereKarte() {
     ansicht.fehler = "Bitte Name und Rolle ausfüllen.";
     return;
   }
+  /* ⚠️ Prüfen statt ersetzen. Vorher stand hier `Number(x) || 0` — und
+     `Number("1,5")` ist NaN, `NaN || 0` ist 0. Wer die deutsche
+     Schreibweise mit Komma benutzte (bei „Marktwert (Mio. €)" naheliegend),
+     setzte die Karte damit stillschweigend auf den niedrigsten möglichen
+     Wert und verlor in dieser Kategorie fortan jede Runde. Es gab keine
+     Meldung, die Oberfläche sprang zurück in die Liste, als hätte alles
+     geklappt. `nurZiffern` in `ui.js` filtert nichts, es setzt nur einen
+     Tastatur-Hinweis. */
   const eigenschaften = {};
+  const schlecht = [];
   Object.keys(kategorienJetzt()).forEach(sch => {
-    eigenschaften[sch] = Number(ui.leseEingabe("kb-eig-" + sch)) || 0;
+    const roh = String(ui.leseEingabe("kb-eig-" + sch) || "").trim().replace(",", ".");
+    const wert = roh === "" ? NaN : Number(roh);
+    if (!isFinite(wert)) { schlecht.push(kategorieMeta(sch).label || sch); return; }
+    eigenschaften[sch] = wert;
   });
+  if (schlecht.length) {
+    ansicht.fehler = schlecht.length === 1
+      ? "„" + schlecht[0] + "“ braucht eine Zahl."
+      : "Diese Felder brauchen eine Zahl: " + schlecht.join(", ") + ".";
+    ui.anfordern();
+    return;
+  }
   ansicht.fehler = "";
   gameService.speichereKartenUebersteuerung(karte.id, {
     name: name,
@@ -798,6 +817,14 @@ function szene() {
 
 const APP_VERSION = "1.0";
 const CHANGELOG = [
+  {
+    version: "1.5",
+    groups: [
+      { title: "Behoben", items: [
+          "Wer in der Kartenverwaltung einen Wert mit Komma eintrug — „1,5“ statt „1.5“ —, setzte die Karte damit stillschweigend auf 0. Sie verlor in dieser Kategorie danach jede Runde. Dasselbe galt für Buchstaben und für ein versehentlich geleertes Feld: gespeichert wurde eine 0, gemeldet wurde nichts, und die Maske sprang zurück, als hätte alles geklappt. Jetzt wird das Komma als Komma verstanden, und ein Feld ohne Zahl wird abgelehnt statt umgedeutet."
+      ]}
+    ]
+  },
   {
     version: "1.4",
     groups: [
