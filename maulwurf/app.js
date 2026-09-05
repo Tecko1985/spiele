@@ -893,6 +893,14 @@ function render(zustand) {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.2",
+    groups: [
+      { title: "Behoben", items: [
+          "Wer den Maulwurf auf den Startbildschirm gelegt hat, sah beim Öffnen ein weißes Ladebild und eine blaue Statusleiste — vor und über einer durchgehend dunklen Oberfläche. Die Farben im Manifest waren beim Umbau auf das dunkle Bild nicht mitgezogen worden."
+      ]}
+    ]
+  },
+  {
     version: "1.1",
     groups: [
       { title: "Behoben", items: [
