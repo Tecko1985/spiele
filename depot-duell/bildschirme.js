@@ -689,7 +689,11 @@ const bildschirme = (function () {
       } else {
         ui.absatz('Warte auf den Start …', { zentriert: true, fett: 'halb', abstand: 10 });
       }
-      if (ui.knopf('btn-lobby-verlassen', 'Raum verlassen', { art: 'zweit' })) app.verlassen();
+      /* Solange der Schreibvorgang läuft, quittiert der Knopf den Tipp sichtbar —
+         im Funkloch passierte vorher gar nichts. */
+      if (ui.knopf('btn-lobby-verlassen',
+                   app.senden ? 'wird gesendet …' : 'Raum verlassen',
+                   { art: 'zweit', aus: !!app.senden })) app.verlassen();
     }, { zentriert: true });
   }
 
@@ -1377,6 +1381,7 @@ const bildschirme = (function () {
     kopfzeile(app);
 
     ui.scroll('roll-ende', ui.hoeheRest(), function () {
+      fehlerBlock(app);
       ui.titel(z.abgebrochen ? 'Partie abgebrochen' : 'Abgerechnet!', { zentriert: true, abstand: 4 });
       ui.absatz(z.abgebrochen
         ? 'Die Partie wurde vorzeitig beendet.'
@@ -1430,10 +1435,14 @@ const bildschirme = (function () {
         app.reiter = 'depot';
       }
       if (z.istHost) {
-        if (ui.knopf('btn-ende-neu', 'Raum schließen und neu anfangen', { abstand: 8 })) {
+        if (ui.knopf('btn-ende-neu',
+                     app.senden ? 'wird gesendet …' : 'Raum schließen und neu anfangen',
+                     { abstand: 8, aus: !!app.senden })) {
           app.raeumeAufUndZurueck();
         }
-      } else if (ui.knopf('btn-ende-raus', 'Zurück zum Start', { abstand: 8 })) {
+      } else if (ui.knopf('btn-ende-raus',
+                          app.senden ? 'wird gesendet …' : 'Zurück zum Start',
+                          { abstand: 8, aus: !!app.senden })) {
         app.verlassen();
       }
     });

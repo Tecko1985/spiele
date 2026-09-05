@@ -522,21 +522,49 @@ const gameService = (function () {
     vergissCode();
   }
 
+  /* ⚠️ Ein Schreibvorgang, der im Funkloch hängen bleibt, löst NIE auf — dann feuert auch
+     das `.then()` in der Oberfläche nicht, und der Tipp bleibt völlig unquittiert: kein
+     Wechsel, keine Meldung, kein Neuzeichnen. Diese App ist ausdrücklich für die Busfahrt
+     gebaut, das ist also der Normalfall und kein Randfall. Deshalb ein Zeitlimit um jeden
+     Schreibvorgang, dessen Ausgang die Oberfläche abwarten muss. */
+  const NETZ_ZEITLIMIT_MS = 6000;
+
+  function mitZeitlimit(versprechen, was) {
+    return new Promise(function (erfuellt, abgelehnt) {
+      const uhr = setTimeout(function () {
+        abgelehnt(new Error(was + ' — der Server antwortet nicht. Versuch es gleich noch einmal.'));
+      }, NETZ_ZEITLIMIT_MS);
+      versprechen.then(
+        function (w) { clearTimeout(uhr); erfuellt(w); },
+        function (f) { clearTimeout(uhr); abgelehnt(f); }
+      );
+    });
+  }
+
+  /* ⚠️ Scheitert das Austragen, wird der lokale Zustand NICHT abgeräumt und der Fehler
+     weitergereicht. Vorher lief `verlasseLokal()` in jedem Fall: der Aussteiger war lokal
+     draußen, im Raum stand er aber weiter ohne `raus` — und damit wartete die Runde für
+     alle anderen auf eine Zustimmung, die nie kommt. Wiederholen konnte er es nicht, sein
+     Raumcode war aus dem Speicher gelöscht. */
   async function verlasseRaum() {
     const code = aktuellerCode;
     const raum = raumZustand;
     if (code && raum && eigeneUid && raum.spieler && raum.spieler[eigeneUid]) {
       if (raum.phase === 'lobby') {
         /* In der Lobby ganz austragen. */
-        try { await db.ref(RAEUME_PFAD + '/' + code + '/spieler/' + eigeneUid).remove(); } catch (f) { /* egal */ }
+        await mitZeitlimit(
+          db.ref(RAEUME_PFAD + '/' + code + '/spieler/' + eigeneUid).remove(),
+          'Austragen nicht bestätigt'
+        );
       } else if (raum.phase === 'laeuft') {
         /* Mitten in der Partie nur abmelden, nicht löschen: die Trades sind
            gemacht und gehören in die Rangliste. Ohne die Markierung würde
            die Runde aber für immer auf eine Zustimmung warten, die nie
            kommt — und die Partie stünde für alle anderen still. */
-        try {
-          await db.ref(RAEUME_PFAD + '/' + code + '/spieler/' + eigeneUid + '/raus').set(true);
-        } catch (f) { /* egal */ }
+        await mitZeitlimit(
+          db.ref(RAEUME_PFAD + '/' + code + '/spieler/' + eigeneUid + '/raus').set(true),
+          'Abmelden nicht bestätigt'
+        );
       }
     }
     verlasseLokal();
@@ -573,13 +601,17 @@ const gameService = (function () {
        feinere Regel je Trade wäre damit wirkungslos. Dasselbe gilt für die
        Zustimmungen: einzeln löschbar wäre eine bereits abgeschlossene Runde
        wieder aufreißbar. */
-    try { await db.ref(RAEUME_PFAD + '/' + code + '/phase').set('beendet'); } catch (f) {
-      console.warn('Phase nicht auf beendet gesetzt:', f);
-    }
-    try { await db.ref(TRADES_PFAD + '/' + code).remove(); } catch (f) { console.warn('Trades nicht geräumt:', f); }
-    try { await db.ref(BEREIT_PFAD + '/' + code).remove(); } catch (f) { console.warn('Bereitschaft nicht geräumt:', f); }
-    try { await db.ref(WEITER_PFAD + '/' + code).remove(); } catch (f) { console.warn('Weiterschaltung nicht geräumt:', f); }
-    try { await db.ref(RAEUME_PFAD + '/' + code).remove(); } catch (f) { console.warn('Raum nicht geräumt:', f); }
+    /* ⚠️ Scheitert einer der fünf Schritte, wird der lokale Zustand NICHT abgeräumt und der
+       Fehler weitergereicht: sonst bliebe ein Raum mit allen Trades stehen, den danach
+       niemand mehr abräumen kann, weil der Host seinen Code verloren hat. Scheitert schon
+       der erste Schritt, müssen die vier Löschungen nach den Rules ohnehin auch scheitern —
+       die Reihenfolge bleibt darum hart. */
+    await mitZeitlimit(db.ref(RAEUME_PFAD + '/' + code + '/phase').set('beendet'),
+                       'Partie nicht förmlich beendet');
+    await mitZeitlimit(db.ref(TRADES_PFAD + '/' + code).remove(), 'Trades nicht geräumt');
+    await mitZeitlimit(db.ref(BEREIT_PFAD + '/' + code).remove(), 'Bereitschaft nicht geräumt');
+    await mitZeitlimit(db.ref(WEITER_PFAD + '/' + code).remove(), 'Weiterschaltung nicht geräumt');
+    await mitZeitlimit(db.ref(RAEUME_PFAD + '/' + code).remove(), 'Raum nicht geräumt');
     verlasseLokal();
     melde();
   }

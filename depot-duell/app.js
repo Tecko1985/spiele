@@ -10,6 +10,18 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.3',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          '„Partie verlassen" und „Raum schließen und neu anfangen" sagen jetzt Bescheid, wenn es nicht geklappt hat. Vorher konnte beides scheitern, ohne dass jemand es erfuhr: der Aussteiger war auf seinem Gerät draußen, im Raum stand er weiter als aktiv — und die Runde wartete für alle anderen auf eine Zustimmung, die nie kam.',
+          'Im Funkloch quittiert der Knopf den Tipp jetzt sichtbar und meldet sich nach ein paar Sekunden, statt einfach nichts zu tun.'
+        ]
+      }
+    ]
+  },
+  {
     version: '1.2',
     groups: [
       {
@@ -148,6 +160,10 @@ const app = {
   newsOffen: true,
   newsIndex: 0,
   fehler: null,
+  /* Läuft gerade ein Schreibvorgang, dessen Ausgang man abwarten muss? Der Knopf
+     quittiert den Tipp damit sichtbar ("wird gesendet …") und lässt sich nicht
+     zweimal drücken. Vorher passierte im Funkloch gar nichts Sichtbares. */
+  senden: null,
   name: '',
 
   /* Was in der Einstellansicht gerade eingestellt wird. Erst beim Eröffnen
@@ -431,22 +447,45 @@ const app = {
     });
   },
 
+  /* ⚠️ Beide Wege brauchen ein .catch. Ohne es blieb ein abgelehnter oder haengender
+     Schreibvorgang voellig unsichtbar — und im Ablehnungsfall stand der Aussteiger im Raum
+     weiter als aktiv und blockierte die Runde der anderen. */
   verlassen: function () {
     const self = this;
+    if (this.senden) return;
+    this.senden = 'verlassen';
+    this.fehler = null;
+    ui.anfordern();
     gameService.verlasseRaum().then(function () {
+      self.senden = null;
       self.ansicht = 'start';
       self.lauf = null;
       self.botFeld = [];
+      ui.anfordern();
+    }).catch(function (f) {
+      self.senden = null;
+      self.fehler = self.fehlertext(f);
+      console.warn('Nicht verlassen:', f);
       ui.anfordern();
     });
   },
 
   raeumeAufUndZurueck: function () {
     const self = this;
+    if (this.senden) return;
+    this.senden = 'raeumen';
+    this.fehler = null;
+    ui.anfordern();
     gameService.raeumeRaumAuf().then(function () {
+      self.senden = null;
       self.ansicht = 'start';
       self.lauf = null;
       self.botFeld = [];
+      ui.anfordern();
+    }).catch(function (f) {
+      self.senden = null;
+      self.fehler = self.fehlertext(f);
+      console.warn('Raum nicht abgeraeumt:', f);
       ui.anfordern();
     });
   },
