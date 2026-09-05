@@ -10,6 +10,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.1',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Das Depot-Duell lässt sich jetzt wie die übrigen Spiele des Hubs auf den Startbildschirm legen. Die dafür nötige Datei lag von Anfang an im Spiel, wurde beim Start aber nie angemeldet — als einziges Spiel des Hubs.'
+        ]
+      }
+    ]
+  },
+  {
     version: '1.0',
     groups: [
       {
@@ -553,4 +564,15 @@ function szene() {
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) { pruefeAdminStatus(); ui.anfordern(); }
   });
+
+  // sw.js liegt seit jeher im Repo und manifest.json ist vollstaendig -- nur
+  // registriert hat den Service Worker niemand. Damit war das Depot-Duell als
+  // einziges Spiel des Hubs nicht installierbar; die fuenf Geschwister machen
+  // es alle so (letzte-karte/app.js:391, maulwurf/app.js:1002,
+  // quartett/app.js:831, werwolf/index.html:39).
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* ohne PWA geht es auch */ });
+    });
+  }
 })();
