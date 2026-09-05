@@ -208,9 +208,26 @@ const regeln = (function () {
   /** Schreibt die abgeleiteten Felder neu, die alle sehen dürfen. */
   function aktualisiere(spiel) {
     const t = spiel.tisch;
+    const vorher = t.handAnzahl || {};
     t.handAnzahl = {};
     for (const uid in spiel.haende) t.handAnzahl[uid] = spiel.haende[uid].length;
     t.stapelRest = spiel.stapel.length;
+
+    /* ⚠️ Der Ruf gilt für DIESE letzte Karte, nicht für die ganze Runde.
+       Wächst die Hand wieder — gezogen, Strafe geschluckt, erwischt —, ist
+       die Ansage verbraucht und muss beim nächsten Mal wiederholt werden.
+       Ohne das war ein einziger Ruf ein Freibrief bis zum Rundenende: wer
+       danach erneut auf eine Karte herunterspielte, wurde nie erwischbar,
+       und weder der Knopf „Erwischt!" noch der Hinweis „still …" erschien.
+       Wer fertig ist, behält seinen Merker — seine Hand ist leer, nicht
+       wieder voll. */
+    for (const uid in t.uno) {
+      if (!t.uno[uid]) continue;
+      if (t.fertig.indexOf(uid) >= 0) continue;
+      const jetzt = t.handAnzahl[uid];
+      const alt = vorher[uid];
+      if (jetzt > 1 && alt !== undefined && jetzt > alt) delete t.uno[uid];
+    }
   }
 
   /* ----------------------------------------------------------------------

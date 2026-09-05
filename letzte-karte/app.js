@@ -17,6 +17,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.3',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          '„Letzte Karte!“ galt bisher die ganze Runde lang. Wer einmal gerufen hatte, war nie wieder zu erwischen — auch nicht, wenn er zwischendurch Karten nachziehen musste und später wieder auf eine Karte herunterspielte, ohne noch einmal zu rufen. Jetzt ist die Ansage verbraucht, sobald die Hand wieder wächst, und der Knopf „Letzte Karte!“ kommt zurück.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.2',
     groups: [
       {
