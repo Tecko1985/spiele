@@ -114,6 +114,70 @@ function pruefeZustand(spiel, soll, modus, wo) {
    Eine Partie
    ------------------------------------------------------------------------ */
 
+/* ---------------------------------------------------------------------------
+   Ein UNABHAENGIGES Urteil ueber die Legeregel.
+
+   ⚠️ Warum es das gibt: bis zum 06.09.2026 waehlte dieser Pruefstand die Zuege
+   mit regeln.legbare() -- also mit genau der Funktion, deren Ergebnis er pruefen
+   soll. Ist passt() kaputt, sind die gewaehlten Zuege genauso kaputt, und
+   niemand widerspricht. Gemessen: eine Mutation, die "die Sieben passt auf
+   alles" einbaut, fiel in nur 2 von 1500 Partien auf -- und auch da nur, weil
+   die Partie nicht mehr endete, nicht weil ein Regelbruch erkannt wurde.
+
+   Diese Funktion ist deshalb BEWUSST eine zweite, eigene Fassung. Sie ist NICHT
+   aus regeln.js abgeschrieben, sondern aus dem Regeltext, den die Spielenden im
+   Info-Bildschirm lesen (bildschirme.js, "So wird gespielt"):
+
+     "Lege eine Karte, die in Farbe oder Zeichen zur offenen Karte passt."
+     "Zieh-Karten lassen sich stapeln: Wer eine gleich hohe oder hoehere
+      drauflegt, reicht die ganze Strafe weiter."
+
+   Aus karten.js kommen nur Kartendaten, keine Regel: teile() zerlegt die
+   Kodierung "farbe:art" und beruecksichtigt die dunkle Seite, zieht() sagt, wie
+   viele Karten eine Ziehkarte zieht. Weicht dieses Urteil je von regeln.passt()
+   ab, ist das ein Befund -- egal welche der beiden Seiten recht hat.
+   --------------------------------------------------------------------------- */
+function darfLiegen(tisch, karte) {
+  const t = karten.teile(karte, tisch.dunkel);
+
+  // Liegt eine Strafe an, geht NUR Weiterreichen: gleich hoch oder hoeher.
+  if (tisch.strafe > 0) {
+    const z = karten.zieht(t.art);
+    return z > 0 && z >= tisch.strafeWert;
+  }
+
+  // Farbwahl passt immer -- der Leger bestimmt danach die Farbe.
+  if (t.farbe === 'w') return true;
+
+  // "in Farbe ... passt": geltende Tischfarbe, nicht die Farbe der Ablage
+  // (nach einer Farbwahl sind das zwei verschiedene Dinge).
+  if (t.farbe === tisch.farbe) return true;
+
+  // "... oder Zeichen": nur wenn die offene Karte ueberhaupt ein Zeichen zeigt.
+  // Auf einer Farbwahl liegt keins, dort zaehlt allein die gewaehlte Farbe.
+  const oben = karten.teile(tisch.ablage, tisch.dunkel);
+  if (oben.farbe === 'w') return false;
+  return t.art === oben.art;
+}
+
+/* Beide Richtungen vergleichen: zu viel erlaubt UND zu wenig erlaubt.
+   Nur eine Richtung zu pruefen liesse die halbe Fehlerklasse durch. */
+function pruefeLegbare(spiel, uid, wo) {
+  const hand = spiel.haende[uid] || [];
+  const erlaubt = regeln.legbare(spiel.tisch, hand);
+  for (let i = 0; i < hand.length; i++) {
+    const sagtRegeln = erlaubt.indexOf(i) !== -1;
+    const sagtRegel = darfLiegen(spiel.tisch, hand[i]);
+    if (sagtRegeln === sagtRegel) continue;
+    throw new Error(
+      'Legeregel weicht ab ' + wo + ': Karte "' + hand[i] + '" auf Tisch {farbe=' +
+      spiel.tisch.farbe + ', ablage=' + spiel.tisch.ablage + ', dunkel=' + !!spiel.tisch.dunkel +
+      ', strafe=' + spiel.tisch.strafe + '/' + spiel.tisch.strafeWert + '} -- ' +
+      'regeln.legbare sagt ' + (sagtRegeln ? 'erlaubt' : 'verboten') +
+      ', der Regeltext sagt ' + (sagtRegel ? 'erlaubt' : 'verboten') + '.');
+  }
+}
+
 function spielePartie(modusId, spielerZahl, saat) {
   const zufall = karten.generator(saat);
   const modus = karten.modus(modusId);
@@ -170,10 +234,20 @@ function spielePartie(modusId, spielerZahl, saat) {
     if (spiel.tisch.phase !== 'laeuft') break;
 
     const hand = spiel.haende[uid];
+    // Vor dem Zug: stimmt die Auswahl, die regeln.legbare anbietet, mit dem
+    // unabhaengigen Urteil ueberein? Hier -- und nicht erst am Ergebnis --
+    // faellt eine kaputte Legeregel auf.
+    pruefeLegbare(spiel, uid, 'vor Zug ' + zuege);
     const zug = bots.waehleZug(spiel.tisch, hand, c, zufall);
 
     let ergebnis;
     if (zug.art === 'legen') {
+      // Zweiter Riegel: die Karte, die wirklich gelegt wird, gegen den Regeltext.
+      if (!darfLiegen(spiel.tisch, hand[zug.idx])) {
+        throw new Error('Unerlaubte Karte gelegt in Zug ' + zuege + ': "' + hand[zug.idx] +
+          '" auf {farbe=' + spiel.tisch.farbe + ', ablage=' + spiel.tisch.ablage +
+          ', strafe=' + spiel.tisch.strafe + '/' + spiel.tisch.strafeWert + '}.');
+      }
       ergebnis = regeln.lege(spiel, uid, zug.idx, zug.farbe, zug.sagtUno, zufall);
     } else if (zug.art === 'ziehen') {
       ergebnis = regeln.ziehe(spiel, uid, zufall);
