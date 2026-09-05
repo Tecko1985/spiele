@@ -17,6 +17,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.1',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Wer „Erwischt!“, „Letzte Karte!“ oder „Anfechten“ im selben Augenblick wie ein anderer tippte, drückte oft ins Leere. Das Gerät des Gastgebers arbeitete immer nur einen Wunsch auf einmal ab und warf jeden weg, der währenddessen ankam — ohne Meldung, ohne dass ihn später noch jemand ansah. Jetzt stellen sich die Wünsche an und werden der Reihe nach abgearbeitet.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0',
     groups: [
       {

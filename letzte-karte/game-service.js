@@ -443,29 +443,81 @@ const gameService = (function () {
     if (zuegeRef) { zuegeRef.off(); zuegeRef = null; }
     if (hostUhr) { clearInterval(hostUhr); hostUhr = null; }
     if (botUhr) { clearInterval(botUhr); botUhr = null; }
+    gesehen = {};
   }
 
-  let inArbeit = false;
+  /* ⚠️ Alles, was `spiel` verändert, läuft NACHEINANDER über diese Kette.
+     Vorher stand hier ein Guard (`if (inArbeit) return`) — der warf jeden
+     Zugwunsch weg, der während eines Netz-Roundtrips eintraf. Er wurde nicht
+     angewendet, nicht gelöscht, und nichts holte ihn nach: `child_added`
+     feuert für denselben Schlüssel kein zweites Mal. Genau das traf
+     „Erwischt!", „Letzte Karte!" und „Anfechten" — die drei Wünsche, die
+     mehrere Leute im selben Augenblick tippen. Werwolf löst es seit dem
+     02.09. so; eine Kette verliert nichts. */
+  let kette = Promise.resolve();
+  function nacheinander(fn) {
+    const p = kette.then(fn, fn);
+    kette = p.catch(function () { /* Fehler meldet fn selbst */ });
+    return p;
+  }
+  let gesehen = {};   // uid/zugId → schon eingereiht (gegen Doppelverarbeitung)
 
-  async function verarbeite(uid, schnappschuss) {
-    if (!spiel || inArbeit) return;
-    const z = schnappschuss.val();
-    if (!z) return;
-    inArbeit = true;
-    try {
-      wendeZugAn(uid, z);
-      await schnappschuss.ref.remove();
-      await veroeffentliche();
-      melde();
-    } catch (f) {
-      fehlerText = 'Zug konnte nicht angewendet werden: ' + f.message;
-    } finally {
-      inArbeit = false;
-    }
+  /**
+   * Reiht einen Zugwunsch in die Kette ein. Jeden genau einmal —
+   * `child_added` und `child_changed` liefern denselben Wunsch gern zweimal.
+   */
+  function verarbeite(uid, schnappschuss) {
+    const schluessel = uid + '/' + schnappschuss.key;
+    if (gesehen[schluessel]) return;
+    gesehen[schluessel] = true;
+    nacheinander(async function () {
+      if (!spiel) return;
+      const z = schnappschuss.val();
+      if (!z) return;
+      try {
+        wendeZugAn(uid, z);
+        await schnappschuss.ref.remove();
+        await veroeffentliche();
+        melde();
+      } catch (f) {
+        fehlerText = 'Zug konnte nicht angewendet werden: ' + f.message;
+        melde();
+      }
+    });
   }
 
-  /** Sekundentakt: Zug-Uhr prüfen. */
-  async function tick() {
+  /**
+   * Nachlese: liest `zuege/<code>` einmal ganz und reiht ein, was noch
+   * liegt. Fängt alles, was ein Horcher-Ereignis je verpassen könnte
+   * (Verbindungsabriss, Neustart des Gastgebers). Dank `gesehen` doppelt
+   * nichts.
+   */
+  function nachlese() {
+    if (!aktuellerCode || !spiel) return;
+    db.ref(ZUEGE_PFAD + '/' + aktuellerCode).once('value').then(function (s) {
+      s.forEach(function (spielerSchnappschuss) {
+        const uid = spielerSchnappschuss.key;
+        spielerSchnappschuss.forEach(function (zugSchnappschuss) {
+          verarbeite(uid, zugSchnappschuss);
+        });
+        return false;
+      });
+    }).catch(function () { /* nächster Versuch beim nächsten Takt */ });
+  }
+
+  /** Sekundentakt: Zug-Uhr prüfen. Läuft in derselben Kette wie die Züge. */
+  let tickLaeuft = false;
+  let tickZaehler = 0;
+  function tick() {
+    if (!spiel || tickLaeuft) return;
+    if (++tickZaehler % 5 === 0) nachlese();
+    tickLaeuft = true;
+    nacheinander(async function () {
+      try { await tickInnen(); } finally { tickLaeuft = false; }
+    });
+  }
+
+  async function tickInnen() {
     if (!spiel || !raumZustand) return;
     const t = spiel.tisch;
     if (t.phase !== 'laeuft') return;
@@ -497,8 +549,17 @@ const gameService = (function () {
   }
 
   /** Häufiger Takt: sind Bots (oder Abwesende) am Zug? */
-  async function botTick() {
-    if (!spiel || inArbeit) return;
+  let botLaeuft = false;
+  function botTick() {
+    if (!spiel || botLaeuft) return;
+    botLaeuft = true;
+    nacheinander(async function () {
+      try { await botTickInnen(); } finally { botLaeuft = false; }
+    });
+  }
+
+  async function botTickInnen() {
+    if (!spiel) return;
     const t = spiel.tisch;
     if (t.phase !== 'laeuft') return;
 
@@ -518,21 +579,16 @@ const gameService = (function () {
     const hand = spiel.haende[uid] || [];
     const zug = bots.waehleZug(t, hand, c, null);
 
-    inArbeit = true;
-    try {
-      if (zug.art === 'legen') {
-        regeln.lege(spiel, uid, zug.idx, zug.farbe, zug.sagtUno, null);
-      } else if (zug.art === 'ziehen') {
-        regeln.ziehe(spiel, uid, null);
-      } else {
-        regeln.passe(spiel, uid, null);
-      }
-      zugGemacht(uid);
-      await veroeffentliche();
-      melde();
-    } finally {
-      inArbeit = false;
+    if (zug.art === 'legen') {
+      regeln.lege(spiel, uid, zug.idx, zug.farbe, zug.sagtUno, null);
+    } else if (zug.art === 'ziehen') {
+      regeln.ziehe(spiel, uid, null);
+    } else {
+      regeln.passe(spiel, uid, null);
     }
+    zugGemacht(uid);
+    await veroeffentliche();
+    melde();
   }
 
   /* Der Bot denkt kurz nach, bevor er zieht. Ohne diese Pause springt eine
