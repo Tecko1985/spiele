@@ -132,15 +132,30 @@ const gameService = (function () {
 
     const b = bereitDaten[r];
     if (b) {
-      const menschen = aktiveSpieler();
-      let alle = menschen.length > 0;
+      /* ⚠️ Gezählt wird über ALLE Einträge, nicht über die aktiven von JETZT.
+         `rundenEnde(r)` wird für jede vergangene Runde gerufen, und aus diesen Enden
+         leitet `rundeAus()` die Runde jedes einzelnen Trades ab. Fiele die Zustimmung
+         eines Aussteigers rückwirkend aus dem Maximum heraus, endeten längst
+         abgerechnete Runden im Nachhinein früher — und seine Käufe rutschten eine Runde
+         weiter, also auf einen anderen Kurs. Genau das passierte bis zum 05.09.2026,
+         und sein Depot bleibt ja ausdrücklich in der Rangliste stehen.
+         Regel: wer eine Runde bereits abgeschlossen hatte, bleibt für sie maßgeblich;
+         wer sie offen ließ und inzwischen ausgestiegen ist, hält sie nicht länger auf. */
+      const alleUids = raumZustand && raumZustand.spieler ? Object.keys(raumZustand.spieler) : [];
+      let alle = alleUids.length > 0;
       let spaetester = 0;
-      for (const uid of menschen) {
+      let mitgezaehlt = 0;
+      for (const uid of alleUids) {
         const e = b[uid];
-        if (!e) { alle = false; break; }
+        if (!e) {
+          if (raumZustand.spieler[uid].raus) continue;
+          alle = false;
+          break;
+        }
+        mitgezaehlt++;
         if (e.zeit > spaetester) spaetester = e.zeit;
       }
-      if (alle) ende = spaetester;
+      if (alle && mitgezaehlt > 0) ende = spaetester;
     }
 
     const w = weiterDaten[r];

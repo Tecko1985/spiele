@@ -10,6 +10,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.5',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Steigt jemand aus der Partie aus, werden seine bereits abgerechneten Käufe nicht mehr nachträglich zum Kurs einer späteren Runde neu bewertet. Sein Depot bleibt ja ausdrücklich in der Rangliste stehen — und genau die Zahl änderte sich, ohne dass es jemandem gesagt wurde.'
+        ]
+      }
+    ]
+  },
+  {
     version: '1.4',
     groups: [
       {
