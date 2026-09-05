@@ -897,6 +897,14 @@ function render(zustand) {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.8",
+    groups: [
+      { title: "Behoben", items: [
+          "Wer zwei Partien hintereinander in verschiedenen Räumen spielt, ohne die Seite neu zu laden, sieht am Ende wieder die richtige Rollenaufdeckung. Bisher horchte die App weiter auf den alten Raum und überschrieb damit die Aufdeckung der eigenen Partie — im schlimmsten Fall stand bei allen „unbekannt“."
+      ]}
+    ]
+  },
+  {
     version: "1.7",
     groups: [
       { title: "Behoben", items: [

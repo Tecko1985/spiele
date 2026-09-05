@@ -261,7 +261,10 @@ let rollenNachladenLaeuft = false;
 let revealTimerFuerRunde = null;
 let meetingUebergangGeplantFuer = null;
 let aufdeckungGeschriebenFuerRunde = null;
-let aufdeckungListenerAktiv = false;
+// ⚠️ Die Referenz selbst ist der Merker — ein bloßes Flag ließ sich zwar zurücksetzen, den
+// Horcher aber nicht abmelden. Er lief nach dem Raumwechsel weiter und überschrieb den
+// Aufdeckungs-Zwischenspeicher der NEUEN Partie mit den Daten der alten.
+let aufdeckungRef = null;
 let botTimer = null;
 let positionTimer = null;
 let tickTimer = null;
@@ -418,14 +421,14 @@ function loeseListenerAb() {
   if (positionenRef) positionenRef.off();
   if (chatRef) chatRef.off();
   if (teamRef) teamRef.off();
-  roomRef = positionenRef = chatRef = teamRef = null;
+  if (aufdeckungRef) aufdeckungRef.off();
+  roomRef = positionenRef = chatRef = teamRef = aufdeckungRef = null;
   letzterRaum = null;
   verwerfeRundendaten();
   positionen = {};
   chatVerlauf = [];
   meinePosition = null;
   meetingUebergangGeplantFuer = null;
-  aufdeckungListenerAktiv = false;
   Object.keys(botZustand).forEach(k => delete botZustand[k]);
   if (botTimer) { clearInterval(botTimer); botTimer = null; }
   if (positionTimer) { clearInterval(positionTimer); positionTimer = null; }
@@ -1676,10 +1679,10 @@ async function schreibeEigeneAufdeckung(raum) {
 }
 
 function ladeAufdeckung() {
-  if (aufdeckungListenerAktiv) return; // sonst käme bei jedem Raum-Update ein Listener dazu
-  aufdeckungListenerAktiv = true;
+  if (aufdeckungRef) return; // sonst käme bei jedem Raum-Update ein Listener dazu
   const code = aktuellerRaumCode;
-  db.ref(`${AUFDECKUNG_PFAD}/${code}`).on("value", snap => {
+  aufdeckungRef = db.ref(`${AUFDECKUNG_PFAD}/${code}`);
+  aufdeckungRef.on("value", snap => {
     if (letzterRaum) {
       letzterRaum.aufdeckungCache = snap.val() || {};
       benachrichtige();
