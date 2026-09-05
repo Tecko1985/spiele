@@ -713,6 +713,13 @@ const gameService = (function () {
     let hand = meineHand;
     if (istHost && spiel && spiel.haende[eigeneUid]) hand = spiel.haende[eigeneUid];
 
+    /* ⚠️ Der Fehlertext wird beim Ausliefern geleert. Sonst klebt die erste
+       Meldung bis zum Neuladen am Schirm — die Oberfläche kann nicht
+       unterscheiden, ob gerade etwas schiefging oder ob sie denselben alten
+       Text zum zehnten Mal sieht. */
+    const f = fehlerText;
+    fehlerText = null;
+
     return {
       uid: eigeneUid,
       code: aktuellerCode,
@@ -721,7 +728,7 @@ const gameService = (function () {
       protokoll: raumZustand ? (raumZustand.protokoll || []) : [],
       hand: hand || [],
       istHost: istHost,
-      fehler: fehlerText,
+      fehler: f,
       serverJetzt: serverJetzt(),
     };
   }

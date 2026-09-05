@@ -17,6 +17,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.5',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Sobald die Partie lief, zeigte die App keinen einzigen Fehler mehr an. Brach beim Gastgeber das Speichern ab, stand das Spiel für alle still — und niemand bekam einen Hinweis, nicht einmal er selbst. Jetzt erscheint eine Meldung oben am Bild, auf jedem Bildschirm, und sie verschwindet nach fünf Sekunden von allein.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.4',
     groups: [
       {
@@ -147,6 +158,10 @@ function pruefeAdminStatus() {
 
 const NAME_SCHLUESSEL = 'spiele_letztekarte_name';
 
+/* So lange steht eine Meldung, bevor sie sich selbst wegräumt. */
+const MELDUNG_MS = 5000;
+let meldungTimer = null;
+
 const app = {
   APP_VERSION: APP_VERSION,
   CHANGELOG: CHANGELOG,
@@ -159,6 +174,7 @@ const app = {
   codeEingabe: '',
   fehler: null,
   laeuft: false,
+  meldung: null,            // Text der schwebenden Meldung, null = keine
 
   gewaehlt: null,           // Index der angetippten Handkarte
   farbwahlFuer: null,       // Karte, für die gerade eine Farbe zu wählen ist
@@ -350,6 +366,27 @@ const app = {
 
   zeigeFehler: function (f) {
     app.fehler = f && f.message ? f.message : String(f);
+    app.zeigeMeldung(app.fehler);
+    ui.anfordern();
+  },
+
+  /**
+   * Eine Meldung, die über allem liegt und von selbst wieder verschwindet.
+   *
+   * ⚠️ Ohne sie endeten beide Fehlerwege im Nichts: der Zustandsfehler des
+   * Gastgebers (`z.fehler`, unter anderem „Speichern fehlgeschlagen" —
+   * genau der Schreibvorgang, der Tisch und Hände veröffentlicht) wurde
+   * nirgends gelesen, und `app.fehler` wird nur auf „Neue Partie" und
+   * „Beitreten" gezeichnet. Brach beim Gastgeber das Veröffentlichen ab,
+   * stand die Partie für alle still, und niemand bekam einen Hinweis —
+   * nicht einmal er selbst.
+   */
+  zeigeMeldung: function (text) {
+    const t = text && text.message ? text.message : String(text || '');
+    if (!t) return;
+    app.meldung = t;
+    clearTimeout(meldungTimer);
+    meldungTimer = setTimeout(function () { app.meldung = null; ui.anfordern(); }, MELDUNG_MS);
     ui.anfordern();
   },
 };
@@ -388,6 +425,11 @@ function szene() {
   ui.zeichneOffeneListen();
   ui.beendeKasten();
 
+  /* Die schwebende Meldung liegt über allem — auch über einer Aufdeckung
+     oder der Aussteigen-Frage. Auf „Neue Partie" und „Beitreten" steht der
+     Text schon im Formular, dort wäre sie doppelt. */
+  if (app.meldung && ansicht !== 'neu' && ansicht !== 'beitreten') zeichneMeldung(app.meldung);
+
   /* ⚠️ NACH JEDEM TIPPER EIN WEITERES BILD.
      Im unmittelbaren Modus wird eine Karte gezeichnet, BEVOR geprüft wird,
      ob sie getroffen wurde. Was ein Klick am Zustand ändert — eine
@@ -400,6 +442,30 @@ function szene() {
      Diese eine Zeile deckt jede Klickstelle ab, auch künftige; ein
      `ui.anfordern()` je Bedienelement wäre eine Liste, die man vergisst. */
   if (ui.zeiger.losgelassen) ui.anfordern();
+}
+
+/**
+ * Zeichnet die schwebende Meldung oben am Bild.
+ * Bewusst ohne Bedienelement: sie ist nicht anzutippen, sondern geht von
+ * selbst weg — ein Knopf mitten im Spiel wäre ein Tippziel, das man beim
+ * Kartenlegen versehentlich trifft.
+ */
+function zeichneMeldung(text) {
+  const rand = 12;
+  const maxB = Math.min(ui.breite - rand * 2, 460);
+  const x = (ui.breite - maxB) / 2;
+  const zeilen = ui.umbrich(text, maxB - 24, 13, 'halb');
+  const h = 14 + zeilen.length * 18;
+  const y = 10;
+
+  ui.schatten(14);
+  ui.fuelleRund(x, y, maxB, h, 10, ui.F.gefahr);
+  ui.keinSchatten();
+  for (let i = 0; i < zeilen.length; i++) {
+    ui.schreibe(zeilen[i], x + maxB / 2, y + 7 + 9 + i * 18, {
+      groesse: 13, fett: 'halb', farbe: '#fff', ausrichtung: 'center',
+    });
+  }
 }
 
 /* ==========================================================================
@@ -419,6 +485,11 @@ function szene() {
   gameService.onZustandsAenderung(function (z) {
     const vorher = app.zustand.tisch ? app.zustand.tisch.zugNr : -1;
     app.zustand = z;
+
+    /* Der Gastgeber meldet hier, wenn etwas schiefgegangen ist —
+       „Speichern fehlgeschlagen", „Verbindung zum Raum verloren". Das Feld
+       wurde bis 05.09.2026 nirgends gelesen. */
+    if (z.fehler) app.zeigeMeldung(z.fehler);
 
     /* Nach jedem fremden Zug ist die eigene Auswahl hinfällig: die Karte
        liegt jetzt an einer anderen Stelle der Hand, oder es sind Strafkarten
