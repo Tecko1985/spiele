@@ -1364,7 +1364,14 @@ const bildschirme = (function () {
       else {
         auftragStueck = pruefung.stueck;
         const betrag = kurs * auftragStueck;
-        const geb = depot.gebuehr(betrag);
+        /* Die Regeln MÜSSEN mit. Ohne zweiten Parameter fällt `gebuehr` auf
+           die Vorgabe (0,25 %, mindestens 1 €) zurück — der Satz über dem
+           Kaufknopf nannte dann bei „keine Gebühr" eine Gebühr, die nie
+           abgebucht wurde, und bei „1 %" Kosten, die um das Dreifache der
+           Gebühr zu niedrig waren. `stand` trägt die geltenden Regeln
+           ausdrücklich mit sich (`depot.js`, Rückgabe von `berechne`), genau
+           damit Anzeige und Verbuchung nicht auseinanderlaufen. */
+        const geb = depot.gebuehr(betrag, stand.regeln);
         hinweis = (istKauf ? 'Kosten ' : 'Erlös ') +
           euro(istKauf ? betrag + geb : betrag - geb) +
           '  (davon ' + euro(geb) + ' Gebühr)';

@@ -10,6 +10,17 @@ const APP_VERSION = '1.0';
 
 const CHANGELOG = [
   {
+    version: '1.7',
+    groups: [
+      {
+        title: 'Behoben',
+        items: [
+          'Der Kauf- und Verkaufsdialog nennt jetzt die Gebühr, die wirklich abgebucht wird. Er rechnete bisher immer mit der Voreinstellung 0,25 % — egal, was im Raum eingestellt war. Bei „keine Gebühr" erfand er eine Gebühr, die nie abgebucht wurde; bei „1 %" nannte er die Kosten um das Dreifache der Gebühr zu niedrig. Der Satz „Kosten … (davon … Gebühr)" steht unmittelbar über dem Knopf und ist die einzige Zahl, auf die hin man entscheidet.'
+        ]
+      }
+    ]
+  },
+  {
     version: '1.6',
     groups: [
       {

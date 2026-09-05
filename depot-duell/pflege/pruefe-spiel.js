@@ -505,5 +505,75 @@ pruefe(geprueft100 > 300, geprueft100 + ' Bestände durchgerechnet');
 pruefe(abgelehnt100 === 0, '"100 %" wird nie abgelehnt (' + abgelehnt100 + ' Ablehnungen)');
 pruefe(resteGefunden === 0, '"100 %" lässt nie einen Rest im Depot (' + resteGefunden + ' Reste)');
 
+/* ====================================================================== */
+console.log('\n6. DER KOSTENTEXT IM HANDELSDIALOG');
+/* ====================================================================== */
+/* Bis 2026-09-06 stand hier oben nur `D.gebuehr(betrag, regeln)` — also die
+   Rechenfunktion MIT Regeln. Der Fehler saß aber in der Aufrufstelle: der
+   Dialog rief `depot.gebuehr(betrag)` ohne Regeln und nannte deshalb bei
+   jeder Einstellung dieselbe Vorgabe-Gebühr. Gemessen wird darum jetzt der
+   AUSGEGEBENE TEXT des echten `handelDialog` gegen die Verbuchung in
+   `berechne()` — eine geprüfte Rechenfunktion sagt nichts über die Zahl, die
+   über dem Kaufknopf steht. */
+
+const dlgTexte = [];
+globalThis.ui = {
+  F: {}, RADIUS: 8, RADIUS_KLEIN: 6, hoehe: 800, breite: 400, ctx: {},
+  abdunkeln() {}, beginneDialog: () => ({}), beendeDialog() {},
+  titel(t) { dlgTexte.push(t); },
+  absatz(t) { dlgTexte.push(t); },
+  schreibe(t) { dlgTexte.push(t); },
+  reserviere: () => ({ x: 0, y: 0, b: 360, h: 44 }),
+  fuelleRund() {}, rahmeRund() {}, merke() {}, geklickt: () => false,
+  luecke() {}, trenner() {},
+  eingabe: () => '', setzeEingabe() {}, knopf: () => false,
+};
+
+/* "9.589,92 €" → 9589.92 */
+function euroAus(text) {
+  return parseFloat(String(text).replace(/\./g, '').replace(',', '.').replace(/[^0-9.\-]/g, ''));
+}
+
+const gebuehrFaelle = [
+  ['keine Gebühr', { gebuehrSatz: 0, gebuehrMind: 0 }],
+  ['1 %', { gebuehrSatz: 0.01, gebuehrMind: 1 }],
+  ['0,25 % (Vorgabe)', {}],
+];
+for (const f of gebuehrFaelle) {
+  const R = D.normiereRegeln(f[1]);
+  const standF = D.berechne([], lauf, 0, nachId, R, 'mensch-1');
+  const stueckF = 50;
+  dlgTexte.length = 0;
+  globalThis.ui.eingabe = () => BS.stueckEingabe(sap, stueckF);
+  BS.handelDialog({
+    handel: { id: sap.id, art: 'kauf', stueck: stueckF },
+    wertNachId: nachId,
+    lauf: lauf,
+    runde: () => 0,
+    eigenerStand: () => standF,
+    regeln: () => R,
+    zustand: { raum: { phase: 'laeuft' }, vorbei: false, abgeschlossen: false, uid: 'mensch-1' },
+    fuehreHandelAus() {},
+  });
+  const zeile = dlgTexte.find((t) => typeof t === 'string' && t.indexOf('Kosten ') === 0);
+  const m = zeile && zeile.match(/^Kosten\s+(.+?)\s+\(davon\s+(.+?)\s+Gebühr\)$/);
+  if (!m) {
+    pruefe(false, 'Kostentext bei "' + f[0] + '" lesbar (gefunden: ' + (zeile || 'nichts') + ')');
+    continue;
+  }
+  const gebucht = D.berechne(
+    [{ art: 'kauf', id: sap.id, stueck: stueckF, runde: 0 }], lauf, 0, nachId, R, 'mensch-1').gebuehren;
+  const zeigtGeb = euroAus(m[2]);
+  const zeigtKosten = euroAus(m[1]);
+  const betragF = kursSap0 * stueckF;
+  /* Toleranz ein Cent — `euro()` rundet auf zwei Stellen. Der Fehler wich um
+     24 bzw. 72 EUR ab und liegt weit darüber. */
+  pruefe(Math.abs(zeigtGeb - gebucht) <= 0.011,
+    'Dialog nennt bei "' + f[0] + '" die Gebühr, die auch gebucht wird (' +
+    zeigtGeb.toFixed(2) + ' gegen ' + gebucht.toFixed(2) + ' EUR)');
+  pruefe(Math.abs(zeigtKosten - (betragF + D.gebuehr(betragF, R))) <= 0.011,
+    'Dialog nennt bei "' + f[0] + '" die Gesamtkosten richtig (' + zeigtKosten.toFixed(2) + ' EUR)');
+}
+
 console.log('\n' + (fehler === 0 ? 'ALLES GRÜN' : fehler + ' PRÜFUNG(EN) FEHLGESCHLAGEN'));
 process.exit(fehler === 0 ? 0 : 1);
