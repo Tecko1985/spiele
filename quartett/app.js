@@ -836,6 +836,14 @@ function szene() {
 const APP_VERSION = "1.0";
 const CHANGELOG = [
   {
+    version: "1.8",
+    groups: [
+      { title: "Behoben", items: [
+          "Der Info-Reiter sagt zu: „Mit dem Ende der Partie wird der Raum gelöscht.“ Das stimmte nur, wenn der Gastgeber danach noch „Neues Spiel“ oder „Zurück zum Start“ drückte. Wer nach der letzten Runde einfach den Tab schloss oder einen Warteraum stehenließ, ließ Raum, Namen und Karten dauerhaft liegen — es gab keinen zweiten Löschweg. Jetzt räumt sich ein verlassener Raum von selbst auf, sobald das Gerät des Gastgebers weg ist. Während einer laufenden Runde passiert das ausdrücklich nicht: ein kurzes Funkloch soll die Partie nicht für alle beenden."
+      ]}
+    ]
+  },
+  {
     version: "1.7",
     groups: [
       { title: "Behoben", items: [
