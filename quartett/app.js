@@ -774,6 +774,22 @@ function szene() {
   zeichneFrage();
   zeichneGrossansicht();
   ui.zeichneOffeneListen();
+
+  /* ⚠️ NACH JEDEM TIPPER EIN WEITERES BILD.
+     `ui.js` zeichnet nur auf Anforderung, und die Quartetts laufen nie im
+     Dauerlauf. Ein Zeigerereignis fordert genau EIN Bild an — und in
+     diesem Bild werden die Bedienelemente gezeichnet, BEVOR geprüft wird,
+     ob sie getroffen wurden. Was der Klick am Zustand ändert, wäre also
+     erst im nächsten Bild zu sehen, und das kam nie: Dialog, Foto-
+     Großansicht und die vier „Zurück"-Knöpfe reagierten erst auf den
+     zweiten Tipper. Am schwersten wog die Foto-Großansicht — sie verdeckt
+     das ganze Bild und behauptet „Tippen zum Schließen"; der zweite
+     Tipper räumte sie weg und landete zugleich als Klick auf dem
+     Bildschirm darunter.
+     Bewusst zentral, nicht je Bedienelement: ein `ui.anfordern()` hinter
+     jeder Zustandsänderung wäre eine Liste, die man vergisst. Dieselbe
+     Zeile steht in `letzte-karte/app.js`. */
+  if (ui.zeiger.losgelassen) ui.anfordern();
 }
 
 /* --------------------------------------------------------------------------
@@ -782,6 +798,14 @@ function szene() {
 
 const APP_VERSION = "1.0";
 const CHANGELOG = [
+  {
+    version: "1.4",
+    groups: [
+      { title: "Behoben", items: [
+          "Ein Tipper wirkte oft erst beim zweiten Mal. Die Sicherheitsabfrage, die vier „Zurück“-Knöpfe und vor allem die Foto-Großansicht blieben nach dem Antippen sichtbar stehen, obwohl sie schon geschlossen waren — die App hat schlicht kein neues Bild mehr gezeichnet. Am ärgerlichsten war das große Foto: es verdeckte alles und behauptete „Tippen zum Schließen“, und der zweite Tipper landete zugleich auf dem Bildschirm darunter."
+      ]}
+    ]
+  },
   {
     version: "1.3",
     groups: [
