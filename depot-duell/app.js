@@ -27,7 +27,7 @@ const CHANGELOG = [
       {
         title: 'Behoben',
         items: [
-          'Der Kauf- und Verkaufsdialog nennt jetzt die Gebühr, die wirklich abgebucht wird. Er rechnete bisher immer mit der Voreinstellung 0,25 % — egal, was im Raum eingestellt war. Bei „keine Gebühr" erfand er eine Gebühr, die nie abgebucht wurde; bei „1 %" nannte er die Kosten um das Dreifache der Gebühr zu niedrig. Der Satz „Kosten … (davon … Gebühr)" steht unmittelbar über dem Knopf und ist die einzige Zahl, auf die hin man entscheidet.'
+          'Der Kauf- und Verkaufsdialog nennt jetzt die Gebühr, die wirklich abgebucht wird. Er rechnete bisher immer mit der Voreinstellung 0,25 % — egal, was im Raum eingestellt war. Bei „keine Gebühr“ erfand er eine Gebühr, die nie abgebucht wurde; bei „1 %“ nannte er die Kosten um das Dreifache der Gebühr zu niedrig. Der Satz „Kosten … (davon … Gebühr)“ steht unmittelbar über dem Knopf und ist die einzige Zahl, auf die hin man entscheidet.'
         ]
       }
     ]
@@ -61,7 +61,7 @@ const CHANGELOG = [
       {
         title: 'Behoben',
         items: [
-          'Der Knopf „100 %" im Kaufdialog führt nicht mehr in eine Sackgasse. Er schrieb die höchstmögliche Stückzahl ins Feld, im nächsten Bild wurde genau diese Zahl abgelehnt — und die rote Begründung nannte dieselbe Zahl als das, was noch ginge. Betroffen war jeder sechste Fall bei der Vorgabe-Gebühr und jeder dritte bei 1 %; ohne Gebühr trat es nie auf. Ursache: die Höchstmenge rechnete die Ordergebühr anders als die Kaufprüfung.',
+          'Der Knopf „100 %“ im Kaufdialog führt nicht mehr in eine Sackgasse. Er schrieb die höchstmögliche Stückzahl ins Feld, im nächsten Bild wurde genau diese Zahl abgelehnt — und die rote Begründung nannte dieselbe Zahl als das, was noch ginge. Betroffen war jeder sechste Fall bei der Vorgabe-Gebühr und jeder dritte bei 1 %; ohne Gebühr trat es nie auf. Ursache: die Höchstmenge rechnete die Ordergebühr anders als die Kaufprüfung.',
           'Die KI-Mitspieler halten die Anteilsgrenze jetzt auch dann ein, wenn sie in derselben Runde mehrfach handeln.'
         ]
       }
@@ -73,7 +73,7 @@ const CHANGELOG = [
       {
         title: 'Behoben',
         items: [
-          '„Partie verlassen" und „Raum schließen und neu anfangen" sagen jetzt Bescheid, wenn es nicht geklappt hat. Vorher konnte beides scheitern, ohne dass jemand es erfuhr: der Aussteiger war auf seinem Gerät draußen, im Raum stand er weiter als aktiv — und die Runde wartete für alle anderen auf eine Zustimmung, die nie kam.',
+          '„Partie verlassen“ und „Raum schließen und neu anfangen“ sagen jetzt Bescheid, wenn es nicht geklappt hat. Vorher konnte beides scheitern, ohne dass jemand es erfuhr: der Aussteiger war auf seinem Gerät draußen, im Raum stand er weiter als aktiv — und die Runde wartete für alle anderen auf eine Zustimmung, die nie kam.',
           'Im Funkloch quittiert der Knopf den Tipp jetzt sichtbar und meldet sich nach ein paar Sekunden, statt einfach nichts zu tun.'
         ]
       }
@@ -85,8 +85,8 @@ const CHANGELOG = [
       {
         title: 'Behoben',
         items: [
-          'Schlägt ein Zug fehl, steht der Grund jetzt auf jedem Bildschirm. Vorher war die Meldung nur im laufenden Spiel und beim Beitreten zu sehen — wer beim Eröffnen eines Raums oder beim Ändern der Einstellungen scheiterte, landete wortlos wieder auf „Wer bist du?".',
-          '„Partie starten" sagt jetzt Bescheid, wenn es nicht klappt. Bisher scheiterte dieser Knopf vollständig lautlos: er tat nichts und begründete nichts.'
+          'Schlägt ein Zug fehl, steht der Grund jetzt auf jedem Bildschirm. Vorher war die Meldung nur im laufenden Spiel und beim Beitreten zu sehen — wer beim Eröffnen eines Raums oder beim Ändern der Einstellungen scheiterte, landete wortlos wieder auf „Wer bist du?“.',
+          '„Partie starten“ sagt jetzt Bescheid, wenn es nicht klappt. Bisher scheiterte dieser Knopf vollständig lautlos: er tat nichts und begründete nichts.'
         ]
       }
     ]
@@ -454,7 +454,7 @@ const app = {
   },
 
   /* ⚠️ Auch dieser Weg MUSS seine Meldung setzen. Er tat es bis 05.09.2026 nicht:
-     „Partie starten" scheiterte damit vollständig lautlos — der Knopf tat nichts
+     „Partie starten“ scheiterte damit vollständig lautlos — der Knopf tat nichts
      und begründete nichts, und genau so sieht es aus, wenn die Firebase-Regeln
      nicht eingespielt sind. */
   starte: function () {
@@ -577,7 +577,7 @@ const app = {
      im Dialog stand. Der Regelfall dafür: das Handy lag im Funkloch, der Eröffner hat
      derweil weitergeschaltet, und der Server hat dem Auftrag beim Ankommen seine
      eigene, spätere Zeit gegeben. Der Dialog verspricht über dem Kaufknopf
-     „Ausgeführt wird sofort zum angezeigten Kurs" — trifft das einmal nicht zu, MUSS
+     „Ausgeführt wird sofort zum angezeigten Kurs“ — trifft das einmal nicht zu, MUSS
      es dastehen. */
   verspaeteteAuftraege: function () {
     const z = this.zustand;
@@ -612,7 +612,7 @@ const app = {
        eingeht — so, wie es `depot.stand()` mit seinem Zwischenspeicher
        vormacht. Bis 2026-09-06 stand hier nur Saat und Rundenzahl.
        `botAnzahl` und die Regeln liegen aber im selben Raum, ändern sich
-       über denselben Weg („⚙️ Einstellungen ändern" in der Lobby) und gehen
+       über denselben Weg („⚙️ Einstellungen ändern“ in der Lobby) und gehen
        beide in `botFeld` ein. Wer umstellte, spielte gegen das Feld von
        vorher, während seine Lobby schon die neue Zahl anzeigte; wer NACH der
        Änderung beitrat, baute es frisch. Zwei Geräte, dieselbe Partie,
