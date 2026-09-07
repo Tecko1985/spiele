@@ -143,6 +143,39 @@
   .changelog-entry .cg { font-weight: 600; margin: 10px 0 4px; }
   .changelog-entry .cg:first-of-type { margin-top: 0; }
   .changelog-entry ul { margin: 0; padding-left: 20px; color: var(--muted); line-height: 1.6; }
+
+  /* Datenschutz-Karte: der Absatz zu Firebase stand als fetter Satz mitten im
+     Fliesstext -- er ist jetzt eine Ueberschrift mit Trennlinie darueber. Der
+     Text ist dabei Wort fuer Wort unveraendert geblieben. Gleiche Bauform wie
+     in ToolsUebersicht -- dort heisst das Blau --blue, hier --primary
+     (gleicher Wert #1a56a0); ein --gray gibt es hier nicht, deshalb steht der
+     Grauwert fest. Eine leere var() wuerde die ganze Regel verwerfen. */
+  #ds-info-karte p { line-height: 1.65; }
+  #ds-info-karte .ds-intro { margin-bottom: 14px; }
+  #ds-info-karte .ds-verantwortlich {
+    margin-top: 14px;
+    background: #f4f5f7;
+    border-left: 3px solid var(--primary);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  #ds-info-karte .ds-block {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  #ds-info-karte .ds-block h3 {
+    color: var(--primary);
+    font-size: 15px;
+    margin: 0 0 8px;
+  }
+  #ds-info-karte .ds-links {
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-size: 14px;
+  }
 </style>
 </head>
 <body>
@@ -238,7 +271,7 @@
  
     <div class="card" id="ds-info-karte">
       <h2>Datenschutz</h2>
-      <p>Diese Spiele gehören zu den Anwendungen des
+      <p class="ds-intro">Diese Spiele gehören zu den Anwendungen des
       1. SC 1911 Heiligenstadt. Gespeichert wird in jedem Spiel nur der
       <strong>selbst gewählte Anzeigename</strong> und der Spielstand der laufenden
       Partie. Die Anmeldung ist anonym — es gibt kein Konto, keine E-Mail-Adresse
@@ -247,19 +280,22 @@
       löschst. Schließt der Eröffner die Partie in der App, wird der Raum samt
       Namen gelöscht. Macht er nur den Browser zu, bleibt der Raum mit den
       Anzeigenamen in der Datenbank stehen.</p>
-      <p><strong>Die Spieldaten verlassen den Verein.</strong> Damit mehrere Geräte
+      <div class="ds-block">
+      <h3>Die Spieldaten verlassen den Verein</h3>
+      <p>Damit mehrere Geräte
       dieselbe Partie sehen, laufen sie über die Echtzeit-Datenbank von Google
       (Firebase); das Rechenzentrum steht in Belgien, nicht in Deutschland, und
       betrieben wird es von Google. <strong>Wenn du das nicht möchtest, gib einen
       Spitznamen statt deines Namens ein.</strong></p>
-      <p>Verantwortlich ist der 1. SC 1911 Heiligenstadt, Leineberg 2,
+      </div>
+      <p class="ds-verantwortlich">Verantwortlich ist der 1. SC 1911 Heiligenstadt, Leineberg 2,
       37308 Heilbad Heiligenstadt, Telefon 03606 612206,
       <a href="mailto:info@sc1911-heiligenstadt.de">info@sc1911-heiligenstadt.de</a>.
       Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung,
       Datenübertragbarkeit und Widerspruch lassen sich unter dieser Anschrift
       geltend machen. Beschwerden nimmt der Thüringer Landesbeauftragte für
       den Datenschutz und die Informationsfreiheit entgegen.</p>
-      <p><a href="https://www.sc1911-heiligenstadt.de/datenschutz/" target="_blank" rel="noopener">Datenschutzerklärung des Vereins</a>
+      <p class="ds-links"><a href="https://www.sc1911-heiligenstadt.de/datenschutz/" target="_blank" rel="noopener">Datenschutzerklärung des Vereins</a>
       &middot;
       <a href="https://www.sc1911-heiligenstadt.de/impressum-2/" target="_blank" rel="noopener">Impressum</a></p>
     </div>
