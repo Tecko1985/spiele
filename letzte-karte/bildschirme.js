@@ -914,11 +914,28 @@ const bildschirme = (function () {
      ---------------------------------------------------------------------- */
 
   function info(app) {
-    kopf(app, 'Regeln und Änderungen', { zurueck: function () { app.geheZurueckVonInfo(); } });
+    kopf(app, 'Regeln und Funktionen', { zurueck: function () { app.geheZurueckVonInfo(); } });
     ui.seite('info', function () {
       ui.titel('Letzte Karte', { groesse: 22 });
       ui.absatz('Ein Kartenspiel für die Busfahrt. Bis zu zehn Spieler an eigenen Handys, dazu KI-Mitspieler. Ein Raum-Code verbindet alle.',
         {});
+
+      // Was das Spiel kann. Steht seit 07.09.2026 hier statt der
+      // Aenderungsliste, die frueher zwischen den Regeln und dem
+      // Datenschutz-Hinweis stand: der Info-Bereich zeigt den Zustand, nicht
+      // die Historie. Quelle ist FUNKTIONEN in app.js; CHANGELOG bleibt dort
+      // gepflegt und wird nur nicht mehr gezeichnet.
+      ui.luecke(6);
+      ui.titel('Funktionen', { groesse: 17 });
+      // Der Kartenschluessel zaehlt durch statt den Titel zu nehmen: er muss
+      // eindeutig und ueber Neuzeichnungen hinweg stabil sein, nicht lesbar.
+      for (let iFn = 0; iFn < app.FUNKTIONEN.length; iFn++) {
+        const gruppe = app.FUNKTIONEN[iFn];
+        const griff = ui.beginneKarte('fn-' + iFn, {});
+        ui.absatz(gruppe.title, { fett: true, farbe: ui.F.primaer, groesse: 14 });
+        for (const punkt of gruppe.items) ui.absatz('•  ' + punkt, { groesse: 12 });
+        ui.beendeKarte(griff);
+      }
 
       ui.luecke(6);
       ui.titel('Die drei Spielarten', { groesse: 17 });
@@ -940,18 +957,6 @@ const bildschirme = (function () {
       ]) ui.absatz('•  ' + zeile, { groesse: 13 });
 
       ui.luecke(6);
-      ui.titel('Änderungen', { groesse: 17 });
-      for (const block of app.CHANGELOG) {
-        const griff = ui.beginneKarte('cl-' + block.version, {});
-        ui.absatz('Fassung ' + block.version, { fett: true, farbe: ui.F.primaer, groesse: 14 });
-        for (const g of block.groups) {
-          ui.absatz(g.title, { fett: true, farbe: ui.F.text, groesse: 13 });
-          for (const punkt of g.items) ui.absatz('•  ' + punkt, { groesse: 12 });
-        }
-        ui.beendeKarte(griff);
-      }
-
-      ui.luecke(6);
       ui.titel('Daten und Datenschutz', { groesse: 17 });
       ui.absatz('Gespeichert werden nur dein selbst gewählter Anzeigename und der Spielstand der laufenden Partie. Die Anmeldung ist anonym — es gibt kein Konto, keine E-Mail-Adresse und keine Verbindung zu deinen Vereinsdaten. Mit dem Ende der Partie wird der Raum gelöscht.',
         { groesse: 12 });
@@ -965,9 +970,6 @@ const bildschirme = (function () {
       ui.luecke(4);
       ui.absatz('"Letzte Karte" ist ein eigenständiges Spiel des Vereins nach dem klassischen Ablegespiel-Prinzip. Es steht in keiner Verbindung zu Mattel oder einer seiner Marken.',
         { groesse: 11 });
-
-      ui.luecke(8);
-      ui.absatz('Fassung ' + app.APP_VERSION, { zentriert: true, groesse: 11 });
     }, { maxBreite: 480 });
   }
 

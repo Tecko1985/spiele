@@ -11,7 +11,83 @@
    die Versionsnummer wird nicht hochgezählt (Flottenregel). */
 const APP_VERSION = '1.0';
 
+/* Was das Spiel kann — die Karte „Funktionen“ im Info-Reiter. Hier steht der
+   Zustand, nicht die Änderung: keine Versionsnummern, kein „neu“, kein „jetzt“.
+   CHANGELOG darunter bleibt gepflegt, angezeigt wird es seit 07.09.2026 nicht
+   mehr. */
+const FUNKTIONEN = [
+  {
+    title: 'Was hier gespielt wird',
+    items: [
+      'Die Werwölfe von Düsterwald für 5 bis 20 Spieler an eigenen Handys, verbunden über einen sechsstelligen Raum-Code.',
+      'Die App ersetzt den Spielleiter: sie ruft nachts jede Rolle einzeln auf und sagt die Ansagen an — auf Wunsch laut per Sprachausgabe.',
+      'Das Gerät des Eröffners ist der Erzähler. Er spielt selbst mit oder legt sein Handy nur in die Mitte.',
+      'Im Warteraum stellt der Erzähler die Sitzreihenfolge ein und kann jemanden wieder herausnehmen, der doch nicht mitspielt.',
+    ],
+  },
+  {
+    title: 'Die Rollen',
+    items: [
+      '13 Rollen: Dorfbewohner, Werwolf, Seherin, Hexe, Jäger, Amor, Beschützer, Dieb, das Mädchen, der Alte, Sündenbock, Weißer Werwolf, Flötenspieler.',
+      'Der Erzähler stellt sie selbst zusammen; ein Knopf lädt eine Empfehlung für die vorhandene Spielerzahl, und eine Waage zeigt, ob die Runde zu den Wölfen oder zum Dorf kippt.',
+      'Die eigene Rolle erscheint nur, solange der Finger auf der Karte liegt. Wölfe sehen sich gegenseitig, Verliebte erkennen sich.',
+    ],
+  },
+  {
+    title: 'So läuft eine Nacht',
+    items: [
+      'Die App ruft jede Rolle der Runde einzeln auf — auch die toten, mit derselben Wartezeit. So verrät der Ablauf nicht, wer noch lebt.',
+      'Aufgelöst wird erst nach der letzten Rolle: Schutz vor Heiltrank vor Wolfsangriff vor Gift, dann Verliebte und Jäger.',
+    ],
+  },
+  {
+    title: 'So läuft ein Tag',
+    items: [
+      'Zuerst werden die Toten verkündet, dann läuft die Diskussionsuhr.',
+      'Abgestimmt wird offen am eigenen Handy.',
+      'Bei Gleichstand gibt es eine Stichwahl, es stirbt niemand, oder der Sündenbock stirbt an Stelle der Kandidaten — je nach Einstellung.',
+    ],
+  },
+  {
+    title: 'Was sich einstellen lässt',
+    items: [
+      'Für die Partie: Diskussionszeit von ohne Uhr bis zehn Minuten, Wartezeit je Nachtaufruf, Verhalten bei Gleichstand und ob die Rollen der Toten aufgedeckt werden.',
+      'Für das eigene Gerät: Ansagen vorlesen, Vibration, wenn man dran ist, und ein helles Design für Räume, in denen es nicht dunkel genug ist.',
+    ],
+  },
+  {
+    title: 'Übersicht, Chronik und Regeln',
+    items: [
+      'Der Reiter „Übersicht“ zeigt, wer noch lebt, und führt eine Chronik der Partie.',
+      'Die Chronik hält geheime Einträge zurück, solange gespielt wird — wen Amor verkuppelt, wen die Seherin ansieht, wen Beschützer und Hexe wählen, steht erst am Ende darin.',
+      'Der Reiter „Regeln“ erklärt Ablauf, Nachtreihenfolge, alle Rollen, die Siegbedingungen und eine Empfehlung je Spielerzahl — zum Nachschlagen mitten in der Partie.',
+      'Ein laufendes Spiel übersteht einen Neustart der App, auch auf dem Erzähler-Gerät.',
+    ],
+  },
+  {
+    title: 'Grenzen',
+    items: [
+      'Es gibt kein Konto und keine Bestenliste; Ergebnisse werden nicht aufgehoben.',
+      'Schließt der Erzähler den Raum, werden Raum, Namen und Spielstand gelöscht. Macht er nur den Browser zu, bleibt der Raum mit den Anzeigenamen stehen.',
+      'Die Spieldaten laufen über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien.',
+    ],
+  },
+];
+
 const CHANGELOG = [
+  {
+    version: '1.2',
+    groups: [
+      {
+        title: 'Im Info-Reiter steht jetzt, was das Spiel kann',
+        items: [
+          'Die Liste der Änderungen und die Fassungsnummer sind aus dem Info-Reiter verschwunden.',
+          'Stattdessen steht dort die Karte „Funktionen“: was das Spiel kann, nach Themen geordnet — über dem Datenschutz-Hinweis.',
+          'Was sich geändert hat, steht weiterhin in den Neuigkeiten auf der Startseite der Tools-Übersicht.',
+        ],
+      },
+    ],
+  },
   {
     version: '1.1',
     groups: [
@@ -154,7 +230,11 @@ const app = (function () {
 
     let inhalt = '';
     if (ui.reiter === 'regeln') inhalt = bildschirme.regelnSeite();
-    else if (ui.reiter === 'info') inhalt = bildschirme.info(APP_VERSION, CHANGELOG);
+    // ⚠️ Der Info-Reiter bekommt seit 07.09.2026 FUNKTIONEN statt Fassung und
+    // CHANGELOG: dort steht der Zustand, nicht die Historie. CHANGELOG bleibt
+    // in dieser Datei gepflegt und ist die Quelle fuer Anleitung und
+    // Neuigkeiten.
+    else if (ui.reiter === 'info') inhalt = bildschirme.info(FUNKTIONEN);
     else if (ui.reiter === 'uebersicht') inhalt = bildschirme.uebersicht(z);
     else {
       switch (a) {

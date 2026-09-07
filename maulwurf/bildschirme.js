@@ -222,6 +222,21 @@ const bildschirme = (function () {
         "mischt nur einen anonymen Stapel Rollen, jedes Handy zieht sich danach selbst eine " +
         "daraus. Die gezogene Rolle ist serverseitig auf das eigene Gerät beschränkt.");
 
+      // Was das Spiel kann. Steht seit 07.09.2026 an der Stelle, an der bis
+      // dahin die Aenderungsliste stand (die lag ganz unten): der Info-Reiter
+      // zeigt den Zustand, nicht die Historie. Quelle ist FUNKTIONEN in app.js;
+      // CHANGELOG bleibt dort gepflegt und wird nur nicht mehr gezeichnet.
+      const kFn = ui.beginneKarte("info-funktionen");
+        ui.titel("Funktionen", { groesse: 17 });
+        FUNKTIONEN.forEach(gruppe => {
+          ui.luecke(6);
+          ui.absatz(gruppe.title, { groesse: 14, fett: true, farbe: F.primaer, abstand: 6 });
+          gruppe.items.forEach(zeile => {
+            punktZeile(zeile);
+          });
+        });
+      ui.beendeKarte(kFn);
+
       // ⚠️ Art. 13 DSGVO. Der Anzeigename ist frei gewählt, aber viele tippen ihren
       // echten Vornamen ein -- und er landet samt Position und Spielstand bei Google
       // Firebase. Der Standardsatz der Flotte ("Server in Deutschland") gilt hier
@@ -238,20 +253,6 @@ const bildschirme = (function () {
         "dieser Anschrift; Beschwerden beim Thüringer Landesbeauftragten für den Datenschutz und " +
         "die Informationsfreiheit.");
 
-      const k = ui.beginneKarte("info-changelog");
-        ui.titel("Änderungen", { groesse: 17 });
-        CHANGELOG.forEach(eintrag => {
-          ui.luecke(6);
-          ui.absatz("Version " + eintrag.version, { groesse: 14, fett: true, farbe: F.primaer, abstand: 6 });
-          eintrag.groups.forEach(gruppe => {
-            ui.absatz(gruppe.title, { groesse: 13, fett: "halb", farbe: F.text, abstand: 4 });
-            gruppe.items.forEach(zeile => {
-              punktZeile(zeile);
-            });
-            ui.luecke(4);
-          });
-        });
-      ui.beendeKarte(k);
     });
   }
 

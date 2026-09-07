@@ -506,9 +506,23 @@ const bildschirme = {
       const griff = ui.beginneKarte("info-ueber");
       ui.titel("Über das " + SPIEL_CONFIG.titel, { groesse: 17, farbe: ui.F.primaer, abstand: 8 });
       ui.absatz(SPIEL_CONFIG.infoText, { groesse: 14, zeilenhoehe: 1.55 });
-      ui.luecke(4);
-      ui.absatz("Version " + APP_VERSION, { groesse: 13, fett: "halb", farbe: ui.F.primaer });
       ui.beendeKarte(griff);
+
+      // Was das Spiel kann. Steht seit 07.09.2026 an der Stelle, an der bis dahin
+      // die Aenderungsliste stand: der Info-Reiter zeigt den Zustand, nicht die
+      // Historie. Quelle ist FUNKTIONEN in app.js; CHANGELOG bleibt dort
+      // gepflegt und wird nur nicht mehr gezeichnet.
+      // Diese eine Stelle deckt alle DREI Quartetts ab.
+      const griffFn = ui.beginneKarte("info-funktionen");
+      ui.titel("Funktionen", { groesse: 17, farbe: ui.F.primaer, abstand: 8 });
+      FUNKTIONEN.forEach(gruppe => {
+        ui.absatz(gruppe.title, { groesse: 14, fett: "halb", farbe: ui.F.text, abstand: 4 });
+        gruppe.items.forEach(zeile => {
+          ui.absatz("•  " + zeile, { groesse: 13, links: 8, zeilenhoehe: 1.5, abstand: 4 });
+        });
+        ui.luecke(6);
+      });
+      ui.beendeKarte(griffFn);
 
       // ⚠️ Art. 13 DSGVO. Der Anzeigename ist frei gewählt, aber viele tippen ihren
       // echten Vornamen ein -- und er landet samt Spielstand bei Google Firebase.
@@ -525,20 +539,6 @@ const bildschirme = {
       ui.absatz("Verantwortlich: 1. SC 1911 Heiligenstadt e.V., Leineberg 2, 37308 Heilbad Heiligenstadt, info@sc1911-heiligenstadt.de. Auskunft, Berichtigung, Löschung und Widerspruch unter dieser Anschrift; Beschwerden beim Thüringer Landesbeauftragten für den Datenschutz und die Informationsfreiheit.",
         { groesse: 13, zeilenhoehe: 1.55 });
       ui.beendeKarte(griffDs);
-
-      const griff2 = ui.beginneKarte("info-changelog");
-      ui.titel("Änderungen", { groesse: 17, farbe: ui.F.primaer, abstand: 8 });
-      CHANGELOG.forEach(eintrag => {
-        ui.absatz("Version " + eintrag.version, { groesse: 14, fett: true, farbe: ui.F.primaer, abstand: 6 });
-        eintrag.groups.forEach(gruppe => {
-          ui.absatz(gruppe.title, { groesse: 13, fett: "halb", farbe: ui.F.text, abstand: 4 });
-          gruppe.items.forEach(zeile => {
-            ui.absatz("•  " + zeile, { groesse: 13, links: 8, zeilenhoehe: 1.5, abstand: 4 });
-          });
-        });
-        ui.luecke(6);
-      });
-      ui.beendeKarte(griff2);
     }, { maxBreite: 560 });
   }
 };

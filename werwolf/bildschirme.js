@@ -487,23 +487,26 @@ const bildschirme = (function () {
     return h;
   }
 
-  function info(version, changelog) {
+  // Was das Spiel kann. Steht seit 07.09.2026 an der Stelle, an der bis dahin
+  // die Aenderungsliste stand: der Info-Reiter zeigt den Zustand, nicht die
+  // Historie. Quelle ist FUNKTIONEN in app.js; CHANGELOG bleibt dort gepflegt
+  // und wird nur nicht mehr gezeichnet. Die Fassungsnummer stand als Fussnote
+  // unter der Liste und ist mit ihr weg.
+  function info(funktionen) {
     let h = '<h1>Info</h1>';
+    h += '<h2>Funktionen</h2>';
+    for (const g of funktionen) {
+      h += '<div class="karte"><h3>' + esc(g.title) + '</h3>';
+      h += '<ul style="padding-left:20px">' + g.items.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>';
+      h += '</div>';
+    }
+    h += '<h2>Datenschutz</h2>';
     h += '<div class="karte"><h3>Daten und Datenschutz</h3>';
     h += '<p>Gespeichert werden nur dein selbst gewählter Anzeigename und der Spielstand der laufenden Partie. Die Anmeldung ist anonym — es gibt kein Konto, keine E-Mail-Adresse und keine Verbindung zu deinen Vereinsdaten. Firebase legt dafür in deinem Browser eine zufällige Kennung ab; sie bleibt, bis du die Website-Daten löschst.</p>';
     h += '<p>Schließt der Erzähler den Raum, werden Raum, Namen und Spielstand gelöscht. Macht er stattdessen nur den Browser zu, bleibt der Raum mit den Anzeigenamen in der Datenbank stehen. Wer sicher gehen will, tippt am Ende „Raum schließen".</p>';
     h += '<p>Die Spieldaten laufen über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien. Wenn du das nicht möchtest, gib einen Spitznamen statt deines Namens ein.</p>';
     h += '<p class="leise">Verantwortlich: 1. SC 1911 Heiligenstadt e.V., Leineberg 2, 37308 Heilbad Heiligenstadt, <a href="mailto:info@sc1911-heiligenstadt.de" style="color:var(--akzent)">info@sc1911-heiligenstadt.de</a>. Auskunft, Berichtigung, Löschung und Widerspruch unter dieser Anschrift; Beschwerden beim Thüringer Landesbeauftragten für den Datenschutz und die Informationsfreiheit.</p>';
     h += '<p class="leise">„Werwolf" ist ein eigenständiges Spiel des Vereins nach dem bekannten Gesellschaftsspiel-Prinzip. Es steht in keiner Verbindung zum Verlag von „Die Werwölfe von Düsterwald".</p></div>';
-    h += '<h2>Änderungen</h2>';
-    for (const c of changelog) {
-      h += '<div class="karte"><h3>Fassung ' + esc(c.version) + '</h3>';
-      for (const g of c.groups) {
-        h += '<p><strong>' + esc(g.title) + '</strong></p><ul style="padding-left:20px">' + g.items.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>';
-      }
-      h += '</div>';
-    }
-    h += '<p class="fussnote">Fassung ' + esc(version) + '</p>';
     return h;
   }
 

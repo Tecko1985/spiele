@@ -1490,8 +1490,14 @@ const bildschirme = (function () {
     ui.scroll('roll-info', ui.hoeheRest(), function () {
       if (ui.knopf('btn-info-zurueck', '‹ Zurück', { art: 'link', abstand: 6 })) app.ansicht = 'start';
 
-      ui.titel('Depot-Duell', { abstand: 2 });
-      ui.absatz('Version ' + app.APP_VERSION, { groesse: 12, abstand: 12 });
+      ui.titel('Depot-Duell', { abstand: 12 });
+
+      // Was das Spiel kann. Die Bloecke standen hier schon; seit 07.09.2026
+      // tragen sie die Ueberschrift „Funktionen“ und stehen damit an der
+      // Stelle, die in der ganzen Flotte gleich heisst: Ueber X -> Funktionen
+      // -> Datenschutz. Die Aenderungsliste, die frueher ganz unten stand, ist
+      // weg; CHANGELOG in app.js bleibt gepflegt.
+      ui.titel('Funktionen', { groesse: 17, abstand: 8 });
 
       const bloecke = [
         ['So läuft es', 'Der Eröffner stellt ein, wie viel Startgeld es gibt, wie hoch die Ordergebühr ist und wie viel höchstens in einen einzelnen Wert darf. Gespielt wird in 20, 50 oder 100 Runden — zehn Runden sind ein Börsenjahr. Wer am Ende das wertvollste Depot hat, gewinnt.'],
@@ -1539,18 +1545,6 @@ const bildschirme = (function () {
       ui.absatz('Verantwortlich: 1. SC 1911 Heiligenstadt e.V., Leineberg 2, 37308 Heilbad Heiligenstadt, info@sc1911-heiligenstadt.de. Auskunft, Berichtigung, Löschung und Widerspruch unter dieser Anschrift; Beschwerden beim Thüringer Landesbeauftragten für den Datenschutz und die Informationsfreiheit.',
         { groesse: 12, abstand: 0 });
       ui.beendeKarte(griffDs);
-
-      ui.luecke(12);
-      ui.absatz('Änderungen', { fett: true, farbe: F.text, abstand: 6 });
-      for (const v of app.CHANGELOG) {
-        ui.absatz('Version ' + v.version, { fett: 'halb', farbe: F.text, groesse: 13, abstand: 2 });
-        for (const g of v.groups) {
-          for (const eintrag of g.items) {
-            ui.absatz('• ' + eintrag, { groesse: 12, links: 8, abstand: 2 });
-          }
-        }
-        ui.luecke(6);
-      }
     });
   }
 

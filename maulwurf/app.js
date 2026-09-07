@@ -895,7 +895,75 @@ function render(zustand) {
 
 // ---------- Info-Tab / Versionshistorie ----------
 const APP_VERSION = "1.0";
+
+// Was das Spiel kann — die Karte „Funktionen“ im Info-Reiter. Hier steht der
+// Zustand, nicht die Änderung: keine Versionsnummern, kein „neu“, kein „jetzt“.
+// CHANGELOG darunter bleibt gepflegt, angezeigt wird es seit 07.09.2026 nicht
+// mehr.
+const FUNKTIONEN = [
+  { title: "Was hier gespielt wird", items: [
+      "Ein Verräterspiel für 4 bis 15 Mitspielende auf einem Vereinsgelände, live auf allen Handys.",
+      "Das Team erledigt Aufgaben; ein oder zwei Maulwürfe stören unerkannt und ziehen Leute aus dem Verkehr.",
+      "Wer eine Leiche findet oder den Notfallknopf drückt, ruft alle zur Besprechung — danach wird abgestimmt.",
+      "Ein Gerät eröffnet den Raum, alle anderen treten mit dem Raumcode bei. Es ist nichts zu installieren."
+  ]},
+  { title: "So läuft eine Runde", items: [
+      "Alle starten in der Cafeteria. Die ersten zehn Sekunden ist der Ausschalten-Knopf gesperrt und zählt sichtbar herunter.",
+      "Gearbeitet wird an 35 Stationen mit 17 verschiedenen Minispielen; jede Runde ist anders zusammengesetzt.",
+      "Fünf Aufgaben sind sichtbar (👁): wer dabei zusieht, weiß, dass wirklich gearbeitet wurde. Das ist das einzige harte Alibi im Spiel.",
+      "Ausgeschlossene spielen als Geist weiter und arbeiten ihre Aufgaben zu Ende."
+  ]},
+  { title: "Das Gelände", items: [
+      "14 Räume, 10 Flure und 25 Türen. Fünf Sackgassen mit nur einer Tür: Sicherheit, Krankenstation, Elektrik, Kommunikation und Verwaltung.",
+      "Wände nehmen die Sicht — Mitspielende sieht man nur in direkter Sichtlinie, und ein Foulspiel quer durch die Wand geht nicht.",
+      "↧ In den Abkürzungen hält man sich auf, statt nur durchzuspringen: drinnen ist man unsichtbar, kann zwischen den Enden wechseln und steigt per Knopf aus.",
+      "📹 Vier Kameras hängen in den Fluren vor Navigation, Verwaltung, Krankenstation und Reaktor. Wer am Pult zusieht, wird verraten: die Kameras blinken dann rot."
+  ]},
+  { title: "Was Maulwürfe können", items: [
+      "Leute ausschalten, Abkürzungen nehmen, das Licht kappen, den Reaktor überhitzen, den Funk stören und Räume verriegeln.",
+      "📻 Ist der Funk gestört, fallen Kameras und Aufgabenliste aus, bis jemand am Funkpult in der Kommunikation war.",
+      "Einstellbar ist, ob nach einem Rauswurf verraten wird, ob es wirklich ein Maulwurf war."
+  ]},
+  { title: "Zwei Spielarten", items: [
+      "🕵️ Klassisch: verdeckte Maulwürfe, Leiche melden, Besprechung und Abstimmung — das volle Spiel.",
+      "🥅 Verstecken: genau ein Fänger, von Beginn an für alle sichtbar. Keine Besprechung, keine Abstimmung, keine Sabotage.",
+      "Im Verstecken-Modus sieht der Fänger am wenigsten und tastet sich an einer Nähe-Anzeige entlang, die nur die Entfernung verrät, nie die Richtung.",
+      "Das Team gewinnt durch alle Aufgaben oder indem es die Zeit übersteht; Vorsprung und Zeitlimit sind einstellbar."
+  ]},
+  // Aus rollen.js erzeugt, nicht abgeschrieben: doppelt gepflegt liefen die
+  // Texte auseinander. Jede Zeile nennt Können UND Preis — eine Rolle ohne
+  // Einschränkung liest sich sonst wie ein Geschenk.
+  { title: "Sonderrollen (einzeln zuschaltbar)", items:
+      Object.keys(rollenModul.SONDERROLLEN).map(id => {
+        const r = rollenModul.SONDERROLLEN[id];
+        const seite = r.seite === "maulwurf" ? "Maulwurf-Rolle" : "Team-Rolle";
+        return `${r.icon} ${r.name} (${seite}): ${r.koennen} ⚖️ ${r.haken}`;
+      })
+  },
+  { title: "Am Handy", items: [
+      "Quer halten: das Spielfeld läuft formatfüllend über den ganzen Bildschirm.",
+      "Vollbild lässt sich jederzeit über das Symbol oben rechts ein- und ausschalten.",
+      "Steuerkreuz und Aktionsknöpfe lassen sich gleichzeitig bedienen: ein Daumen läuft, der andere tippt."
+  ]},
+  { title: "Grenzen", items: [
+      "KI-Mitspieler gibt es zum Ausprobieren, wenn gerade niemand sonst da ist — sie ersetzen keine echte Runde.",
+      "Ergebnisse werden nicht aufgehoben; es gibt keine Bestenliste.",
+      "Die Rollen zieht jedes Handy selbst aus einem anonym gemischten Stapel — auch das Gerät des Gastgebers erfährt nichts. Fremde Rollen sind serverseitig gesperrt, nicht nur ausgeblendet.",
+      "Gespeichert werden nur der Anzeigename, die eigene Position und der Spielstand der laufenden Partie; mit dem Ende der Partie wird der Raum gelöscht."
+  ]}
+];
+
 const CHANGELOG = [
+  {
+    version: "1.9",
+    groups: [
+      { title: "Im Info-Reiter steht jetzt, was das Spiel kann", items: [
+          "Die Liste der Änderungen ist aus dem Info-Reiter verschwunden.",
+          "Stattdessen steht dort die Karte „Funktionen“: was das Spiel kann, nach Themen geordnet.",
+          "Was sich geändert hat, steht weiterhin in den Neuigkeiten auf der Startseite der Tools-Übersicht."
+      ]}
+    ]
+  },
   {
     version: "1.8",
     groups: [

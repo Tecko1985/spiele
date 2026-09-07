@@ -144,6 +144,14 @@
   .changelog-entry .cg:first-of-type { margin-top: 0; }
   .changelog-entry ul { margin: 0; padding-left: 20px; color: var(--muted); line-height: 1.6; }
 
+  /* Die Karte "Funktionen" teilt sich die Optik mit der frueheren
+     Aenderungsliste. font-size gehoert mit: die Schriftgroesse hing an
+     .changelog-entry, und genau diese Klasse hat die Funktionen-Karte nicht. */
+  #funktionen-list { display: flex; flex-direction: column; gap: 18px; font-size: 13px; }
+  .changelog-group { display: flex; flex-direction: column; gap: 4px; }
+  .changelog-group .cg-title { font-weight: 700; font-size: 14px; color: var(--primary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
+  .changelog-group .cg-items { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; color: var(--text); line-height: 1.6; }
+
   /* Datenschutz-Karte: der Absatz zu Firebase stand als fetter Satz mitten im
      Fliesstext -- er ist jetzt eine Ueberschrift mit Trennlinie darueber. Der
      Text ist dabei Wort fuer Wort unveraendert geblieben. Gleiche Bauform wie
@@ -257,16 +265,19 @@
 
  <div class="tab-section" id="tab-info">
    <div class="info-card">
-     <h2>Über die Spiele <span class="version-badge" id="version-badge-2"></span></h2>
+     <h2>Über die Spiele</h2>
      <p>
        Kleine Spiele fürs Team — gedacht für die Busfahrt zum Auswärtsspiel. Jedes Spiel
        läuft direkt im Browser, ohne Installation. Für die Mehrspieler-Partien öffnet ein
        Gerät den Raum, die anderen treten mit dem Raumcode bei.
      </p>
    </div>
+   <!-- Was die Sammlung kann. Quelle ist APP_FUNKTIONEN weiter unten in dieser
+        Datei — bewusst getrennt von APP_CHANGELOG, das seit 07.09.2026 nicht
+        mehr angezeigt wird. Hier steht der Zustand, dort die Historie. -->
    <div class="info-card">
-     <h2>Änderungen</h2>
-     <div id="changelog-list"></div>
+     <h2>Funktionen</h2>
+     <div id="funktionen-list"></div>
    </div>
  
     <div class="card" id="ds-info-karte">
@@ -304,7 +315,90 @@
 
 <script>
   const APP_VERSION = "1.0";
+
+  // Was die Sammlung kann — die Karte „Funktionen“ im Info-Reiter. Hier steht
+  // der Zustand, nicht die Änderung: keine Versionsnummern, kein „neu“, kein
+  // „jetzt“. Die Historie bleibt in APP_CHANGELOG darunter stehen und wird
+  // weitergepflegt, angezeigt wird sie seit 07.09.2026 nicht mehr.
+  const APP_FUNKTIONEN = [
+    {
+      title: "Die Sammlung",
+      items: [
+        "Sieben Spiele fürs Team — gedacht für die Busfahrt zum Auswärtsspiel, den Vereinsabend und die Trainingspause.",
+        "Jedes Spiel läuft direkt im Browser, es ist nichts zu installieren.",
+        "Bei den Mehrspieler-Partien eröffnet ein Gerät den Raum, alle anderen treten mit dem Raumcode bei.",
+        "Wer die Sammlung öffnen darf, kann jedes Spiel starten — innerhalb der Spiele gibt es keine Rechte-Stufen."
+      ]
+    },
+    {
+      title: "Quartett in drei Ausgaben",
+      items: [
+        "Auto-Quartett, Fußball-Quartett mit 500 realen Spielern und Fußball-Vereine-Quartett mit 500 realen Vereinen.",
+        "Reihum sagt jemand eine Eigenschaft seiner obersten Karte an; der höchste Wert gewinnt alle Karten des Stichs.",
+        "Bis zu 8 Mitspielende, die eigene Hand sieht nur man selbst. Bei Gleichstand geht der Pott in die Bockrunde.",
+        "Wer in der Tools-Übersicht als Administrator angemeldet ist, pflegt Karten und Vergleichswerte direkt in der App."
+      ]
+    },
+    {
+      title: "Der Maulwurf",
+      items: [
+        "Verräterspiel für 4 bis 15 Mitspielende auf einem Vereinsgelände mit 14 Räumen, 17 Aufgaben-Minispielen und Sabotagen.",
+        "Das Team erledigt Aufgaben, ein oder zwei Maulwürfe stören unerkannt. Wer eine Leiche findet oder den Notfallknopf drückt, ruft alle zur Besprechung mit Abstimmung.",
+        "Zwei Spielarten: klassisch mit Besprechung, oder Verstecken mit einem sichtbaren Fänger, Vorsprung und Zeitlimit.",
+        "Zuschaltbare Sonderrollen für beide Seiten. Am besten quer halten — das Spiel legt sich dafür formatfüllend hin."
+      ]
+    },
+    {
+      title: "Depot-Duell",
+      items: [
+        "Börsenspiel mit Spielgeld: 250 echte Aktien, ETFs und Kryptowährungen mit echten Startkursen und Kennzahlen.",
+        "Gespielt wird in 20, 50 oder 100 Runden. Die Kurse ziehen erst weiter, wenn alle so weit sind — es tickt keine Uhr.",
+        "Nachrichten und Gerüchte stehen über allem und wirken erst auf den nächsten Kursschritt; man hat Zeit, darauf zu reagieren.",
+        "Der Eröffner stellt Startgeld, Ordergebühr und Höchstanteil je Wert ein. Mit bis zu fünf KI-Mitspielern geht es auch allein."
+      ]
+    },
+    {
+      title: "Letzte Karte",
+      items: [
+        "Kartenspiel nach Uno-Art für 2 bis 10 Leute an eigenen Handys, dazu KI-Mitspieler.",
+        "Gelegt wird, was in Farbe oder Zeichen passt; Sonderkarten drehen die Richtung um, setzen aus oder lassen ziehen.",
+        "Drei Spielarten: Klassisch, Wende mit doppelseitigen Karten und Gnadenlos mit Ausscheiden.",
+        "Bedenkzeit je Zug einstellbar; wer mehrmals verpasst, wird von der KI übernommen, damit die Partie zu Ende läuft."
+      ]
+    },
+    {
+      title: "Werwolf",
+      items: [
+        "Die Werwölfe von Düsterwald für 5 bis 20 Spieler an eigenen Handys. Die App ersetzt den Spielleiter und ruft nachts jede Rolle einzeln auf.",
+        "Das Gerät des Eröffners ist der Erzähler und liest die Ansagen vor. Der Eröffner spielt selbst mit oder legt sein Handy nur in die Mitte.",
+        "13 Rollen von Dorfbewohner bis Flötenspieler. Die eigene Rolle erscheint nur, solange der Finger auf der Karte liegt."
+      ]
+    },
+    {
+      title: "Daten und Grenzen",
+      items: [
+        "Gespeichert werden nur der selbst gewählte Anzeigename und der Spielstand der laufenden Partie. Es gibt kein Konto und keine Verbindung zu den Vereinsdaten.",
+        "Ergebnisse werden nicht aufgehoben — es gibt in keinem Spiel eine Bestenliste.",
+        "Damit mehrere Geräte dieselbe Partie sehen, laufen die Spieldaten über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien. Wer das nicht möchte, gibt einen Spitznamen statt des echten Namens ein.",
+        "Jedes einzelne Spiel hat denselben Hinweis in seinem eigenen Info-Bereich, samt Anschrift des Vereins und Beschwerdestelle."
+      ]
+    }
+  ];
+
   const APP_CHANGELOG = [
+    {
+      version: "1.2",
+      groups: [
+        {
+          title: "Im Info-Reiter steht jetzt, was die Sammlung kann",
+          items: [
+            "Die Liste der Änderungen und die Versionsnummer sind aus dem Info-Reiter verschwunden.",
+            "Stattdessen steht dort die Karte „Funktionen“: was die Sammlung kann, nach Themen geordnet — dasselbe gilt im Info-Bereich jedes einzelnen Spiels.",
+            "Was sich geändert hat, steht weiterhin in den Neuigkeiten auf der Startseite der Tools-Übersicht."
+          ]
+        }
+      ]
+    },
     {
       version: "1.1",
       groups: [
@@ -385,9 +479,42 @@
     document.querySelectorAll(".tab-section").forEach((s) => s.classList.toggle("active", s.id === "tab-" + name));
   }
 
+  // Die Karte „Funktionen“ im Info-Reiter. Diese Seite hat keine
+  // escapeHtml-Hilfe, darum wird der Text mit textContent gesetzt statt mit
+  // innerHTML.
+  function renderFunktionen() {
+    const ziel = document.getElementById("funktionen-list");
+    if (!ziel) return;
+    ziel.textContent = "";
+    APP_FUNKTIONEN.forEach((gruppe) => {
+      const block = document.createElement("div");
+      block.className = "changelog-group";
+      const titel = document.createElement("div");
+      titel.className = "cg-title";
+      titel.textContent = gruppe.title;
+      block.appendChild(titel);
+      const liste = document.createElement("ul");
+      liste.className = "cg-items";
+      gruppe.items.forEach((punkt) => {
+        const zeile = document.createElement("li");
+        zeile.textContent = punkt;
+        liste.appendChild(zeile);
+      });
+      block.appendChild(liste);
+      ziel.appendChild(block);
+    });
+  }
+
+  // Die Änderungsliste steht seit 07.09.2026 NICHT mehr im Info-Reiter: dort
+  // sollen nur die Funktionen stehen. APP_CHANGELOG bleibt in dieser Datei
+  // gepflegt und wird weiter geschrieben — es ist die Quelle für die Anleitung
+  // und für die Neuigkeiten-Meldungen. Diese Funktion steigt darum still aus,
+  // wenn es das Ziel nicht gibt, statt beim Seitenstart abzubrechen. Ebenso die
+  // Versionsplakette: sie stand nur im Info-Reiter und ist mit ihm weg.
   function renderVersionInfo() {
-    document.querySelectorAll("#version-badge, #version-badge-2").forEach((el) => { if (el) el.textContent = "v" + APP_VERSION; });
-    document.getElementById("changelog-list").innerHTML = APP_CHANGELOG.map((entry) => `
+    const ziel = document.getElementById("changelog-list");
+    if (!ziel) return;
+    ziel.innerHTML = APP_CHANGELOG.map((entry) => `
       <div class="changelog-entry">
         <div class="cv">Version ${entry.version}</div>
         ${entry.groups.map((g) => `<div class="cg">${g.title}</div><ul>${g.items.map((i) => `<li>${i}</li>`).join("")}</ul>`).join("")}
@@ -397,6 +524,7 @@
   document.querySelectorAll("nav button[data-tab]").forEach((b) => {
     b.addEventListener("click", () => activateTab(b.dataset.tab));
   });
+  renderFunktionen();
   renderVersionInfo();
 </script>
 

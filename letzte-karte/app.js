@@ -15,7 +15,79 @@
    die Versionsnummer wird nicht hochgezählt (Flottenregel). */
 const APP_VERSION = '1.0';
 
+/* Was das Spiel kann — die Karte „Funktionen“ im Info-Bereich. Hier steht der
+   Zustand, nicht die Änderung: keine Versionsnummern, kein „neu“, kein „jetzt“.
+   CHANGELOG darunter bleibt gepflegt, angezeigt wird es seit 07.09.2026 nicht
+   mehr. */
+const FUNKTIONEN = [
+  {
+    title: 'Was hier gespielt wird',
+    items: [
+      'Ein Ablegespiel nach Uno-Art für 2 bis 10 Leute an eigenen Handys, verbunden über einen sechsstelligen Raum-Code.',
+      'Ein Gerät eröffnet die Partie, alle anderen treten mit dem Code bei. Es ist nichts zu installieren.',
+      'Kein Vereinskonto nötig: die Anmeldung ist anonym, gespeichert wird nur der selbst gewählte Anzeigename.',
+    ],
+  },
+  {
+    title: 'So läuft eine Runde',
+    items: [
+      'Gelegt wird, was in Farbe oder Zeichen zur offenen Karte passt.',
+      'Passt nichts, zieht man eine — und darf sie sofort legen, wenn sie passt.',
+      'Bei der vorletzten Karte auf „Letzte Karte!“ drücken. Wer es vergisst, kann von jedem erwischt werden und zieht zwei nach.',
+      'Wer als Erster alle Karten los ist, gewinnt die Runde; danach steht der Zwischenstand mit allen Punkten.',
+    ],
+  },
+  {
+    title: 'Drei Spielarten',
+    items: [
+      'Klassisch: 108 Karten, vier Farben, Null bis Neun, dazu Aussetzen, Richtungswechsel und Zwei ziehen.',
+      'Wende: 112 doppelseitige Karten. Eine Wendekarte dreht das ganze Spiel auf die dunkle Seite — andere Farben, Fünf ziehen statt Eins, und die eigene Hand ändert sich mit.',
+      'Gnadenlos: 168 Karten mit Vier, Sechs und Zehn ziehen. Bei 25 Karten auf der Hand ist man raus, gespielt wird bis nur einer steht.',
+      'Der Eröffner wählt die Spielart vor der Partie.',
+    ],
+  },
+  {
+    title: 'Regeln, die mitgebaut sind',
+    items: [
+      'Zieh-Karten lassen sich stapeln: eine gleich hohe oder höhere reicht die ganze Strafe weiter.',
+      'Farbwahl-Ziehkarten lassen sich anfechten. Die Hand des Legers wird dabei für alle kurz aufgedeckt, damit das Urteil nachvollziehbar ist.',
+      'Zu zweit wirkt der Richtungswechsel wie Aussetzen.',
+    ],
+  },
+  {
+    title: 'Damit die Partie nicht hängen bleibt',
+    items: [
+      'Bis zu fünf KI-Mitspieler mit erkennbaren Spielweisen — damit es auch zu zweit oder allein losgeht.',
+      'Bedenkzeit je Zug einstellbar: 30, 60 oder 120 Sekunden, oder ganz aus. Läuft sie ab, wird für den Trödler gezogen und weitergeschaltet.',
+      'Wer dreimal hintereinander verpasst, wird von der KI übernommen; die Partie läuft immer zu Ende.',
+      'Nach einem Neuladen landet man wieder in der eigenen Partie statt auf dem Startbildschirm.',
+    ],
+  },
+  {
+    title: 'Länge und Grenzen',
+    items: [
+      'Eine Runde für zwischendurch, oder eine Serie bis 500 Punkte (bei Gnadenlos 1000).',
+      'Ergebnisse werden nicht aufgehoben — es gibt keine Bestenliste.',
+      'Die Kartendecks stehen fest; sie lassen sich nicht über die Oberfläche ändern.',
+      'Die Spieldaten laufen über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien; mit dem Ende der Partie wird der Raum gelöscht.',
+    ],
+  },
+];
+
 const CHANGELOG = [
+  {
+    version: '1.7',
+    groups: [
+      {
+        title: 'Im Info-Bereich steht jetzt, was das Spiel kann',
+        items: [
+          'Die Liste der Änderungen und die Fassungsnummer sind aus dem Info-Bereich verschwunden.',
+          'Stattdessen steht dort „Funktionen“: was das Spiel kann, nach Themen geordnet.',
+          'Was sich geändert hat, steht weiterhin in den Neuigkeiten auf der Startseite der Tools-Übersicht.',
+        ],
+      },
+    ],
+  },
   {
     version: '1.6',
     groups: [
@@ -175,6 +247,9 @@ let meldungTimer = null;
 
 const app = {
   APP_VERSION: APP_VERSION,
+  FUNKTIONEN: FUNKTIONEN,
+  /* CHANGELOG wird seit 07.09.2026 nicht mehr gezeichnet, bleibt aber gepflegt
+     und hier haengen: es ist die Quelle fuer Anleitung und Neuigkeiten. */
   CHANGELOG: CHANGELOG,
 
   /* Reine Geräte-Ansichten, solange man in keinem Raum ist. */

@@ -834,7 +834,61 @@ function szene() {
 -------------------------------------------------------------------------- */
 
 const APP_VERSION = "1.0";
+
+/* Was das Spiel kann — die Karte „Funktionen“ im Info-Reiter. Hier steht der
+   Zustand, nicht die Änderung: keine Versionsnummern, kein „neu“, kein „jetzt“.
+   CHANGELOG darunter bleibt gepflegt, angezeigt wird es seit 07.09.2026 nicht
+   mehr.
+   ⚠️ Diese Liste steht in ALLEN DREI Quartetts (gemeinsame app.js) — sie muss
+   für Auto-, Fußball- und Vereine-Quartett gleichermaßen stimmen. Was nur für
+   ein einzelnes Spiel gilt, gehört in SPIEL_CONFIG.infoText, nicht hierher. */
+const FUNKTIONEN = [
+  { title: "Was hier gespielt wird", items: [
+      "Quartett auf mehreren Geräten gleichzeitig: ein Gerät eröffnet den Raum, alle anderen treten mit dem Raumcode bei.",
+      "Bis zu 8 Mitspielende. Die eigene Hand sieht nur man selbst.",
+      "Es ist nichts zu installieren und es braucht kein Konto — nur den Raumcode."
+  ]},
+  { title: "So läuft eine Runde", items: [
+      "Wer am Zug ist, sagt eine Eigenschaft seiner obersten Karte an.",
+      "Alle Karten werden verglichen; der höchste Wert gewinnt den Stich und damit die Karten aller Mitspielenden.",
+      "Bei Gleichstand kommt die Bockrunde: der Pott geht an die nächste gewonnene Runde.",
+      "Weiter geht es, sobald alle Menschen am Tisch getippt haben — auf KI-Mitspielende wartet niemand."
+  ]},
+  { title: "Allein spielen", items: [
+      "Im Warteraum lassen sich Test-Spieler dazusetzen, wenn gerade niemand sonst da ist.",
+      "Sie spielen mit einer einfachen KI und halten die Partie am Laufen."
+  ]},
+  { title: "Die Karten", items: [
+      "Karten ohne eigenes Foto zeigen eine gezeichnete Silhouette: im Auto-Quartett das Fahrzeug nach seinem Typ, im Fußball-Quartett ein Trikot nach der Position und im Vereine-Quartett ein Wappen.",
+      "Die Silhouetten sind gezeichnet, nicht geladen — es wird nichts nachgeladen, und sie sind auf jedem Display scharf.",
+      "Ein Foto auf der Karte lässt sich antippen und dann groß ansehen.",
+      "Werte stehen mit Tausenderpunkten, damit große Zahlen auf einen Blick lesbar sind."
+  ]},
+  { title: "Für Administratoren", items: [
+      "Wer in der Tools-Übersicht als Administrator angemeldet ist, sieht auf dem Startbildschirm den Knopf „✏️ Karten“; für alle anderen bleibt er verborgen.",
+      "Karten lassen sich anlegen, umbenennen, mit eigenem Foto versehen und in ihren Werten ändern.",
+      "Eine selbst angelegte Karte lässt sich löschen, eine geänderte Originalkarte auf das Original zurücksetzen.",
+      "Unter „Kriterien bearbeiten“ steht, welche Werte auf den Karten verglichen werden."
+  ]},
+  { title: "Grenzen", items: [
+      "Ergebnisse werden nicht aufgehoben — es gibt keine Bestenliste.",
+      "Mit dem Ende der Partie wird der Raum gelöscht; ein verlassener Raum räumt sich von selbst auf.",
+      "Gespeichert werden nur der selbst gewählte Anzeigename und der Spielstand der laufenden Partie.",
+      "Die Spieldaten laufen über die Echtzeit-Datenbank von Google (Firebase), Rechenzentrum in Belgien."
+  ]}
+];
+
 const CHANGELOG = [
+  {
+    version: "1.9",
+    groups: [
+      { title: "Im Info-Reiter steht jetzt, was das Spiel kann", items: [
+          "Die Liste der Änderungen und die Versionsnummer sind aus dem Info-Reiter verschwunden.",
+          "Stattdessen steht dort die Karte „Funktionen“: was das Spiel kann, nach Themen geordnet.",
+          "Was sich geändert hat, steht weiterhin in den Neuigkeiten auf der Startseite der Tools-Übersicht."
+      ]}
+    ]
+  },
   {
     version: "1.8",
     groups: [

@@ -8,7 +8,25 @@
    die Versionsnummer wird nicht hochgezählt (Flottenregel). */
 const APP_VERSION = '1.0';
 
+/* Die Aenderungsliste steht seit 07.09.2026 NICHT mehr im Info-Bereich: dort
+   sollen nur die Funktionen des Spiels stehen — die Bloecke unter der
+   Ueberschrift „Funktionen“ in bildschirme.js. CHANGELOG bleibt hier gepflegt
+   und wird weiter geschrieben; es ist die Quelle fuer die Anleitung und fuer
+   die Neuigkeiten-Meldungen. */
 const CHANGELOG = [
+  {
+    version: '1.9',
+    groups: [
+      {
+        title: 'Im Info-Bereich steht jetzt, was das Spiel kann',
+        items: [
+          'Die Liste der Änderungen und die Versionsnummer sind aus dem Info-Bereich verschwunden.',
+          'Was das Spiel kann, steht dort unverändert — jetzt unter der Überschrift „Funktionen“, über dem Datenschutz-Hinweis.',
+          'Was sich geändert hat, steht weiterhin in den Neuigkeiten auf der Startseite der Tools-Übersicht.'
+        ]
+      }
+    ]
+  },
   {
     version: '1.8',
     groups: [
