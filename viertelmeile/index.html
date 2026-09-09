@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Viertelmeile</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12100e">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="style.css?v=1.0">
+</head>
+<body>
+
+<div id="app">
+  <div class="oben">
+    <header class="kopf" id="kopf"></header>
+    <nav class="reiter" id="reiter"></nav>
+  </div>
+  <main id="inhalt"><p class="leise mitte">Verbinde …</p></main>
+</div>
+
+<div id="rennflaeche" hidden>
+  <canvas id="leinwand"></canvas>
+</div>
+
+<div id="drehen" hidden>
+  <div class="symbol">📱</div>
+  <h2>Handy quer halten</h2>
+  <p class="leise">Gefahren wird im Querformat. Dreh das Handy, dann geht es weiter.</p>
+</div>
+
+<div id="meldung" hidden></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="firebase-config.js?v=1.0"></script>
+<!-- Reihenfolge zwingend: physik -> autos -> bot -> turnier -> ton ->
+     rennen -> game-service -> bildschirme -> app. Jede Datei benutzt die
+     vorherigen; app.js startet die Oberfläche und kommt zuletzt. -->
+<script src="physik.js?v=1.0"></script>
+<script src="autos.js?v=1.0"></script>
+<script src="bot.js?v=1.0"></script>
+<script src="turnier.js?v=1.0"></script>
+<script src="ton.js?v=1.0"></script>
+<script src="rennen.js?v=1.0"></script>
+<script src="game-service.js?v=1.0"></script>
+<script src="bildschirme.js?v=1.0"></script>
+<script src="app.js?v=1.0"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+</script>
+</body>
+</html>

@@ -16,6 +16,7 @@ Sammlung kleiner Spiele für Vereinsabende, Trainingspausen und die Busfahrt zum
 | [Depot-Duell](https://sc1911heiligenstadt.github.io/spiele/depot-duell/) | Börsenspiel mit Spielgeld: 250 echte Werte, rundenweise, mit KI-Mitspielern |
 | [Letzte Karte](https://sc1911heiligenstadt.github.io/spiele/letzte-karte/) | Ablegespiel (Uno-Klon) in drei Spielarten, 2 bis 10 Mitspielende |
 | [Werwolf](https://sc1911heiligenstadt.github.io/spiele/werwolf/) | Die Werwölfe von Düsterwald an eigenen Handys, 5 bis 20 Mitspielende — die App ist der Erzähler |
+| [Viertelmeile](https://sc1911heiligenstadt.github.io/spiele/viertelmeile/) | Drag Race quer am Handy, 2 bis 20 Fahrende — einer gegen einen, als Liga oder K.-o. |
 
 ## Nur zum Testen
 
@@ -28,6 +29,16 @@ für die Entwicklung gedacht, nicht für Mitspielende:
 | `letzte-karte/pflege/test-harness.html` | Letzte Karte ohne Firebase, mehrere Handys nebeneinander im selben Fenster |
 | `werwolf/pflege/test-harness.html` | Werwolf-Testrahmen mit mehreren Geräten |
 | `werwolf/pflege/client.html` | Ein einzelnes „Handy“ innerhalb des Werwolf-Testrahmens |
+
+Viertelmeile hat statt eines Browser-Rahmens vier Prüfstände für Node, die
+ohne Fenster laufen — Aufruf jeweils aus `viertelmeile/`:
+
+| Aufruf | Was geprüft wird |
+|---|---|
+| `node pflege/pruefe-fahrt.js` | Fahrphysik: Zeiten je Auto, Bot-Stufen, fester Rechentakt, Frühstart, Burnout, was ein Fehler kostet |
+| `node pflege/pruefe-turnier.js` | Paarungen und Tabelle für Liga und K.-o., 2 bis 20 Fahrende |
+| `node pflege/pruefe-rennen.js` | Das Rennbild selbst: Zeitplan, Tipper, Abbruchbedingungen — mit Attrappen für Zeichenfläche und Uhr |
+| `node pflege/pruefe-turnierlauf.js` | Ein ganzes Turnier über den echten `game-service.js`, mehrere Geräte auf einem Datenbaum |
 
 Die Kurse des Depot-Duells werden über die Skripte in `depot-duell/pflege/`
 aufgefrischt; die Anleitung dazu steht in `depot-duell/pflege/PFLEGE.md`.

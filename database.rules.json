@@ -203,6 +203,70 @@
       }
     },
 
+"viertelmeile": {
+      "raeume": {
+        ".read": true,
+        "$code": {
+          ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid) || (!newData.exists() && data.child('hostId').val() === auth.uid))",
+          "phase": { ".write": "auth != null && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "sicht": { ".write": "auth != null && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "abgebrochen": { ".write": "auth != null && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid" },
+          "einstellungen": { ".write": "auth != null && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid && root.child('viertelmeile/raeume/' + $code + '/phase').val() === 'lobby'" },
+          "spieler": {
+            "$uid": {
+              ".write": "auth != null && ($uid === auth.uid || root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid) && (data.exists() || root.child('viertelmeile/raeume/' + $code + '/phase').val() === 'lobby')",
+              ".validate": "!newData.exists() || (newData.hasChildren(['name','lack','beigetreten','reihe']) && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 24 && newData.child('lack').isString() && newData.child('lack').val().length <= 12 && newData.child('beigetreten').isNumber() && newData.child('reihe').isNumber())",
+              "$sonst": { ".validate": "$sonst === 'name' || $sonst === 'lack' || $sonst === 'beigetreten' || $sonst === 'reihe'" }
+            }
+          }
+        }
+      },
+
+      "praesenz": {
+        "$code": {
+          ".read": "auth != null",
+          ".write": "auth != null && !newData.exists() && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$uid": {
+            ".write": "auth != null && $uid === auth.uid",
+            ".validate": "!newData.exists() || (newData.hasChild('zeit') && newData.child('zeit').val() === now)"
+          }
+        }
+      },
+
+      "laeufe": {
+        "$code": {
+          ".read": true,
+          ".write": "auth != null && !newData.exists() && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$runde": {
+            ".write": "auth != null && !newData.exists() && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid",
+            "$uid": {
+              ".write": "auth != null && !data.exists() && newData.exists() && ($uid === auth.uid || $uid.beginsWith('bot-'))"
+            }
+          }
+        }
+      },
+
+      "positionen": {
+        "$code": {
+          ".read": true,
+          ".write": "auth != null && !newData.exists() && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid",
+          "$runde": {
+            ".write": "auth != null && !newData.exists() && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid",
+            "$uid": {
+              ".write": "auth != null && $uid === auth.uid"
+            }
+          }
+        }
+      },
+
+      "geheim": {
+        "$code": {
+          ".read": "auth != null && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid",
+          ".write": "auth != null && root.child('viertelmeile/raeume/' + $code + '/hostId').val() === auth.uid"
+        }
+      }
+    },
+
     "werwolf": {
       "raeume": {
         ".read": true,
