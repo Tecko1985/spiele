@@ -23,16 +23,49 @@ const physik = (function () {
   const SCHALT_LEER = 0.16;     // Sekunden ohne Vortrieb beim Gangwechsel
   const SCHUB = 0.8;            // m/s Extra für einen perfekten Treffer
 
-  /* Seitliches Ausbrechen */
-  const ZUGKRAFT = 3.6;         // wie hart es zieht
-  const LENKKRAFT = 4.2;        // wie hart man dagegenhält
-  const RUECKSTELLUNG = 2.8;    // Auto zieht von selbst in die Mitte
-  const DAEMPFUNG = 2.2;
-  const SCHLEIFEN = 14;         // Tempoverlust beim Schleifen (quadratisch)
-  const SCHLEIF_AB = 0.15;      // darunter kostet ein Wackeln nichts
-  const LENK_DAUER = 0.30;      // wie lange ein Tipper aufs Lenkfeld wirkt
-  const ZUG_DAUER = 1.25;       // wie lange ein Ausbrecher dauert
-  const WARNUNG = 0.70;         // so früh blinkt der Pfeil
+  /* ----------------------------------------------------------------------
+     Seitliches Ausbrechen
+     ----------------------------------------------------------------------
+     ⚠️ HIER WIRD TEMPO GESETZT, NICHT KRAFT. Der erste Entwurf beschleunigte
+     die Seitwärtsbewegung (Kraft, Dämpfung, Rückstellung — ein Feder-Masse-
+     System). Das fühlt sich beim Fahren wie ein Fehler an: hält man dagegen,
+     dauert es, bis überhaupt etwas passiert, und dann schießt das Auto über
+     die Mitte hinaus und man muss auf die andere Seite. Gemessen kam ein
+     Fahrer, der nach einer halben Sekunde gegenhält, in vier von zehn Fällen
+     trotzdem über die Linie — und zwar UNABHÄNGIG davon, wie stark man das
+     Lenken machte: mehr Kraft hieß nur mehr Übersteuern.
+
+     Jetzt bestimmen Zug und Lenken direkt, wie schnell das Auto zur Seite
+     wandert. Halten bringt es sofort zurück, Loslassen stoppt es sofort. Kein
+     Nachschwingen, kein Gegenpendeln — und man kann sich ausrechnen, was
+     passiert, während man es tut. `ANSPRECH` glättet nur die Optik.
+     ---------------------------------------------------------------------- */
+  const ZUG_TEMPO = 0.70;       // Bahnbreiten je Sekunde, wenn es zieht
+  const LENK_TEMPO = 1.05;      // Bahnbreiten je Sekunde beim Gegenhalten
+  const RUECK_TEMPO = 0.10;     // sanftes Zurückwandern zur Mitte
+  const ANSPRECH = 0.12;        // Sekunden, bis das Auto der Vorgabe folgt
+  const SCHLEIFEN = 30;         // Tempoverlust beim Schleifen (quadratisch)
+  const SCHLEIF_AB = 0.10;      // darunter kostet ein Wackeln nichts
+  /* ⚠️ GELENKT WIRD DURCH HALTEN, NICHT DURCH TIPPEN.
+     Der erste Entwurf ließ einen Tipper 0,30 s wirken — ein Ausbrecher dauert
+     aber 1,25 s. Man musste also fünfmal hintereinander auf ein schmales Feld
+     hämmern, während gleichzeitig der Tacho im Blick bleiben soll. Michels
+     Urteil nach dem ersten Fahren: „das Auto in der Spur halten ist
+     unmöglich". Der Prüf-Fahrer hatte es nicht gemerkt, weil er achtmal je
+     Ausbrecher tippte — was kein Daumen tut.
+     Jetzt wirkt das Lenkfeld, SOLANGE der Finger daraufliegt. `MIN_LENK` ist
+     nur die Untergrenze, damit ein kurzer Tipper nicht wirkungslos bleibt. */
+  const MIN_LENK = 0.20;        // so lange wirkt auch der kürzeste Tipper
+  /* ⚠️ LANG UND SANFT, NICHT KURZ UND BRUTAL. Erst dauerte ein Ausbrecher
+     1,25 s und war so stark, dass er in dieser Zeit bis über die Linie reichte.
+     Damit war jede Zehntelsekunde Verzug tödlich: wer erst nach einer halben
+     Sekunde griff, stand schon bei 0,6 und kippte beim kleinsten Nachfassen
+     hinaus. Jetzt zieht es fast doppelt so lang, dafür halb so schnell — wer
+     gar nichts tut, landet genauso an der Linie, aber man hat Zeit, in Ruhe
+     dagegenzuhalten. Genau das ist der Unterschied zwischen "zackig" und
+     "unmöglich". */
+  const ZUG_DAUER = 1.80;       // wie lange ein Ausbrecher dauert
+  const WARNUNG = 0.90;         // so früh blinkt der Pfeil
 
   /* ----------------------------------------------------------------------
      Zufall mit Saat — beide Geräte müssen dasselbe würfeln
@@ -150,8 +183,10 @@ const physik = (function () {
       leerlaufBis: -1,      // solange kein Vortrieb (Kupplung)
       versatz: 0,           // seitlich, -1 bis 1
       seitTempo: 0,
-      lenkBis: -1,
+      lenkBis: -1,              // Nachlauf eines kurzen Tippers
       lenkRichtung: 0,
+      lenkGehalten: false,      // Finger liegt gerade auf dem Lenkfeld
+      lenkAnZeit: -1,
 
       gestartet: false,
       reaktion: null,       // Sekunden nach Grün (negativ = Frühstart)
@@ -195,11 +230,38 @@ const physik = (function () {
     return note;
   }
 
-  /** Der Fahrer tippt aufs Lenkfeld. */
-  function lenke(l, richtung) {
+  /** Der Finger geht auf das Lenkfeld und BLEIBT dort. */
+  function lenkeAn(l, richtung) {
     if (l.fertig || l.aus || !l.gestartet) return;
-    l.lenkRichtung = richtung < 0 ? -1 : 1;
-    l.lenkBis = l.t + LENK_DAUER;
+    const r = richtung < 0 ? -1 : 1;
+    if (l.lenkGehalten && l.lenkRichtung === r) return;   // liegt schon
+    l.lenkRichtung = r;
+    l.lenkGehalten = true;
+    l.lenkAnZeit = l.t;
+    l.lenkBis = -1;
+  }
+
+  /**
+   * Der Finger geht wieder herunter.
+   *
+   * ⚠️ DER MINDEST-NACHLAUF ZÄHLT AB DEM AUFSETZEN, NICHT AB DEM LOSLASSEN.
+   * Der erste Entwurf schob `lenkBis` bei jedem Bild auf „jetzt + 0,2 s" —
+   * beim Loslassen lenkte das Auto also noch zwei Zehntel weiter und schoss
+   * über die Mitte hinaus. Man musste sofort auf die andere Seite, kam wieder
+   * zu weit, und genau daraus entstand das Gefühl, die Spur sei nicht zu
+   * halten. Ein LANGER Halt hört jetzt sofort auf; nur ein kurzer Tipper
+   * wirkt seine 0,2 s zu Ende.
+   */
+  function lenkeAus(l) {
+    if (!l || !l.lenkGehalten) return;
+    l.lenkGehalten = false;
+    l.lenkBis = l.lenkAnZeit + MIN_LENK;
+  }
+
+  /** Kurzer Tipper: an und sofort wieder los — wirkt `MIN_LENK` lang. */
+  function lenke(l, richtung) {
+    lenkeAn(l, richtung);
+    lenkeAus(l);
   }
 
   /**
@@ -249,9 +311,12 @@ const physik = (function () {
     for (const z of l.zuege) {
       if (l.t >= z.zeit && l.t < z.zeit + ZUG_DAUER) zug += z.richtung * z.staerke;
     }
-    const lenk = l.t < l.lenkBis ? l.lenkRichtung : 0;
+    const lenk = (l.lenkGehalten || l.t < l.lenkBis) ? l.lenkRichtung : 0;
 
-    l.seitTempo += (zug * ZUGKRAFT + lenk * LENKKRAFT - l.versatz * RUECKSTELLUNG - l.seitTempo * DAEMPFUNG) * dt;
+    /* Wunsch-Seitentempo aus Zug, Lenken und Selbstzentrierung … */
+    const ziel = zug * ZUG_TEMPO + lenk * LENK_TEMPO - l.versatz * RUECK_TEMPO;
+    /* … dem das Auto in `ANSPRECH` Sekunden folgt. */
+    l.seitTempo += (ziel - l.seitTempo) * Math.min(1, dt / ANSPRECH);
     l.versatz += l.seitTempo * dt;
 
     /* Schräg stehende Reifen schleifen — das kostet direkt Tempo, nicht Kraft.
@@ -305,7 +370,9 @@ const physik = (function () {
       const bis = l.t + SCHRITT;
       while (eingaben && eingaben.length && eingaben[0].zeit <= bis) {
         const e = eingaben.shift();
-        if (e.art === 'lenk') lenke(l, e.richtung);
+        if (e.art === 'lenkAn') lenkeAn(l, e.richtung);
+        else if (e.art === 'lenkAus') lenkeAus(l);
+        else if (e.art === 'lenk') lenke(l, e.richtung);
         else schalte(l);
       }
       schritt(l, SCHRITT);
@@ -353,6 +420,7 @@ const physik = (function () {
     STRECKE: STRECKE,
     SCHRITT: SCHRITT,
     ZUG_DAUER: ZUG_DAUER,
+    MIN_LENK: MIN_LENK,
     WARNUNG: WARNUNG,
     saatZufall: saatZufall,
     ausbrecher: ausbrecher,
@@ -365,6 +433,8 @@ const physik = (function () {
     drehzahl: drehzahl,
     schalte: schalte,
     lenke: lenke,
+    lenkeAn: lenkeAn,
+    lenkeAus: lenkeAus,
     starte: starte,
     schritt: schritt,
     laufeBis: laufeBis,

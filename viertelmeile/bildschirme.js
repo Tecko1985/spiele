@@ -385,7 +385,7 @@ const bildschirme = (function () {
 
   function hilfe() {
     let h = '<h1>Anleitung</h1>';
-    h += '<div class="hinweis info">Handy quer halten. Linker Daumen lenkt, rechter Daumen macht alles andere.</div>';
+    h += '<div class="hinweis info">Handy quer halten. Linker Daumen lenkt — <b>gedrückt halten, nicht tippen</b>. Rechter Daumen macht alles andere.</div>';
 
     h += '<div class="karte"><h3>1. Burnout</h3>';
     h += '<p>Vor der Ampel: <b>rechts halten</b>. Ein Balken füllt sich — das sind die Reifen, die warm werden. Im <b>grünen Bereich loslassen</b>.</p>';
@@ -403,8 +403,10 @@ const bildschirme = (function () {
     h += '<p class="leise">Der Motorton steigt mit der Drehzahl. Wer auf den Ton hört, muss nicht auf den Tacho schauen.</p></div>';
 
     h += '<div class="karte"><h3>4. Spur halten</h3>';
-    h += '<p>Zwei- bis viermal pro Rennen bricht das Auto aus. Kurz vorher blinkt ein <b>Pfeil</b> — er zeigt, wohin du tippen musst.</p>';
-    h += '<p><b>Links unten tippen</b> lenkt nach links, <b>daneben</b> nach rechts. Mehrmals tippen, solange es zieht.</p>';
+    h += '<p>Zwei- bis dreimal pro Rennen zieht das Auto zur Seite. Kurz vorher blinkt ein <b>Pfeil</b> und die Fläche leuchtet auf, die du drücken sollst.</p>';
+    h += '<p class="hinweis info" style="margin:8px 0"><b>Gedrückt halten, nicht tippen.</b> Solange dein Daumen unten links liegt, lenkt das Auto. Nimmst du ihn weg, hört es sofort auf.</p>';
+    h += '<p><b>Ganz links halten</b> lenkt nach links, <b>daneben halten</b> nach rechts. Du kannst den Daumen auch von einer Hälfte in die andere schieben.</p>';
+    h += '<p class="leise">Ein Zug dauert knapp zwei Sekunden. Halte dagegen, bis das Auto wieder mittig steht — oben in der Mitte zeigt ein Punkt, wo du stehst.</p>';
     h += '<p class="leise">Spät reagiert = du wirst langsamer. Gar nicht reagiert = du berührst die Linie und hast verloren.</p>';
     h += '<p class="leise">Beide Fahrer bekommen denselben Ausbrecher zur selben Zeit. Da hat niemand Pech.</p></div>';
 
@@ -415,7 +417,8 @@ const bildschirme = (function () {
     h += '<div class="karte"><h3>Die Autos</h3>';
     for (const a of autos.LISTE) {
       h += '<div class="auto-zeile"><span class="icon">' + a.icon + '</span><div class="txt"><b>' + esc(a.name) + '</b><small>' + esc(a.kurz) + '</small>';
-      h += '<small class="leise">' + a.gaenge.length + ' Gänge · bricht ' + a.zuege[0] + ' bis ' + a.zuege[1] + ' mal aus</small></div></div>';
+      const wieOft = a.zuege[0] === a.zuege[1] ? a.zuege[0] + ' mal' : a.zuege[0] + ' bis ' + a.zuege[1] + ' mal';
+      h += '<small class="leise">' + a.gaenge.length + ' Gänge · zieht ' + wieOft + ' zur Seite</small></div></div>';
     }
     return h + '</div>';
   }

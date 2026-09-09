@@ -30,21 +30,21 @@ const bot = (function () {
       reaktion: 0.48, reaktionStreu: 0.11,
       waerme: 0.58, waermeStreu: 0.26,
       schaltZiel: 0.900, schaltStreu: 0.060,
-      lenkVerzug: 0.46, lenkTakt: 0.26, lenkAussetzer: 0.06,
+      lenkVerzug: 0.46, lenkAussetzer: 0.055,
     },
     mittel: {
       name: 'Mittel',
       reaktion: 0.33, reaktionStreu: 0.075,
       waerme: 0.86, waermeStreu: 0.15,
       schaltZiel: 0.955, schaltStreu: 0.032,
-      lenkVerzug: 0.34, lenkTakt: 0.22, lenkAussetzer: 0.015,
+      lenkVerzug: 0.34, lenkAussetzer: 0.014,
     },
     schwer: {
       name: 'Schwer',
       reaktion: 0.235, reaktionStreu: 0.045,
       waerme: 0.93, waermeStreu: 0.075,
       schaltZiel: 0.985, schaltStreu: 0.018,
-      lenkVerzug: 0.26, lenkTakt: 0.20, lenkAussetzer: 0.02,
+      lenkVerzug: 0.26, lenkAussetzer: 0.004,
     },
   };
 
@@ -70,7 +70,7 @@ const bot = (function () {
     const reaktion = Math.max(0.06, s.reaktion + streu(w, s.reaktionStreu));
     p.starte(l, reaktion);
 
-    let naechsteLenkung = -1;
+    const verpennt = Object.create(null);
     let naechsteSpur = 0;
     let wache = 0;
 
@@ -88,25 +88,46 @@ const bot = (function () {
         if (p.drehzahl(l) >= ziel) p.schalte(l);
       }
 
-      /* Gegenlenken: erst nach der eigenen Schrecksekunde, dann im Takt.
+      /* Gegenlenken: erst nach der eigenen Schrecksekunde — dann wird
+         GEHALTEN, bis das Auto wieder gerade steht.
          ⚠️ Die Schrecksekunde hält AUCH das Nachsteuern an. Ohne das griff
          der Bot schon zu, sobald sich das Auto einen Fingerbreit bewegte —
          dann war `lenkVerzug` eine Zahl ohne Wirkung und alle drei Stufen
-         lenkten gleich gut. */
+         lenkten gleich gut.
+         ⚠️ Gehalten statt getippt, seit auch der Mensch hält. Ein Bot, der
+         achtmal je Ausbrecher tippt, fährt eine Runde, die kein Daumen
+         nachmachen kann — und macht damit jede Stufenmessung wertlos. */
       let schlaeft = false;
       let zieht = 0;
       for (const z of l.zuege) {
         if (l.t >= z.zeit && l.t < z.zeit + p.ZUG_DAUER + 0.35) {
-          if (l.t < z.zeit + s.lenkVerzug) schlaeft = true; else zieht += z.richtung;
+          /* Ein Ausbrecher, den dieser Bot ganz verschläft — je Zug einmal
+             gewürfelt.
+             ⚠️ Verschlafen heißt: er rührt sich für DIESEN Zug überhaupt
+             nicht, auch nicht nach der Position. Vorher fiel er nur auf die
+             Positionskorrektur zurück und fing sich damit jedes Mal wieder —
+             kein einziger Bot ist je aus der Spur geflogen, und die drei
+             Stufen unterschieden sich nur noch in Reaktion und Schalten. */
+          if (verpennt[z.zeit] === undefined) verpennt[z.zeit] = w() < s.lenkAussetzer;
+          if (verpennt[z.zeit]) { schlaeft = true; break; }
+          if (l.t < z.zeit + s.lenkVerzug) { schlaeft = true; break; }
+          zieht += z.richtung;
         }
       }
-      if (schlaeft) continue;
-      const schief = Math.abs(l.versatz) > 0.10 ? (l.versatz > 0 ? 1 : -1) : 0;
-      const noetig = zieht !== 0 ? (zieht > 0 ? 1 : -1) : schief;
-      if (noetig !== 0 && l.t >= naechsteLenkung) {
-        naechsteLenkung = l.t + s.lenkTakt;
-        if (w() >= s.lenkAussetzer) p.lenke(l, -noetig);
-      }
+      if (schlaeft) { p.lenkeAus(l); continue; }
+
+      /* ⚠️ ERST DIE POSITION, DANN DER ZUG. Andersherum hielt der Bot stur
+         gegen den Zug — auch dann noch, wenn er längst über die Mitte hinaus
+         war. Über 1,8 Sekunden Zug schob er sich so selbst über die andere
+         Linie: gemessen flog ausgerechnet die STÄRKSTE Stufe siebenmal je
+         200 Rennen raus, die schwächste kein einziges Mal. Ein Mensch schaut
+         zuerst, wo sein Auto steht. */
+      const schief = Math.abs(l.versatz) > 0.08 ? (l.versatz > 0 ? 1 : -1) : 0;
+      let halten = 0;
+      if (schief !== 0) halten = -schief;                    // zurück zur Mitte
+      else if (zieht !== 0) halten = zieht > 0 ? -1 : 1;     // gegen den Zug halten
+      if (halten === 0) p.lenkeAus(l);
+      else p.lenkeAn(l, halten);
     }
     return l;
   }

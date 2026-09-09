@@ -152,6 +152,14 @@ function zeiger(anteilX, breite) {
   };
 }
 
+/** Der LINKE Daumen — eigene Zeigerkennung, damit beide gleichzeitig liegen. */
+function lenkZeiger(richtung) {
+  return {
+    pointerId: 2, clientX: (richtung < 0 ? 0.10 : 0.34) * 800, clientY: 300,
+    preventDefault: function () {},
+  };
+}
+
 /* --------------------------------------------------------------------------
    Ein Rennen fahren
    -------------------------------------------------------------------------- */
@@ -192,7 +200,7 @@ function fahre(fahrer, opt) {
   });
 
   const t = function () { return (welt.uhr - gruenZeit) / 1000; };
-  let haelt = false, gestartet = false, naechsteLenkung = -99, wache = 0;
+  let haelt = false, gestartet = false, lenktGerade = 0, wache = 0;
 
   while (!ergebnis && wache++ < 4000) {
     welt.einBild();
@@ -240,19 +248,33 @@ function fahre(fahrer, opt) {
       }
     }
 
-    /* Lenken */
+    /* Lenken — GEHALTEN, mit einem eigenen Finger.
+       ⚠️ Der Daumen bleibt liegen; losgelassen wird erst, wenn das Auto
+       wieder mittig steht. Genau so soll es sich anfühlen, und genau das
+       muss der Prüfstand fahren — sonst prüft er eine Bedienung, die es
+       nicht gibt. Der Lenk-Zeiger trägt eine ANDERE `pointerId` als der
+       Gas-Daumen: beide liegen oft gleichzeitig auf dem Glas. */
     if (fahrer.lenken) {
-      let zieht = 0;
-      for (const zg of l.zuege) if (l.t >= zg.zeit && l.t < zg.zeit + physik.ZUG_DAUER + 0.3) zieht += zg.richtung;
-      const schief = Math.abs(l.versatz) > 0.05 ? (l.versatz > 0 ? 1 : -1) : 0;
-      const noetig = zieht !== 0 ? (zieht > 0 ? 1 : -1) : schief;
-      if (noetig !== 0 && l.t >= naechsteLenkung) {
-        naechsteLenkung = l.t + 0.14;
-        leinwand.__feuere('pointerdown', zeiger(noetig > 0 ? 0.10 : 0.34, 800));
-        welt.window.__feuere('pointerup', zeiger(noetig > 0 ? 0.10 : 0.34, 800));
+      let zieht = 0, schlaeft = false;
+      for (const zg of l.zuege) {
+        if (l.t >= zg.zeit && l.t < zg.zeit + physik.ZUG_DAUER) {
+          if (l.t < zg.zeit + (fahrer.lenkVerzug || 0)) { schlaeft = true; break; }
+          zieht += zg.richtung;
+        }
+      }
+      let halten = 0;
+      if (schlaeft) halten = 0;
+      else if (Math.abs(l.versatz) > 0.08) halten = l.versatz > 0 ? -1 : 1;
+      else if (zieht !== 0) halten = zieht > 0 ? -1 : 1;
+
+      if (halten !== lenktGerade) {
+        if (lenktGerade !== 0) welt.window.__feuere('pointerup', lenkZeiger(lenktGerade));
+        if (halten !== 0) leinwand.__feuere('pointerdown', lenkZeiger(halten));
+        lenktGerade = halten;
       }
     }
   }
+  if (lenktGerade !== 0) welt.window.__feuere('pointerup', lenkZeiger(lenktGerade));
 
   return { ergebnis: ergebnis, gegner: gegnerErgebnis, gemeldet: gemeldet, bilder: wache, toene: welt.tonRuf };
 }
@@ -398,6 +420,7 @@ rennenMod.starte({
 {
   let wache = 0;
   let gestartet = false;
+  let lenkt = 0;
   while (!fertigErg && wache++ < 4000) {
     welt.einBild();
     const st = rennenMod.stand();
@@ -423,14 +446,17 @@ rennenMod.starte({
       }
     }
     let zieht = 0;
-    for (const zg of l.zuege) if (l.t >= zg.zeit && l.t < zg.zeit + physik.ZUG_DAUER + 0.3) zieht += zg.richtung;
-    const schief = Math.abs(l.versatz) > 0.05 ? (l.versatz > 0 ? 1 : -1) : 0;
-    const noetig = zieht !== 0 ? (zieht > 0 ? 1 : -1) : schief;
-    if (noetig !== 0) {
-      leinwand.__feuere('pointerdown', zeiger(noetig > 0 ? 0.10 : 0.34, 800));
-      welt.window.__feuere('pointerup', zeiger(noetig > 0 ? 0.10 : 0.34, 800));
+    for (const zg of l.zuege) if (l.t >= zg.zeit && l.t < zg.zeit + physik.ZUG_DAUER) zieht += zg.richtung;
+    let halten = 0;
+    if (Math.abs(l.versatz) > 0.08) halten = l.versatz > 0 ? -1 : 1;
+    else if (zieht !== 0) halten = zieht > 0 ? -1 : 1;
+    if (halten !== lenkt) {
+      if (lenkt !== 0) welt.window.__feuere('pointerup', lenkZeiger(lenkt));
+      if (halten !== 0) leinwand.__feuere('pointerdown', lenkZeiger(halten));
+      lenkt = halten;
     }
   }
+  if (lenkt !== 0) welt.window.__feuere('pointerup', lenkZeiger(lenkt));
 }
 pruefe('gegen einen Gegner über das Netz kommt ein Ergebnis heraus', !!fertigErg && typeof fertigErg.gesamt === 'number', z3(fertigErg && fertigErg.gesamt) + ' s');
 pruefe('der eigene Stand wird regelmäßig gemeldet', meldungen.length > 60, meldungen.length + ' Meldungen');
@@ -466,7 +492,7 @@ console.log('\n=== 9. Zwei Rennen hintereinander ===\n');
       aufPosition: null,
       fertig: function (e) { erg = e; },
     });
-    let wache = 0, gestartet = false, naechste = -99;
+    let wache = 0, gestartet = false, lenkt = 0;
     while (!erg && wache++ < 4000) {
       w.einBild();
       const st = rm.stand();
@@ -490,15 +516,17 @@ console.log('\n=== 9. Zwei Rennen hintereinander ===\n');
         }
       }
       let zieht = 0;
-      for (const zg of l.zuege) if (l.t >= zg.zeit && l.t < zg.zeit + physik.ZUG_DAUER + 0.3) zieht += zg.richtung;
-      const schief = Math.abs(l.versatz) > 0.05 ? (l.versatz > 0 ? 1 : -1) : 0;
-      const noetig = zieht !== 0 ? (zieht > 0 ? 1 : -1) : schief;
-      if (noetig !== 0 && l.t >= naechste) {
-        naechste = l.t + 0.14;
-        lw.__feuere('pointerdown', zeiger(noetig > 0 ? 0.10 : 0.34, 800));
-        w.window.__feuere('pointerup', zeiger(noetig > 0 ? 0.10 : 0.34, 800));
+      for (const zg of l.zuege) if (l.t >= zg.zeit && l.t < zg.zeit + physik.ZUG_DAUER) zieht += zg.richtung;
+      let halten = 0;
+      if (Math.abs(l.versatz) > 0.08) halten = l.versatz > 0 ? -1 : 1;
+      else if (zieht !== 0) halten = zieht > 0 ? -1 : 1;
+      if (halten !== lenkt) {
+        if (lenkt !== 0) w.window.__feuere('pointerup', lenkZeiger(lenkt));
+        if (halten !== 0) lw.__feuere('pointerdown', lenkZeiger(halten));
+        lenkt = halten;
       }
     }
+    if (lenkt !== 0) { w.window.__feuere('pointerup', lenkZeiger(lenkt)); lenkt = 0; }
     zeiten.push(erg ? erg.gesamt : null);
   }
   console.log('  Lauf 1: ' + z3(zeiten[0]) + ' s   Lauf 2: ' + z3(zeiten[1]) + ' s');

@@ -29,7 +29,7 @@ const autos = (function () {
       fensterBreit: 0.17,
       fensterSchritt: 0.020,
       fensterEng: 0.090,
-      zuege: [2, 3],
+      zuege: [2, 2],
       luft: 1.25,
     },
     {
@@ -45,7 +45,7 @@ const autos = (function () {
       fensterBreit: 0.135,
       fensterSchritt: 0.025,
       fensterEng: 0.070,
-      zuege: [3, 4],
+      zuege: [2, 3],
       luft: 1.00,
     },
     {
@@ -62,7 +62,7 @@ const autos = (function () {
       fensterBreit: 0.095,
       fensterSchritt: 0.018,
       fensterEng: 0.048,
-      zuege: [2, 4],
+      zuege: [2, 3],
       luft: 0.80,
     },
   ];

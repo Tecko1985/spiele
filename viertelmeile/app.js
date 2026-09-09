@@ -30,7 +30,8 @@ const FUNKTIONEN = [
       'Burnout: vor der Ampel den rechten Daumen halten und im grünen Bereich loslassen — dann greifen die Reifen beim Start.',
       'Start: drei gelbe Lichter im festen Takt, dann grün. Die Reaktionszeit zählt voll zur Endzeit; wer vor Grün tippt, hat verloren.',
       'Schalten: den grünen Bereich am Tacho treffen. Er wird mit jedem Gang schmaler, ein ganz knapper Treffer gibt einen kleinen Schub.',
-      'Spur halten: zwei- bis viermal je Rennen bricht das Auto aus, ein Pfeil warnt vorher. Wer gar nicht gegenhält, berührt die Linie und verliert.',
+      'Spur halten: zwei- bis dreimal je Rennen zieht das Auto zur Seite, ein Pfeil warnt vorher und die richtige Fläche leuchtet auf.',
+      'Gelenkt wird durch Halten, nicht durch Tippen: Daumen unten links auflegen und liegen lassen, bis das Auto wieder mittig steht. Wer gar nicht gegenhält, berührt die Linie und verliert.',
     ],
   },
   {
@@ -73,6 +74,22 @@ const FUNKTIONEN = [
 ];
 
 const CHANGELOG = [
+  {
+    version: '1.1',
+    groups: [
+      {
+        title: 'Das Lenken ist von Grund auf neu',
+        items: [
+          'Gelenkt wird jetzt durch Halten statt durch Tippen. Der Daumen bleibt unten links liegen, solange das Auto zur Seite zieht — vorher musste man fünfmal je Ausbrecher auf ein schmales Feld hämmern, und zwar während man gleichzeitig den Tacho im Blick behalten sollte. So war die Spur nicht zu halten.',
+          'Das Auto reagiert außerdem anders: Halten bewegt es direkt zurück und Loslassen stoppt es sofort. Vorher wurde es beschleunigt, schoss über die Mitte hinaus und man musste sofort auf die andere Seite gegensteuern.',
+          'Ein Ausbrecher zieht dafür fast doppelt so lang, aber nur halb so schnell. Wer gar nicht reagiert, landet weiterhin an der Linie — man hat jetzt aber Zeit, in Ruhe dagegenzuhalten.',
+          'Der Warnpfeil kommt früher, und die Fläche, die gedrückt werden soll, leuchtet mit auf.',
+          'Der Daumen darf während des Haltens von einer Lenkhälfte in die andere rutschen.',
+          'Spät zu reagieren kostet weiterhin Zeit, und zwar spürbar: gemessen rund zwei Zehntel bei einer halben Sekunde Verzug und eine halbe Sekunde bei sieben Zehnteln.',
+        ],
+      },
+    ],
+  },
   {
     version: '1.0',
     groups: [

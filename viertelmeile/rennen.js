@@ -6,7 +6,8 @@
    hier ist nur Bild und Bedienung.
 
    BEDIENUNG, QUER GEHALTEN:
-     linke Bildhälfte  = lenken (links tippen = nach links, rechts = rechts)
+     linke Bildhälfte  = lenken. GEDRÜCKT HALTEN, nicht tippen: links halten
+                         zieht nach links, daneben halten nach rechts.
      rechte Bildhälfte = Burnout halten, bei Grün losfahren, dann schalten
 
    ⚠️ JEDER TIPPER BRINGT SEINE ZEIT MIT. Er wird nicht beim nächsten Bild
@@ -98,6 +99,7 @@ const rennen = (function () {
       raf: null,
       abgebrochen: false,
       nummer: ++laufNummer,
+      lenkRichtungJetzt: 0,
     };
 
     /* Der Bot wird komplett vorausgerechnet — sein ganzer Lauf steht schon
@@ -142,9 +144,17 @@ const rennen = (function () {
      Tipper
      ---------------------------------------------------------------------- */
 
-  let anGedrueckt = null;
+  /* ⚠️ ZWEI FINGER, ZWEI ZEIGER. Links wird GEHALTEN (lenken), rechts wird
+     gehalten (Burnout) und getippt (Start, Schalten) — oft gleichzeitig.
+     Deshalb wird je Aufgabe die `pointerId` gemerkt; ein einzelner Merker
+     hätte den Daumen, der gerade schaltet, als „Lenken losgelassen"
+     verbucht. */
+  let gasZeiger = null;
+  let lenkZeiger = null;
 
   function zone(x) { return x < z.breite * 0.45 ? (x < z.breite * 0.225 ? 'links' : 'rechts') : 'gas'; }
+
+  function zeigerId(e) { return e.pointerId === undefined ? 1 : e.pointerId; }
 
   function beiRunter(e) {
     if (!z || z.beendet) return;
@@ -156,7 +166,7 @@ const rennen = (function () {
     const zn = zone(x);
 
     if (zn === 'gas') {
-      anGedrueckt = e.pointerId === undefined ? 1 : e.pointerId;
+      gasZeiger = zeigerId(e);
       /* Burnout: halten, im grünen Bereich loslassen. */
       if (!z.burnoutFertig && t >= z.plan.burnoutVon && t < z.plan.burnoutBis) { z.haelt = true; return; }
       if (!z.lauf) return;
@@ -176,14 +186,21 @@ const rennen = (function () {
       return;
     }
     if (!z.lauf || !z.lauf.gestartet) return;
-    z.eingaben.push({ zeit: t, art: 'lenk', richtung: zn === 'links' ? -1 : 1 });
+    lenkZeiger = zeigerId(e);
+    z.lenkRichtungJetzt = zn === 'links' ? -1 : 1;
+    z.eingaben.push({ zeit: t, art: 'lenkAn', richtung: z.lenkRichtungJetzt });
     ton.vibriere(14);
   }
 
   function beiHoch(e) {
     if (!z) return;
-    if (anGedrueckt !== null && e.pointerId !== undefined && e.pointerId !== anGedrueckt) return;
-    anGedrueckt = null;
+    const id = zeigerId(e);
+    if (lenkZeiger !== null && id === lenkZeiger) {
+      lenkZeiger = null;
+      z.eingaben.push({ zeit: tRel(), art: 'lenkAus' });
+    }
+    if (gasZeiger !== null && id !== gasZeiger) return;
+    gasZeiger = null;
     if (z.haelt) { z.haelt = false; z.burnoutFertig = true; ton.quietschenAus(); zeigeBurnoutNote(); }
   }
 
@@ -195,10 +212,29 @@ const rennen = (function () {
     else if (note === 'verbrannt') melde('REIFEN VERBRANNT', 'schlecht');
   }
 
+  /** Der Daumen rutscht von einer Lenkhälfte in die andere. */
+  function beiZug(e) {
+    if (!z || z.beendet || lenkZeiger === null) return;
+    if (zeigerId(e) !== lenkZeiger) return;
+    const rect = z.canvas.getBoundingClientRect();
+    const zn = zone((e.clientX !== undefined ? e.clientX : 0) - rect.left);
+    const t = tRel();
+    if (zn === 'gas') {
+      lenkZeiger = null;
+      z.eingaben.push({ zeit: t, art: 'lenkAus' });
+      return;
+    }
+    const richtung = zn === 'links' ? -1 : 1;
+    if (z.lenkRichtungJetzt === richtung) return;
+    z.lenkRichtungJetzt = richtung;
+    z.eingaben.push({ zeit: t, art: 'lenkAn', richtung: richtung });
+  }
+
   function haengeTipperAn() {
     const c = z.canvas;
     c.style.touchAction = 'none';
     c.addEventListener('pointerdown', beiRunter);
+    window.addEventListener('pointermove', beiZug);
     window.addEventListener('pointerup', beiHoch);
     window.addEventListener('pointercancel', beiHoch);
   }
@@ -206,8 +242,11 @@ const rennen = (function () {
   function loeseTipper() {
     if (!z) return;
     z.canvas.removeEventListener('pointerdown', beiRunter);
+    window.removeEventListener('pointermove', beiZug);
     window.removeEventListener('pointerup', beiHoch);
     window.removeEventListener('pointercancel', beiHoch);
+    gasZeiger = null;
+    lenkZeiger = null;
   }
 
   function melde(text, art) {
@@ -951,9 +990,13 @@ const rennen = (function () {
       g.fillStyle = FARBEN.leise;
       g.font = '700 13px -apple-system, "Segoe UI", Roboto, sans-serif';
       g.textAlign = 'center';
-      g.fillText('◀ LINKS', b * 0.11, h - 14);
-      g.fillText('RECHTS ▶', b * 0.34, h - 14);
-      g.fillText(z.lauf && z.lauf.gestartet ? 'SCHALTEN' : 'GAS', b * 0.72, h - 14);
+      g.fillText('◀ LINKS', b * 0.11, h - 28);
+      g.fillText('RECHTS ▶', b * 0.34, h - 28);
+      g.fillText(z.lauf && z.lauf.gestartet ? 'SCHALTEN' : 'GAS', b * 0.72, h - 28);
+      /* Der wichtigste Satz des ganzen Spiels — deshalb steht er im Bild. */
+      g.font = '600 11px -apple-system, "Segoe UI", Roboto, sans-serif';
+      g.fillText('gedrückt halten', b * 0.225, h - 12);
+      g.fillText('tippen', b * 0.72, h - 12);
       g.textAlign = 'left';
     }
     g.restore();

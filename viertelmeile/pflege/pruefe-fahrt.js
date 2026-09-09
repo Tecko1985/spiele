@@ -41,23 +41,78 @@ function z3(x) { return x === null || x === undefined ? '—' : x.toFixed(3); }
    genau an der Grenze, jeder Ausbrecher sofort gehalten.
    -------------------------------------------------------------------------- */
 
+/**
+ * Ein Mensch am Lenkfeld — der Baustein, den alle Prüf-Fahrten benutzen.
+ *
+ * ⚠️ ER HÄLT, ER HÄMMERT NICHT. Der erste Prüfstand tippte alle 0,15 s aufs
+ * Lenkfeld, also acht Mal je Ausbrecher. Damit sah das Spiel in jeder Messung
+ * gut aus — und war mit einem echten Daumen nicht zu fahren. Michel nach der
+ * ersten Fahrt: „das Auto in der Spur halten ist unmöglich". Der Fahrer hier
+ * bildet nach, was ein Mensch wirklich tut: hinsehen, halten, loslassen,
+ * wenn es wieder gerade steht — und das alles mit Verzögerung.
+ *
+ * `opt.verzug` = Schrecksekunde, bis er einen Ausbrecher überhaupt bemerkt.
+ * `opt.blick`  = wie oft er die Lage neu einschätzt (nicht jedes Bild!).
+ * `opt.plan`   = wenn gesetzt, werden die Tipper mit Zeit aufgezeichnet.
+ * `opt.nie`    = true: er lenkt gar nicht.
+ */
+const TOTZONE = 0.08;
+
+function lenkeWieEinMensch(l, opt) {
+  if (opt.nie) return;
+  if (l.t - opt._blickAb < opt.blick) {
+    /* Zwischen zwei Blicken bleibt der Daumen einfach liegen. */
+    return;
+  }
+  opt._blickAb = l.t;
+
+  let zieht = 0, schlaeft = false;
+  for (const zg of l.zuege) {
+    if (l.t >= zg.zeit && l.t < zg.zeit + physik.ZUG_DAUER) {
+      if (l.t < zg.zeit + opt.verzug) { schlaeft = true; break; }
+      zieht += zg.richtung;
+    }
+  }
+
+  let halten = 0;
+  if (schlaeft) halten = 0;
+  else if (Math.abs(l.versatz) > TOTZONE) halten = l.versatz > 0 ? -1 : 1;   // zurück zur Mitte
+  else if (zieht !== 0) halten = zieht > 0 ? -1 : 1;                          // gegen den Zug
+  if (halten === opt._haelt) return;                                          // nichts Neues
+  opt._haelt = halten;
+
+  if (halten === 0) {
+    physik.lenkeAus(l);
+    if (opt.plan) opt.plan.push({ zeit: l.t, art: 'lenkAus' });
+  } else {
+    physik.lenkeAn(l, halten);
+    if (opt.plan) opt.plan.push({ zeit: l.t, art: 'lenkAn', richtung: halten });
+  }
+}
+
+function neuerFahrer(zusatz) {
+  return Object.assign({ verzug: 0.30, blick: 0.18, plan: null, nie: false, _blickAb: -9, _haelt: 0 }, zusatz || {});
+}
+
+/** Schalten am oberen Rand des grünen Fensters. */
+function schalteWennOben(l, auto, plan) {
+  if (l.gang >= auto.gaenge.length - 1 || l.t < l.leerlaufBis) return;
+  const f = physik.fenster(auto, l.gang);
+  if (physik.drehzahl(l) < (f.perfektAb + 1.0) / 2) return;
+  if (plan) plan.push({ zeit: l.t, art: 'schalt' });
+  physik.schalte(l);
+}
+
 function perfekteFahrt(auto, saat) {
   const l = physik.neuerLauf(auto, saat, 0.95);
   physik.starte(l, 0.180);
-  let naechste = -1;
+  const fahrer = neuerFahrer({ verzug: 0.20, blick: 0.12 });
   let wache = 0;
   while (!l.fertig && !l.aus && wache++ < 20000) {
     physik.schritt(l, physik.SCHRITT);
     if (l.fertig || l.aus) break;
-    if (l.gang < auto.gaenge.length - 1 && l.t >= l.leerlaufBis) {
-      const f = physik.fenster(auto, l.gang);
-      if (physik.drehzahl(l) >= (f.perfektAb + 1.0) / 2) physik.schalte(l);
-    }
-    let zieht = 0;
-    for (const zg of l.zuege) if (l.t >= zg.zeit && l.t < zg.zeit + physik.ZUG_DAUER + 0.3) zieht += zg.richtung;
-    const schief = Math.abs(l.versatz) > 0.05 ? (l.versatz > 0 ? 1 : -1) : 0;
-    const noetig = zieht !== 0 ? (zieht > 0 ? 1 : -1) : schief;
-    if (noetig !== 0 && l.t >= naechste) { naechste = l.t + 0.15; physik.lenke(l, -noetig); }
+    schalteWennOben(l, auto, null);
+    lenkeWieEinMensch(l, fahrer);
   }
   return l;
 }
@@ -175,23 +230,13 @@ function fahrplanAufnehmen(a, saat) {
   const l = physik.neuerLauf(a, saat, 0.95);
   physik.starte(l, 0.180);
   const plan = [];
-  let naechste = -1, wache = 0;
+  const fahrer = neuerFahrer({ verzug: 0.20, blick: 0.12, plan: plan });
+  let wache = 0;
   while (!l.fertig && !l.aus && wache++ < 20000) {
     physik.schritt(l, physik.SCHRITT);
     if (l.fertig || l.aus) break;
-    if (l.gang < a.gaenge.length - 1 && l.t >= l.leerlaufBis) {
-      const f = physik.fenster(a, l.gang);
-      if (physik.drehzahl(l) >= (f.perfektAb + 1.0) / 2) { plan.push({ zeit: l.t, art: 'schalt' }); physik.schalte(l); }
-    }
-    let zieht = 0;
-    for (const zg of l.zuege) if (l.t >= zg.zeit && l.t < zg.zeit + physik.ZUG_DAUER + 0.3) zieht += zg.richtung;
-    const schief = Math.abs(l.versatz) > 0.05 ? (l.versatz > 0 ? 1 : -1) : 0;
-    const noetig = zieht !== 0 ? (zieht > 0 ? 1 : -1) : schief;
-    if (noetig !== 0 && l.t >= naechste) {
-      naechste = l.t + 0.15;
-      plan.push({ zeit: l.t, art: 'lenk', richtung: -noetig });
-      physik.lenke(l, -noetig);
-    }
+    schalteWennOben(l, a, plan);
+    lenkeWieEinMensch(l, fahrer);
   }
   return plan;
 }
@@ -323,20 +368,14 @@ const mitBurnout = perfekteFahrt(autos.nachId('muscle'), 12345);
 const l2 = physik.neuerLauf(autos.nachId('muscle'), 12345, 0.10);
 physik.starte(l2, 0.180);
 {
-  let naechste = -1, wache = 0;
+  let wache = 0;
   const a2 = autos.nachId('muscle');
+  const fahrer2 = neuerFahrer({ verzug: 0.20, blick: 0.12 });
   while (!l2.fertig && !l2.aus && wache++ < 20000) {
     physik.schritt(l2, physik.SCHRITT);
     if (l2.fertig || l2.aus) break;
-    if (l2.gang < a2.gaenge.length - 1 && l2.t >= l2.leerlaufBis) {
-      const f = physik.fenster(a2, l2.gang);
-      if (physik.drehzahl(l2) >= (f.perfektAb + 1.0) / 2) physik.schalte(l2);
-    }
-    let zieht = 0;
-    for (const zg of l2.zuege) if (l2.t >= zg.zeit && l2.t < zg.zeit + physik.ZUG_DAUER + 0.3) zieht += zg.richtung;
-    const schief = Math.abs(l2.versatz) > 0.05 ? (l2.versatz > 0 ? 1 : -1) : 0;
-    const noetig = zieht !== 0 ? (zieht > 0 ? 1 : -1) : schief;
-    if (noetig !== 0 && l2.t >= naechste) { naechste = l2.t + 0.15; physik.lenke(l2, -noetig); }
+    schalteWennOben(l2, a2, null);
+    lenkeWieEinMensch(l2, fahrer2);
   }
 }
 const abstand = physik.gesamtzeit(l2) - physik.gesamtzeit(mitBurnout);
@@ -355,7 +394,16 @@ function fahrtMit(opt) {
   const a = autos.nachId('muscle');
   const l = physik.neuerLauf(a, 4242, opt.waerme === undefined ? 0.95 : opt.waerme);
   physik.starte(l, opt.reaktion === undefined ? 0.180 : opt.reaktion);
-  let naechste = -1, wache = 0;
+  /* ⚠️ Die Schrecksekunde hält AUCH das Nachsteuern an — sonst reagiert der
+     „träge" Fahrer in Wahrheit sofort, sobald sich das Auto einen Fingerbreit
+     bewegt, und ein später Griff kostet nichts. Das steckt in
+     `lenkeWieEinMensch`. */
+  const fahrer = neuerFahrer({
+    verzug: opt.lenkVerzug === null ? 0 : (opt.lenkVerzug || 0.20),
+    blick: opt.lenkBlick || 0.18,
+    nie: opt.lenkVerzug === null,
+  });
+  let wache = 0;
   while (!l.fertig && !l.aus && wache++ < 20000) {
     physik.schritt(l, physik.SCHRITT);
     if (l.fertig || l.aus) break;
@@ -364,31 +412,15 @@ function fahrtMit(opt) {
       const ziel = opt.schaltZiel === undefined ? (f.perfektAb + 1.0) / 2 : opt.schaltZiel;
       if (physik.drehzahl(l) >= ziel) physik.schalte(l);
     }
-    if (opt.lenkVerzug === null) continue;             // gar nicht lenken
-    const verzug = opt.lenkVerzug || 0;
-    /* ⚠️ Die Schrecksekunde muss AUCH das Nachsteuern anhalten. Der erste
-       Entwurf ließ den Fahrer weiter nach dem eigenen Schiefstand greifen —
-       damit reagierte der „träge" Fahrer in Wahrheit sofort, sobald sich das
-       Auto einen Fingerbreit bewegte, und ein später Griff kostete nichts.
-       Gemessen wurde also nichts. */
-    let schlaeft = false, zieht = 0;
-    for (const zg of l.zuege) {
-      if (l.t >= zg.zeit && l.t < zg.zeit + physik.ZUG_DAUER + 0.4) {
-        if (l.t < zg.zeit + verzug) schlaeft = true; else zieht += zg.richtung;
-      }
-    }
-    if (schlaeft) continue;
-    const schief = Math.abs(l.versatz) > 0.05 ? (l.versatz > 0 ? 1 : -1) : 0;
-    const noetig = zieht !== 0 ? (zieht > 0 ? 1 : -1) : schief;
-    if (noetig !== 0 && l.t >= naechste) { naechste = l.t + 0.15; physik.lenke(l, -noetig); }
+    lenkeWieEinMensch(l, fahrer);
   }
   return l;
 }
 
 const makellos = fahrtMit({});
-const spaetGelenkt = fahrtMit({ lenkVerzug: 0.55 });
+const spaetGelenkt = fahrtMit({ lenkVerzug: 0.85, lenkBlick: 0.30 });
 const nieGelenkt = fahrtMit({ lenkVerzug: null });
-const vielZuSpaet = fahrtMit({ lenkVerzug: 0.95 });
+const vielZuSpaet = fahrtMit({ lenkVerzug: 1.70, lenkBlick: 0.32 });
 const zuFrueh = fahrtMit({ schaltZiel: 0.80 });
 const ueberdreht = fahrtMit({ schaltZiel: 1.06 });
 const traegerFuss = fahrtMit({ reaktion: 0.500 });
@@ -402,13 +434,96 @@ console.log('  zu früh geschaltet       + ' + z3(kosten(zuFrueh)) + ' s   (' + 
 console.log('  überdreht                + ' + z3(kosten(ueberdreht)) + ' s   (' + ueberdreht.noten.ueberdreht + ' mal im Begrenzer)');
 console.log('  träge am Grün (0,500 s)  + ' + z3(kosten(traegerFuss)) + ' s');
 
-pruefe('spätes Gegenlenken kostet Zeit, wirft aber nicht raus', !spaetGelenkt.aus && kosten(spaetGelenkt) > 0.15, z3(kosten(spaetGelenkt)) + ' s');
-pruefe('wer fast eine Sekunde schläft, fliegt raus', vielZuSpaet.aus === true);
+pruefe('spätes Gegenlenken kostet Zeit, wirft aber nicht raus', !spaetGelenkt.aus && kosten(spaetGelenkt) > 0.10, z3(kosten(spaetGelenkt)) + ' s');
+pruefe('wer den halben Zug verschläft, fliegt raus', vielZuSpaet.aus === true);
 pruefe('gar nicht lenken fliegt raus', nieGelenkt.aus === true);
 pruefe('zu früh schalten kostet Zeit', kosten(zuFrueh) > 0.15, z3(kosten(zuFrueh)) + ' s');
 pruefe('überdrehen kostet Zeit', kosten(ueberdreht) > 0.10, z3(kosten(ueberdreht)) + ' s');
 pruefe('die Reaktion geht 1:1 in die Gesamtzeit', Math.abs(kosten(traegerFuss) - 0.320) < 0.02, z3(kosten(traegerFuss)) + ' s statt 0.320');
 pruefe('perfekt schalten ist besser als nur gut', makellos.noten.perfekt > 0 && kosten(zuFrueh) > 0);
+
+/* --------------------------------------------------------------------------
+   9. Halten reicht — Hämmern darf NIE nötig sein
+   -------------------------------------------------------------------------- */
+
+console.log('\n=== 9. Ein Finger, der liegen bleibt ===\n');
+
+/* ⚠️ DIE PRÜFUNG, DIE ES VORHER NICHT GAB. Die erste Fassung ließ einen
+   Tipper 0,30 s wirken, ein Ausbrecher dauerte 1,25 s — man musste fünfmal
+   hämmern. Jede Messung war grün, weil der Prüf-Fahrer achtmal je Ausbrecher
+   tippte. Michel nach dem ersten Fahren: „das Auto in der Spur halten ist
+   unmöglich." Diese Prüfung fährt mit EINEM Griff je Ausbrecher. */
+
+function haltenNurEinmal(auto, saat, verzug) {
+  const l = physik.neuerLauf(auto, saat, 0.95);
+  physik.starte(l, 0.180);
+  let wache = 0, haelt = 0, maxV = 0;
+  while (!l.fertig && !l.aus && wache++ < 20000) {
+    physik.schritt(l, physik.SCHRITT);
+    if (l.fertig || l.aus) break;
+    maxV = Math.max(maxV, Math.abs(l.versatz));
+    schalteWennOben(l, auto, null);
+
+    /* Genau ein Griff je Ausbrecher: aufsetzen, liegen lassen, am Ende des
+       Zuges wieder loslassen. Kein einziges Nachfassen. */
+    let soll = 0;
+    for (const zg of l.zuege) {
+      if (l.t >= zg.zeit + verzug && l.t < zg.zeit + physik.ZUG_DAUER) soll = zg.richtung > 0 ? -1 : 1;
+    }
+    if (soll !== haelt) {
+      haelt = soll;
+      if (soll === 0) physik.lenkeAus(l); else physik.lenkeAn(l, soll);
+    }
+  }
+  return { lauf: l, maxV: maxV };
+}
+
+let einGriffRaus = 0, einGriffMax = 0;
+for (const a of autos.LISTE) {
+  for (let saat = 1; saat <= 60; saat++) {
+    const r = haltenNurEinmal(a, saat * 7919, 0.35);
+    if (r.lauf.aus) einGriffRaus++;
+    einGriffMax = Math.max(einGriffMax, r.maxV);
+  }
+}
+pruefe('EIN Griff je Ausbrecher reicht — kein einziges Rennen verloren', einGriffRaus === 0, einGriffRaus + ' von 180');
+/* ⚠️ 0,80 statt 0,60 — und das ist eine Aussage, kein Nachgeben. Wer den
+   Finger stur den GANZEN Zug über liegen lässt, schiebt das Auto hinter der
+   Mitte noch weiter und landet auf der anderen Seite bei rund 0,7. Das ist
+   die grobe Bedienung: sie reicht immer, kostet aber Zeit. Wer loslässt,
+   sobald das Auto gerade steht, bleibt unter 0,35 — dieselbe Physik. */
+pruefe('und das Auto bleibt dabei von der Linie weg', einGriffMax < 0.80, 'größter Ausschlag ' + einGriffMax.toFixed(2));
+
+/* Gegenprobe: Das Halten muss auch WIRKEN — ein Lauf ganz ohne Griff fliegt
+   raus. Sonst wäre die Zusage oben nur die Aussage, dass nichts passiert. */
+let ohneGriffRaus = 0;
+for (const a of autos.LISTE) {
+  for (let saat = 1; saat <= 60; saat++) {
+    const l = physik.neuerLauf(a, saat * 7919, 0.95);
+    physik.starte(l, 0.180);
+    let wache = 0;
+    while (!l.fertig && !l.aus && wache++ < 20000) {
+      physik.schritt(l, physik.SCHRITT);
+      schalteWennOben(l, a, null);
+    }
+    if (l.aus) ohneGriffRaus++;
+  }
+}
+pruefe('ohne jeden Griff fliegt jedes Rennen raus', ohneGriffRaus === 180, ohneGriffRaus + ' von 180');
+
+/* Ein kurzer Tipper muss trotzdem etwas bewirken — sonst wäre der Wechsel
+   auf „halten" eine Falle für alle, die noch tippen. */
+{
+  const a = autos.nachId('muscle');
+  const l = physik.neuerLauf(a, 4242, 0.95);
+  physik.starte(l, 0.180);
+  for (let i = 0; i < 60; i++) physik.schritt(l, physik.SCHRITT);   // 0,5 s rollen
+  const vorher = l.versatz;
+  physik.lenke(l, 1);                                               // ein kurzer Tipper
+  for (let i = 0; i < 30; i++) physik.schritt(l, physik.SCHRITT);    // 0,25 s später
+  pruefe('ein kurzer Tipper bewegt das Auto trotzdem', l.versatz - vorher > 0.05,
+    'Versatz ' + vorher.toFixed(3) + ' -> ' + l.versatz.toFixed(3));
+}
 
 /* --------------------------------------------------------------------------
    Ergebnis
